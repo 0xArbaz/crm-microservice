@@ -95,7 +95,7 @@ export default function DashboardPage() {
       <div className="space-y-6">
         {/* Page Header */}
         <div>
-          <h1 className="text-2xl font-bold text-gray-900"> tet Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500">Welcome back! Here is your CRM overview.</p>
         </div>
 
@@ -150,7 +150,7 @@ export default function DashboardPage() {
                   <div className="w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-300"></div>
                 </div>
                 <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg">
-                  <span className="font-medium">Leads teeet</span>
+                  <span className="font-medium">Leads</span>
                   <span className="text-2xl font-bold text-purple-600">
                     {stats?.funnel.leads || 0}
                   </span>
