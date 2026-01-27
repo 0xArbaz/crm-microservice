@@ -46,6 +46,31 @@ export interface PreLead {
   converted_at?: string;
   created_at: string;
   updated_at?: string;
+  // New fields
+  address_line1?: string;
+  address_line2?: string;
+  city_id?: number;
+  zip_code?: string;
+  country_id?: number;
+  state_id?: number;
+  phone_no?: string;
+  fax?: string;
+  nof_representative?: string;
+  memo?: string;
+  group_id?: number;
+  lead_status?: string;
+  industry_id?: number;
+  region_id?: number;
+  office_timings?: string;
+  timezone?: string;
+  lead_source?: string;
+  sales_rep?: number;
+  lead_since?: string;
+  remarks?: string;
+  lead_score?: string;
+  company_id?: number;
+  createdby?: number;
+  updatedby?: number;
 }
 
 // Lead Types

@@ -28,7 +28,26 @@ def create_pre_lead(
     if not check_permission(current_user.role, "pre_leads", "create"):
         raise HTTPException(status_code=403, detail="Permission denied")
 
-    pre_lead = PreLead(**pre_lead_data.model_dump())
+    # Convert to dict and handle special fields
+    data = pre_lead_data.model_dump(exclude={'from_timings', 'to_timings'})
+
+    # Combine office timings from from_timings and to_timings
+    from_timings = pre_lead_data.from_timings
+    to_timings = pre_lead_data.to_timings
+    if from_timings and to_timings:
+        data['office_timings'] = f"{from_timings} - {to_timings}"
+    elif from_timings:
+        data['office_timings'] = from_timings
+    elif to_timings:
+        data['office_timings'] = to_timings
+
+    # Auto-assign system fields
+    data['createdby'] = current_user.id
+    data['updatedby'] = current_user.id
+    if not data.get('company_id'):
+        data['company_id'] = 1  # Default company
+
+    pre_lead = PreLead(**data)
     db.add(pre_lead)
     db.commit()
     db.refresh(pre_lead)
@@ -128,7 +147,24 @@ def update_pre_lead(
     if pre_lead.is_converted:
         raise HTTPException(status_code=400, detail="Cannot update converted pre-lead")
 
-    for field, value in pre_lead_data.model_dump(exclude_unset=True).items():
+    # Get update data excluding timing fields
+    update_data = pre_lead_data.model_dump(exclude_unset=True, exclude={'from_timings', 'to_timings'})
+
+    # Combine office timings if provided
+    from_timings = pre_lead_data.from_timings
+    to_timings = pre_lead_data.to_timings
+    if from_timings is not None or to_timings is not None:
+        if from_timings and to_timings:
+            update_data['office_timings'] = f"{from_timings} - {to_timings}"
+        elif from_timings:
+            update_data['office_timings'] = from_timings
+        elif to_timings:
+            update_data['office_timings'] = to_timings
+
+    # Auto-assign updatedby
+    update_data['updatedby'] = current_user.id
+
+    for field, value in update_data.items():
         setattr(pre_lead, field, value)
 
     db.commit()

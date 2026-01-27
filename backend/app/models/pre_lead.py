@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Enum, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Text, DateTime, Enum, ForeignKey, Boolean, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -33,8 +33,8 @@ class PreLead(Base):
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=True)
     email = Column(String(255), nullable=True, index=True)
-    phone = Column(String(20), nullable=True, index=True)
-    alternate_phone = Column(String(20), nullable=True)
+    phone = Column(String(50), nullable=True, index=True)
+    alternate_phone = Column(String(50), nullable=True)
 
     # Company Information
     company_name = Column(String(255), nullable=True)
@@ -43,7 +43,7 @@ class PreLead(Base):
 
     # Lead Details
     source = Column(Enum(PreLeadSource), default=PreLeadSource.WEBSITE, nullable=False)
-    source_details = Column(String(255), nullable=True)  # Campaign name, referrer name, etc.
+    source_details = Column(String(255), nullable=True)
     status = Column(Enum(PreLeadStatus), default=PreLeadStatus.NEW, nullable=False)
 
     # Interest & Requirements
@@ -71,6 +71,38 @@ class PreLead(Base):
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # New Fields - Address Details
+    address_line1 = Column(String(255), nullable=True)
+    address_line2 = Column(String(255), nullable=True)
+    city_id = Column(Integer, nullable=True)
+    zip_code = Column(String(20), nullable=True)
+    country_id = Column(Integer, nullable=True)
+    state_id = Column(Integer, nullable=True)
+
+    # New Fields - Contact Details
+    phone_no = Column(String(50), nullable=True)
+    fax = Column(String(50), nullable=True)
+    nof_representative = Column(String(255), nullable=True)
+    memo = Column(Text, nullable=True)
+
+    # New Fields - Business Details
+    group_id = Column(Integer, nullable=True)
+    lead_status = Column(String(50), nullable=True)
+    industry_id = Column(Integer, nullable=True)
+    region_id = Column(Integer, nullable=True)
+    office_timings = Column(String(100), nullable=True)
+    timezone = Column(String(100), nullable=True)
+    lead_source = Column(String(100), nullable=True)
+    sales_rep = Column(Integer, nullable=True)
+    lead_since = Column(Date, nullable=True)
+    remarks = Column(Text, nullable=True)
+    lead_score = Column(String(50), nullable=True)
+
+    # New Fields - System Fields
+    company_id = Column(Integer, nullable=True)
+    createdby = Column(Integer, nullable=True)
+    updatedby = Column(Integer, nullable=True)
 
     # Relationships
     assigned_user = relationship("User", foreign_keys=[assigned_to])
