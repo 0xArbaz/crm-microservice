@@ -74,29 +74,106 @@ async def receive_incoming_webhook(
         result = {}
 
         if payload.event == "new_inquiry":
-            # Create pre-lead from incoming data
+            # Create pre-lead from incoming data with all fields
             data = payload.data
+
+            # Combine office timings if provided separately
+            office_timings = data.get("office_timings")
+            if not office_timings:
+                from_timings = data.get("from_timings")
+                to_timings = data.get("to_timings")
+                if from_timings and to_timings:
+                    office_timings = f"{from_timings} - {to_timings}"
+                elif from_timings:
+                    office_timings = from_timings
+                elif to_timings:
+                    office_timings = to_timings
+
+            # Map source string to enum
+            source_value = data.get("lead_source") or data.get("source") or payload.source
+            source_mapping = {
+                "website": PreLeadSource.WEBSITE,
+                "referral": PreLeadSource.REFERRAL,
+                "social_media": PreLeadSource.SOCIAL_MEDIA,
+                "cold_call": PreLeadSource.COLD_CALL,
+                "walk_in": PreLeadSource.WALK_IN,
+                "whatsapp": PreLeadSource.WHATSAPP,
+                "email": PreLeadSource.EMAIL,
+                "erp": PreLeadSource.ERP,
+                "other": PreLeadSource.OTHER,
+            }
+            source_enum = source_mapping.get(source_value, PreLeadSource.WEBSITE)
+            if payload.source == "erp":
+                source_enum = PreLeadSource.ERP
+
+            # Parse lead_since date if provided
+            lead_since = None
+            if data.get("lead_since"):
+                try:
+                    from datetime import datetime as dt
+                    lead_since = dt.strptime(data.get("lead_since"), "%Y-%m-%d").date()
+                except:
+                    pass
+
             pre_lead = PreLead(
-                first_name=data.get("first_name", "Unknown"),
+                # Basic fields
+                first_name=data.get("first_name") or data.get("company_name") or "Unknown",
                 last_name=data.get("last_name"),
                 email=data.get("email"),
                 phone=data.get("phone"),
                 company_name=data.get("company_name"),
-                source=PreLeadSource.ERP if payload.source == "erp" else PreLeadSource.WEBSITE,
+                source=source_enum,
                 source_details=f"Webhook: {payload.source}",
                 product_interest=data.get("product_interest"),
                 requirements=data.get("requirements"),
                 city=data.get("city"),
                 state=data.get("state"),
                 country=data.get("country", "India"),
-                notes=data.get("notes")
+                notes=data.get("notes"),
+                # Address fields
+                address_line1=data.get("address_line1") or data.get("address"),
+                address_line2=data.get("address_line2"),
+                city_id=data.get("city_id"),
+                zip_code=data.get("zip_code") or data.get("postal_code"),
+                country_id=data.get("country_id"),
+                state_id=data.get("state_id"),
+                # Contact fields
+                phone_no=data.get("phone_no"),
+                fax=data.get("fax"),
+                nof_representative=data.get("nof_representative") or data.get("name_of_rep"),
+                memo=data.get("memo"),
+                # Business fields
+                group_id=data.get("group_id"),
+                lead_status=data.get("lead_status"),
+                industry_id=data.get("industry_id"),
+                region_id=data.get("region_id"),
+                office_timings=office_timings,
+                timezone=data.get("timezone"),
+                lead_source=data.get("lead_source"),
+                sales_rep=data.get("sales_rep"),
+                lead_since=lead_since,
+                remarks=data.get("remarks"),
+                lead_score=data.get("lead_score"),
+                # System fields - auto-assign
+                company_id=data.get("company_id") or 1,
+                createdby=data.get("createdby"),
+                updatedby=data.get("updatedby"),
             )
             db.add(pre_lead)
             db.flush()
 
             log.entity_type = "pre_lead"
             log.entity_id = pre_lead.id
-            result = {"pre_lead_id": pre_lead.id}
+
+            # Return full pre-lead data
+            result = {
+                "pre_lead_id": pre_lead.id,
+                "company_name": pre_lead.company_name,
+                "email": pre_lead.email,
+                "phone": pre_lead.phone,
+                "status": pre_lead.status.value,
+                "created_at": pre_lead.created_at.isoformat() if pre_lead.created_at else None
+            }
 
         elif payload.event == "order_created":
             # Update customer order stats
