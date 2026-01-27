@@ -136,7 +136,7 @@ export default function DashboardPage() {
           {/* Funnel */}
           <Card className="lg:col-span-1">
             <CardHeader>
-              <h2 className="text-lg font-semibold">Sales Funnel</h2>
+              <h2 className="text-lg font-semibold">Sales Funnel test</h2>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
