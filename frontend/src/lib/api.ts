@@ -156,6 +156,10 @@ class ApiService {
     return response.data;
   }
 
+  async deletePreLead(id: number): Promise<void> {
+    await this.client.delete(`/pre-leads/${id}`);
+  }
+
   // Leads
   async getLeads(params?: {
     page?: number;
@@ -203,6 +207,10 @@ class ApiService {
       params: { stage },
     });
     return response.data;
+  }
+
+  async deleteLead(id: number): Promise<void> {
+    await this.client.delete(`/leads/${id}`);
   }
 
   // Customers

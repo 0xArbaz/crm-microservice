@@ -29,7 +29,34 @@ def create_lead(
     if not check_permission(current_user.role, "leads", "create"):
         raise HTTPException(status_code=403, detail="Permission denied")
 
-    lead = Lead(**lead_data.model_dump())
+    # Convert to dict and apply field mappings
+    data = lead_data.model_dump(exclude={'from_timings', 'to_timings', 'customer_name', 'contact_phone', 'customer_email'})
+
+    # Field mappings: frontend field -> database field
+    if lead_data.customer_name and not data.get('company_name'):
+        data['company_name'] = lead_data.customer_name
+    if lead_data.contact_phone and not data.get('phone'):
+        data['phone'] = lead_data.contact_phone
+    if lead_data.customer_email and not data.get('email'):
+        data['email'] = lead_data.customer_email
+
+    # Combine office timings from from_timings and to_timings
+    from_timings = lead_data.from_timings
+    to_timings = lead_data.to_timings
+    if from_timings and to_timings:
+        data['office_timings'] = f"{from_timings} - {to_timings}"
+    elif from_timings:
+        data['office_timings'] = from_timings
+    elif to_timings:
+        data['office_timings'] = to_timings
+
+    # Auto-assign system fields
+    data['createdby'] = current_user.id
+    data['updatedby'] = current_user.id
+    if not data.get('company_id'):
+        data['company_id'] = 1  # Default company
+
+    lead = Lead(**data)
     db.add(lead)
     db.commit()
     db.refresh(lead)
@@ -137,7 +164,34 @@ def update_lead(
     if lead.is_converted:
         raise HTTPException(status_code=400, detail="Cannot update converted lead")
 
-    for field, value in lead_data.model_dump(exclude_unset=True).items():
+    # Convert to dict excluding mapping fields
+    data = lead_data.model_dump(
+        exclude_unset=True,
+        exclude={'from_timings', 'to_timings', 'customer_name', 'contact_phone', 'customer_email'}
+    )
+
+    # Field mappings: frontend field -> database field
+    if lead_data.customer_name:
+        data['company_name'] = lead_data.customer_name
+    if lead_data.contact_phone:
+        data['phone'] = lead_data.contact_phone
+    if lead_data.customer_email:
+        data['email'] = lead_data.customer_email
+
+    # Combine office timings from from_timings and to_timings
+    from_timings = lead_data.from_timings
+    to_timings = lead_data.to_timings
+    if from_timings and to_timings:
+        data['office_timings'] = f"{from_timings} - {to_timings}"
+    elif from_timings:
+        data['office_timings'] = from_timings
+    elif to_timings:
+        data['office_timings'] = to_timings
+
+    # Auto-assign updatedby
+    data['updatedby'] = current_user.id
+
+    for field, value in data.items():
         setattr(lead, field, value)
 
     db.commit()

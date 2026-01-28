@@ -76,14 +76,7 @@ const navigation: NavItem[] = [
       { name: 'Customer Contacts', href: '/contacts/customer' },
     ],
   },
-  {
-    name: 'Webhooks',
-    icon: Webhook,
-    children: [
-      { name: 'Incoming', href: '/webhooks/incoming' },
-      { name: 'Outgoing', href: '/webhooks/outgoing' },
-    ],
-  },
+  { name: 'Webhooks', href: '/webhooks', icon: Webhook },
 ];
 
 export function Sidebar() {

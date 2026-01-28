@@ -50,6 +50,7 @@ class Lead(Base):
 
     # Company Information
     company_name = Column(String(255), nullable=True)
+    company_code = Column(String(50), nullable=True)
     designation = Column(String(100), nullable=True)
     company_size = Column(String(50), nullable=True)
     industry = Column(String(100), nullable=True)
@@ -78,12 +79,36 @@ class Lead(Base):
     last_contacted = Column(DateTime(timezone=True), nullable=True)
     next_follow_up = Column(DateTime(timezone=True), nullable=True)
 
-    # Location
+    # Location - Extended Fields
     address = Column(Text, nullable=True)
+    address_line1 = Column(String(255), nullable=True)
+    address_line2 = Column(String(255), nullable=True)
     city = Column(String(100), nullable=True)
+    city_id = Column(Integer, nullable=True)
     state = Column(String(100), nullable=True)
+    state_id = Column(Integer, nullable=True)
     country = Column(String(100), default="India")
+    country_id = Column(Integer, nullable=True)
     pincode = Column(String(10), nullable=True)
+    zip_code = Column(String(20), nullable=True)
+
+    # Contact fields
+    phone_no = Column(String(30), nullable=True)
+    fax = Column(String(30), nullable=True)
+    nof_representative = Column(String(100), nullable=True)
+
+    # Business fields
+    memo = Column(Text, nullable=True)
+    group_id = Column(Integer, nullable=True)
+    industry_id = Column(Integer, nullable=True)
+    region_id = Column(Integer, nullable=True)
+    office_timings = Column(String(100), nullable=True)
+    timezone = Column(String(50), nullable=True)
+    lead_source = Column(String(50), nullable=True)
+    lead_score = Column(Integer, nullable=True)
+    sales_rep = Column(String(100), nullable=True)
+    lead_since = Column(DateTime(timezone=True), nullable=True)
+    remarks = Column(Text, nullable=True)
 
     # Notes
     notes = Column(Text, nullable=True)
@@ -100,6 +125,11 @@ class Lead(Base):
     is_converted = Column(Boolean, default=False)
     converted_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
     converted_at = Column(DateTime(timezone=True), nullable=True)
+
+    # System tracking fields
+    company_id = Column(Integer, nullable=True, default=1)
+    createdby = Column(Integer, nullable=True)
+    updatedby = Column(Integer, nullable=True)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

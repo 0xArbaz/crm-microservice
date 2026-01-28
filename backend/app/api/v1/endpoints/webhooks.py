@@ -12,6 +12,7 @@ from app.api.deps import get_current_user
 from app.models.user import User
 from app.models.webhook import WebhookConfig, WebhookLog, WebhookDirection, WebhookEvent
 from app.models.pre_lead import PreLead, PreLeadSource
+from app.models.lead import Lead, LeadSource, LeadStatus, LeadPriority
 from app.schemas.webhook import (
     WebhookConfigCreate, WebhookConfigUpdate, WebhookConfigResponse,
     WebhookLogResponse, IncomingWebhookPayload,
@@ -46,6 +47,7 @@ async def receive_incoming_webhook(
 
     Supported events:
     - new_inquiry: Create a new pre-lead
+    - new_lead: Create a new lead
     - order_created: Update customer order stats
     - payment_received: Update customer payment info
     """
@@ -173,6 +175,136 @@ async def receive_incoming_webhook(
                 "phone": pre_lead.phone,
                 "status": pre_lead.status.value,
                 "created_at": pre_lead.created_at.isoformat() if pre_lead.created_at else None
+            }
+
+        elif payload.event == "new_lead":
+            # Create lead from incoming data with all fields
+            data = payload.data
+
+            # Combine office timings if provided separately
+            office_timings = data.get("office_timings")
+            if not office_timings:
+                from_timings = data.get("from_timings")
+                to_timings = data.get("to_timings")
+                if from_timings and to_timings:
+                    office_timings = f"{from_timings} - {to_timings}"
+                elif from_timings:
+                    office_timings = from_timings
+                elif to_timings:
+                    office_timings = to_timings
+
+            # Map source string to enum
+            source_value = data.get("lead_source") or data.get("source") or payload.source
+            source_mapping = {
+                "website": LeadSource.WEBSITE,
+                "referral": LeadSource.REFERRAL,
+                "social_media": LeadSource.SOCIAL_MEDIA,
+                "cold_call": LeadSource.COLD_CALL,
+                "walk_in": LeadSource.WALK_IN,
+                "whatsapp": LeadSource.WHATSAPP,
+                "email": LeadSource.EMAIL,
+                "erp": LeadSource.ERP,
+                "direct": LeadSource.DIRECT,
+                "pre_lead": LeadSource.PRE_LEAD,
+                "other": LeadSource.OTHER,
+            }
+            source_enum = source_mapping.get(source_value, LeadSource.WEBSITE)
+            if payload.source == "erp":
+                source_enum = LeadSource.ERP
+
+            # Map priority string to enum
+            priority_value = data.get("priority", "medium").lower()
+            priority_mapping = {
+                "low": LeadPriority.LOW,
+                "medium": LeadPriority.MEDIUM,
+                "high": LeadPriority.HIGH,
+                "critical": LeadPriority.CRITICAL,
+            }
+            priority_enum = priority_mapping.get(priority_value, LeadPriority.MEDIUM)
+
+            # Parse lead_since date if provided
+            lead_since = None
+            if data.get("lead_since"):
+                try:
+                    from datetime import datetime as dt
+                    lead_since = dt.strptime(data.get("lead_since"), "%Y-%m-%d")
+                except:
+                    pass
+
+            # Field mappings: customer_name -> company_name, contact_phone -> phone, customer_email -> email
+            company_name = data.get("company_name") or data.get("customer_name")
+            phone = data.get("phone") or data.get("contact_phone")
+            email = data.get("email") or data.get("customer_email")
+
+            lead = Lead(
+                # Basic fields
+                first_name=data.get("first_name") or company_name or "Unknown",
+                last_name=data.get("last_name"),
+                email=email,
+                phone=phone,
+                alternate_phone=data.get("alternate_phone"),
+                company_name=company_name,
+                company_code=data.get("company_code"),
+                designation=data.get("designation"),
+                company_size=data.get("company_size"),
+                industry=data.get("industry"),
+                website=data.get("website"),
+                source=source_enum,
+                source_details=f"Webhook: {payload.source}",
+                priority=priority_enum,
+                expected_value=data.get("expected_value"),
+                currency=data.get("currency", "INR"),
+                product_interest=data.get("product_interest"),
+                requirements=data.get("requirements"),
+                # Address fields
+                address=data.get("address"),
+                address_line1=data.get("address_line1") or data.get("address"),
+                address_line2=data.get("address_line2"),
+                city=data.get("city"),
+                city_id=data.get("city_id"),
+                state=data.get("state"),
+                state_id=data.get("state_id"),
+                country=data.get("country", "India"),
+                country_id=data.get("country_id"),
+                pincode=data.get("pincode"),
+                zip_code=data.get("zip_code") or data.get("postal_code"),
+                # Contact fields
+                phone_no=data.get("phone_no"),
+                fax=data.get("fax"),
+                nof_representative=data.get("nof_representative") or data.get("name_of_rep"),
+                # Business fields
+                memo=data.get("memo"),
+                group_id=data.get("group_id"),
+                industry_id=data.get("industry_id"),
+                region_id=data.get("region_id"),
+                office_timings=office_timings,
+                timezone=data.get("timezone"),
+                lead_source=data.get("lead_source"),
+                lead_score=data.get("lead_score"),
+                sales_rep=data.get("sales_rep"),
+                lead_since=lead_since,
+                remarks=data.get("remarks"),
+                notes=data.get("notes"),
+                # System fields - auto-assign
+                company_id=data.get("company_id") or 1,
+                createdby=data.get("createdby"),
+                updatedby=data.get("updatedby"),
+            )
+            db.add(lead)
+            db.flush()
+
+            log.entity_type = "lead"
+            log.entity_id = lead.id
+
+            # Return full lead data
+            result = {
+                "lead_id": lead.id,
+                "company_name": lead.company_name,
+                "email": lead.email,
+                "phone": lead.phone,
+                "status": lead.status.value,
+                "priority": lead.priority.value,
+                "created_at": lead.created_at.isoformat() if lead.created_at else None
             }
 
         elif payload.event == "order_created":

@@ -86,6 +86,7 @@ export interface Lead {
   phone?: string;
   alternate_phone?: string;
   company_name?: string;
+  company_code?: string;
   designation?: string;
   company_size?: string;
   industry?: string;
@@ -103,11 +104,34 @@ export interface Lead {
   expected_close_date?: string;
   last_contacted?: string;
   next_follow_up?: string;
+  // Location fields
   address?: string;
+  address_line1?: string;
+  address_line2?: string;
   city?: string;
+  city_id?: number;
   state?: string;
+  state_id?: number;
   country: string;
+  country_id?: number;
   pincode?: string;
+  zip_code?: string;
+  // Contact fields
+  phone_no?: string;
+  fax?: string;
+  nof_representative?: string;
+  // Business fields
+  memo?: string;
+  group_id?: number;
+  industry_id?: number;
+  region_id?: number;
+  office_timings?: string;
+  timezone?: string;
+  lead_source?: string;
+  lead_score?: number;
+  sales_rep?: string;
+  lead_since?: string;
+  remarks?: string;
   notes?: string;
   loss_reason?: string;
   assigned_to?: number;
@@ -115,6 +139,10 @@ export interface Lead {
   is_converted: boolean;
   converted_customer_id?: number;
   converted_at?: string;
+  // System tracking fields
+  company_id?: number;
+  createdby?: number;
+  updatedby?: number;
   created_at: string;
   updated_at?: string;
 }
@@ -214,6 +242,8 @@ export interface WebhookLog {
   event?: string;
   is_successful: boolean;
   error_message?: string;
+  entity_type?: string;
+  entity_id?: number;
   created_at: string;
 }
 
