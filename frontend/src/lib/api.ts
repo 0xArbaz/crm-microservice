@@ -332,6 +332,125 @@ class ApiService {
     await this.client.delete(`/leads/${id}`);
   }
 
+  // Lead Full (with all entities)
+  async getLeadFull(id: number): Promise<any> {
+    const response = await this.client.get(`/leads/${id}/full`);
+    return response.data;
+  }
+
+  // Lead Contacts
+  async getLeadContactsForEdit(leadId: number): Promise<any[]> {
+    const response = await this.client.get(`/leads/${leadId}/contacts`);
+    return response.data;
+  }
+
+  async createLeadContact(leadId: number, data: any): Promise<any> {
+    const response = await this.client.post(`/leads/${leadId}/contacts`, { ...data, lead_id: leadId });
+    return response.data;
+  }
+
+  async updateLeadContact(leadId: number, contactId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/leads/${leadId}/contacts/${contactId}`, data);
+    return response.data;
+  }
+
+  async deleteLeadContact(leadId: number, contactId: number): Promise<void> {
+    await this.client.delete(`/leads/${leadId}/contacts/${contactId}`);
+  }
+
+  // Lead Activities
+  async getLeadActivitiesForEdit(leadId: number): Promise<any[]> {
+    const response = await this.client.get(`/leads/${leadId}/activities`);
+    return response.data;
+  }
+
+  async createLeadActivity(leadId: number, data: any): Promise<any> {
+    const response = await this.client.post(`/leads/${leadId}/activities`, { ...data, lead_id: leadId });
+    return response.data;
+  }
+
+  async updateLeadActivity(leadId: number, activityId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/leads/${leadId}/activities/${activityId}`, data);
+    return response.data;
+  }
+
+  async deleteLeadActivity(leadId: number, activityId: number): Promise<void> {
+    await this.client.delete(`/leads/${leadId}/activities/${activityId}`);
+  }
+
+  // Lead Memos
+  async getLeadMemos(leadId: number): Promise<any[]> {
+    const response = await this.client.get(`/leads/${leadId}/memos`);
+    return response.data;
+  }
+
+  async createLeadMemo(leadId: number, data: any): Promise<any> {
+    const response = await this.client.post(`/leads/${leadId}/memos`, { ...data, lead_id: leadId });
+    return response.data;
+  }
+
+  async updateLeadMemo(leadId: number, memoId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/leads/${leadId}/memos/${memoId}`, data);
+    return response.data;
+  }
+
+  async deleteLeadMemo(leadId: number, memoId: number): Promise<void> {
+    await this.client.delete(`/leads/${leadId}/memos/${memoId}`);
+  }
+
+  // Lead Documents
+  async getLeadDocuments(leadId: number): Promise<any[]> {
+    const response = await this.client.get(`/leads/${leadId}/documents`);
+    return response.data;
+  }
+
+  async uploadLeadDocument(leadId: number, file: File, notes?: string): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (notes) {
+      formData.append('notes', notes);
+    }
+    const response = await this.client.post(`/leads/${leadId}/documents`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async deleteLeadDocument(leadId: number, documentId: number): Promise<void> {
+    await this.client.delete(`/leads/${leadId}/documents/${documentId}`);
+  }
+
+  // Lead Status History
+  async getLeadStatusHistory(leadId: number): Promise<any[]> {
+    const response = await this.client.get(`/leads/${leadId}/status-history`);
+    return response.data;
+  }
+
+  async changeLeadStatus(leadId: number, data: { status: string; status_date?: string; remarks?: string }): Promise<any> {
+    const response = await this.client.post(`/leads/${leadId}/status`, { ...data, lead_id: leadId });
+    return response.data;
+  }
+
+  // Lead Qualified Profiles
+  async getLeadQualifiedProfiles(leadId: number): Promise<any[]> {
+    const response = await this.client.get(`/leads/${leadId}/qualified-profiles`);
+    return response.data;
+  }
+
+  async createLeadQualifiedProfile(leadId: number, data: any): Promise<any> {
+    const response = await this.client.post(`/leads/${leadId}/qualified-profiles`, { ...data, lead_id: leadId });
+    return response.data;
+  }
+
+  async updateLeadQualifiedProfile(leadId: number, profileId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/leads/${leadId}/qualified-profiles/${profileId}`, data);
+    return response.data;
+  }
+
+  async deleteLeadQualifiedProfile(leadId: number, profileId: number): Promise<void> {
+    await this.client.delete(`/leads/${leadId}/qualified-profiles/${profileId}`);
+  }
+
   // Customers
   async getCustomers(params?: {
     page?: number;

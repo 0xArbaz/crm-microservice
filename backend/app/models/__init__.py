@@ -12,6 +12,12 @@ from app.models.pre_lead_memo import PreLeadMemo
 from app.models.pre_lead_document import PreLeadDocument
 from app.models.pre_lead_status_history import PreLeadStatusHistory
 from app.models.qualified_lead_profile import QualifiedLeadProfile
+from app.models.lead_contact import LeadContact
+from app.models.lead_activity import LeadActivity
+from app.models.lead_memo import LeadMemo
+from app.models.lead_document import LeadDocument
+from app.models.lead_status_history import LeadStatusHistory
+from app.models.lead_qualified_profile import LeadQualifiedProfile
 
 __all__ = [
     "User",
@@ -33,4 +39,10 @@ __all__ = [
     "PreLeadDocument",
     "PreLeadStatusHistory",
     "QualifiedLeadProfile",
+    "LeadContact",
+    "LeadActivity",
+    "LeadMemo",
+    "LeadDocument",
+    "LeadStatusHistory",
+    "LeadQualifiedProfile",
 ]

@@ -6,11 +6,65 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Button } from '@/components/ui/Button';
-import { Building2, Users, Activity, UserCheck, FileText, Upload, CheckCircle, GitBranch, Plus, Edit, Trash2, Eye, Download, X } from 'lucide-react';
+import { Plus, Calendar, ArrowRight, Pencil, Trash2, X } from 'lucide-react';
 import api from '@/lib/api';
 import { PreLead } from '@/types';
 
+// ============== Types ==============
+interface Contact {
+  id: number;
+  contact_type: string;
+  title: string;
+  first_name: string;
+  last_name: string;
+  designation: string;
+  work_email: string;
+  work_phone: string;
+  ext: string;
+  fax: string;
+  cell_phone: string;
+  status: string;
+}
+
+interface Memo {
+  id: number;
+  title: string;
+  content: string;
+  created_at: string;
+  created_by: number;
+}
+
+interface QualifiedProfile {
+  id: number;
+  q_contact_id?: number;
+  q_title?: string;
+  q_phone?: string;
+  q_email?: string;
+  q_bes_time_call?: string;
+  q_bes_time_call_timezone?: string;
+  q_mode?: string;
+  q_need_type?: string;
+  q_current_software?: string;
+  q_need_summery?: string;
+  q_budget?: string;
+  q_decision_maker?: string;
+  q_time_frame?: string;
+  q_qualified_by?: string;
+  q_company_profile?: string;
+  q_summery_Of_discussion?: string;
+  q_conclusion?: string;
+}
+
+interface StatusHistory {
+  id: number;
+  status: string;
+  status_date: string;
+  remarks: string;
+  created_at: string;
+  updated_by: number;
+}
+
+// ============== Schema ==============
 const preLeadSchema = z.object({
   company_name: z.string().min(1, 'Company name is required'),
   address_line1: z.string().optional(),
@@ -26,7 +80,6 @@ const preLeadSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
   lead_since: z.string().optional(),
-  lead_status: z.string().optional(),
   group_id: z.string().optional(),
   industry_id: z.string().optional(),
   region_id: z.string().optional(),
@@ -37,112 +90,11 @@ const preLeadSchema = z.object({
   source: z.string().optional(),
   lead_score: z.string().optional(),
   remarks: z.string().optional(),
-  first_name: z.string().optional(),
 });
 
 type PreLeadForm = z.infer<typeof preLeadSchema>;
 
-type TabType = 'company' | 'contacts' | 'activities' | 'qualified' | 'memo' | 'upload' | 'status' | 'workflow';
-
-interface PreLeadContact {
-  id: number;
-  pre_lead_id: number;
-  contact_type: string;
-  title?: string;
-  first_name: string;
-  last_name?: string;
-  designation?: string;
-  work_email?: string;
-  work_phone?: string;
-  ext?: string;
-  fax?: string;
-  cell_phone?: string;
-  status: string;
-  created_at: string;
-}
-
-interface PreLeadActivity {
-  id: number;
-  pre_lead_id: number;
-  activity_type: string;
-  subject: string;
-  start_date?: string;
-  due_date?: string;
-  priority: string;
-  status: string;
-  assigned_to?: number;
-  description?: string;
-  created_at: string;
-}
-
-interface PreLeadMemo {
-  id: number;
-  pre_lead_id: number;
-  details: string;
-  created_at: string;
-  created_by?: number;
-}
-
-interface PreLeadDocument {
-  id: number;
-  pre_lead_id: number;
-  name: string;
-  original_name?: string;
-  file_type?: string;
-  size?: number;
-  notes?: string;
-  created_at: string;
-}
-
-interface PreLeadStatusHistory {
-  id: number;
-  pre_lead_id: number;
-  status: string;
-  status_date?: string;
-  remarks?: string;
-  created_at: string;
-  updated_by?: number;
-}
-
-interface QualifiedLeadProfile {
-  id: number;
-  pre_lead_id: number;
-  contact_id?: number;
-  company_name?: string;
-  industry_id?: number;
-  best_time_call?: string;
-  best_time_call_timezone?: number;
-  mode?: string;
-  contact_name?: string;
-  designation?: string;
-  phone?: string;
-  email?: string;
-  need_type?: number;
-  current_software?: string;
-  need_summary?: string;
-  budget?: number;
-  decision_maker?: number;
-  time_frame?: number;
-  qualified_by?: number;
-  company_profile?: string;
-  summary_of_discussion?: string;
-  conclusion?: string;
-  status: string;
-  created_at: string;
-  updated_at?: string;
-}
-
-const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
-  { id: 'company', label: 'Company Details', icon: <Building2 className="w-4 h-4" /> },
-  { id: 'contacts', label: 'Contacts', icon: <Users className="w-4 h-4" /> },
-  { id: 'activities', label: 'Activities', icon: <Activity className="w-4 h-4" /> },
-  { id: 'qualified', label: 'Qualified Lead Profile', icon: <UserCheck className="w-4 h-4" /> },
-  { id: 'memo', label: 'Memo', icon: <FileText className="w-4 h-4" /> },
-  { id: 'upload', label: 'Upload File', icon: <Upload className="w-4 h-4" /> },
-  { id: 'status', label: 'Status', icon: <CheckCircle className="w-4 h-4" /> },
-  { id: 'workflow', label: 'Workflow & Audit Trail', icon: <GitBranch className="w-4 h-4" /> },
-];
-
+// ============== Options ==============
 const sourceOptions = [
   { value: '', label: 'Select Lead Source' },
   { value: 'website', label: 'Website' },
@@ -154,15 +106,6 @@ const sourceOptions = [
   { value: 'email', label: 'Email' },
   { value: 'erp', label: 'ERP' },
   { value: 'other', label: 'Other' },
-];
-
-const leadStatusOptions = [
-  { value: '', label: 'Select Status' },
-  { value: 'new', label: 'New-Not Contacted' },
-  { value: 'working', label: 'Working-In Process' },
-  { value: 'on_hold', label: 'On Hold' },
-  { value: 'closed_not_converted', label: 'Closed-Not Converted' },
-  { value: 'converted', label: 'Converted' },
 ];
 
 const groupOptions = [
@@ -182,7 +125,7 @@ const industryOptions = [
 ];
 
 const regionOptions = [
-  { value: '', label: 'Select Region' },
+  { value: '', label: 'Select Company Region' },
   { value: '1', label: 'North' },
   { value: '2', label: 'South' },
   { value: '3', label: 'East' },
@@ -190,24 +133,22 @@ const regionOptions = [
 ];
 
 const timezoneOptions = [
-  { value: '', label: 'Select Timezone' },
-  { value: 'Asia/Kolkata', label: 'IST (Asia/Kolkata)' },
-  { value: 'America/New_York', label: 'EST (America/New_York)' },
-  { value: 'America/Los_Angeles', label: 'PST (America/Los_Angeles)' },
-  { value: 'Europe/London', label: 'GMT (Europe/London)' },
-  { value: 'Asia/Dubai', label: 'GST (Asia/Dubai)' },
+  { value: '', label: 'Select Company Timezone' },
+  { value: '1', label: 'IST (Asia/Kolkata)' },
+  { value: '2', label: 'EST (America/New_York)' },
+  { value: '3', label: 'PST (America/Los_Angeles)' },
+  { value: '4', label: 'GMT (Europe/London)' },
+  { value: '5', label: 'GST (Asia/Dubai)' },
 ];
 
 const salesRepOptions = [
-  { value: '', label: 'Select Sales Rep' },
+  { value: '', label: 'Select Sales Representative' },
   { value: '1', label: 'Admin User' },
 ];
 
 const leadScoreOptions = [
-  { value: '', label: 'Select Score' },
-  { value: 'hot', label: 'Hot' },
-  { value: 'warm', label: 'Warm' },
-  { value: 'cold', label: 'Cold' },
+  { value: '', label: 'Select Lead Score' },
+  ...Array.from({ length: 10 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) })),
 ];
 
 const countryOptions = [
@@ -215,13 +156,15 @@ const countryOptions = [
   { value: '1', label: 'India' },
   { value: '2', label: 'United States' },
   { value: '3', label: 'United Kingdom' },
+  { value: '4', label: 'Oman' },
 ];
 
 const stateOptions = [
-  { value: '', label: 'Select State' },
+  { value: '', label: 'Select State/Province' },
   { value: '1', label: 'Maharashtra' },
   { value: '2', label: 'Karnataka' },
   { value: '3', label: 'Delhi' },
+  { value: '4', label: 'Muscat Governorate' },
 ];
 
 const cityOptions = [
@@ -229,113 +172,87 @@ const cityOptions = [
   { value: '1', label: 'Mumbai' },
   { value: '2', label: 'Bangalore' },
   { value: '3', label: 'Delhi' },
+  { value: '4', label: 'Muscat' },
 ];
 
 const contactTypeOptions = [
+  { value: 'all', label: 'All' },
   { value: 'primary', label: 'Primary' },
   { value: 'billing', label: 'Billing' },
   { value: 'technical', label: 'Technical' },
   { value: 'decision_maker', label: 'Decision Maker' },
 ];
 
-const activityTypeOptions = [
-  { value: 'call', label: 'Call' },
-  { value: 'email', label: 'Email' },
-  { value: 'meeting', label: 'Meeting' },
-  { value: 'visit', label: 'Visit' },
-  { value: 'fax', label: 'Fax' },
-];
-
-const priorityOptions = [
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-  { value: 'critical', label: 'Critical' },
-];
-
-const modeOptions = [
-  { value: '', label: 'Select Mode' },
-  { value: 'phone', label: 'Phone' },
-  { value: 'email', label: 'Email' },
-  { value: 'video_call', label: 'Video Call' },
-  { value: 'in_person', label: 'In Person' },
-  { value: 'whatsapp', label: 'WhatsApp' },
+const titleOptions = [
+  { value: '', label: 'Title' },
+  { value: 'Mr.', label: 'Mr.' },
+  { value: 'Mrs.', label: 'Mrs.' },
+  { value: 'Ms.', label: 'Ms.' },
+  { value: 'Dr.', label: 'Dr.' },
 ];
 
 const needTypeOptions = [
   { value: '', label: 'Select Need Type' },
   { value: '1', label: 'New Implementation' },
-  { value: '2', label: 'Upgrade/Migration' },
-  { value: '3', label: 'Support/Maintenance' },
-  { value: '4', label: 'Training' },
-  { value: '5', label: 'Consultation' },
+  { value: '2', label: 'Upgrade' },
+  { value: '3', label: 'Migration' },
+  { value: '4', label: 'Consulting' },
 ];
 
 const budgetOptions = [
-  { value: '', label: 'Select Budget Range' },
-  { value: '1', label: 'Less than $10,000' },
-  { value: '2', label: '$10,000 - $25,000' },
-  { value: '3', label: '$25,000 - $50,000' },
-  { value: '4', label: '$50,000 - $100,000' },
-  { value: '5', label: 'More than $100,000' },
-];
-
-const decisionMakerOptions = [
-  { value: '', label: 'Select' },
-  { value: '1', label: 'Yes - Final Decision Maker' },
-  { value: '2', label: 'Yes - Part of Decision Team' },
-  { value: '3', label: 'No - Influencer Only' },
-  { value: '4', label: 'No - Just Gathering Info' },
+  { value: '', label: 'Select Budget' },
+  { value: '1', label: 'Under $10,000' },
+  { value: '2', label: '$10,000 - $50,000' },
+  { value: '3', label: '$50,000 - $100,000' },
+  { value: '4', label: 'Above $100,000' },
 ];
 
 const timeFrameOptions = [
   { value: '', label: 'Select Time Frame' },
-  { value: '1', label: 'Immediately' },
-  { value: '2', label: 'Within 1 Month' },
-  { value: '3', label: 'Within 3 Months' },
-  { value: '4', label: 'Within 6 Months' },
-  { value: '5', label: 'Within 1 Year' },
-  { value: '6', label: 'Just Exploring' },
+  { value: '1', label: 'Immediate' },
+  { value: '2', label: '1-3 Months' },
+  { value: '3', label: '3-6 Months' },
+  { value: '4', label: '6-12 Months' },
 ];
 
-const qualifiedStatusOptions = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'submitted', label: 'Submitted' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'rejected', label: 'Rejected' },
+const modeOptions = [
+  { value: '', label: 'Select Mode' },
+  { value: 'Email', label: 'Email' },
+  { value: 'Phone', label: 'Phone' },
+  { value: 'Visit', label: 'Visit' },
 ];
+
+type TabType = 'company_details' | 'contacts' | 'company_profile' | 'memo' | 'workflow';
 
 export default function EditPreLeadPage() {
   const router = useRouter();
   const params = useParams();
   const preLeadId = parseInt(params.id as string);
 
-  const [activeTab, setActiveTab] = useState<TabType>('company');
+  // State
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [preLeadData, setPreLeadData] = useState<PreLead | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>('company_details');
+  const [isDiscarded, setIsDiscarded] = useState(false);
 
-  // Tab data states
-  const [contacts, setContacts] = useState<PreLeadContact[]>([]);
-  const [activities, setActivities] = useState<PreLeadActivity[]>([]);
-  const [memos, setMemos] = useState<PreLeadMemo[]>([]);
-  const [documents, setDocuments] = useState<PreLeadDocument[]>([]);
-  const [statusHistory, setStatusHistory] = useState<PreLeadStatusHistory[]>([]);
-  const [qualifiedProfiles, setQualifiedProfiles] = useState<QualifiedLeadProfile[]>([]);
+  // Tab-specific state
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [memos, setMemos] = useState<Memo[]>([]);
+  const [qualifiedProfile, setQualifiedProfile] = useState<QualifiedProfile | null>(null);
+  const [statusHistory, setStatusHistory] = useState<StatusHistory[]>([]);
+  const [contactFilter, setContactFilter] = useState('all');
 
   // Modal states
-  const [showContactModal, setShowContactModal] = useState(false);
-  const [showActivityModal, setShowActivityModal] = useState(false);
   const [showMemoModal, setShowMemoModal] = useState(false);
-  const [showQualifiedModal, setShowQualifiedModal] = useState(false);
-  const [editingContact, setEditingContact] = useState<PreLeadContact | null>(null);
-  const [editingActivity, setEditingActivity] = useState<PreLeadActivity | null>(null);
-  const [editingMemo, setEditingMemo] = useState<PreLeadMemo | null>(null);
-  const [editingQualified, setEditingQualified] = useState<QualifiedLeadProfile | null>(null);
+  const [editingMemo, setEditingMemo] = useState<Memo | null>(null);
+  const [memoContent, setMemoContent] = useState('');
 
-  // Form states for modals
+  // Contact form state
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [contactForm, setContactForm] = useState({
     contact_type: 'primary',
     title: '',
@@ -350,82 +267,43 @@ export default function EditPreLeadPage() {
     status: 'active',
   });
 
-  const [activityForm, setActivityForm] = useState({
-    activity_type: 'call',
-    subject: '',
-    description: '',
-    start_date: '',
-    due_date: '',
-    priority: 'medium',
-    status: 'pending',
+  // Qualified Profile form state
+  const [profileForm, setProfileForm] = useState({
+    q_contact_id: '',
+    q_bes_time_call: '',
+    q_bes_time_call_timezone: '',
+    q_mode: '',
+    q_need_type: '',
+    q_current_software: '',
+    q_need_summery: '',
+    q_budget: '',
+    q_decision_maker: '',
+    q_time_frame: '',
+    q_qualified_by: '',
+    q_company_profile: '',
+    q_summery_Of_discussion: '',
+    q_conclusion: '',
   });
-
-  const [memoForm, setMemoForm] = useState({ details: '' });
-
-  const [qualifiedForm, setQualifiedForm] = useState({
-    contact_id: '',
-    company_name: '',
-    industry_id: '',
-    best_time_call: '',
-    best_time_call_timezone: '',
-    mode: '',
-    contact_name: '',
-    designation: '',
-    phone: '',
-    email: '',
-    need_type: '',
-    current_software: '',
-    need_summary: '',
-    budget: '',
-    decision_maker: '',
-    time_frame: '',
-    company_profile: '',
-    summary_of_discussion: '',
-    conclusion: '',
-    status: 'draft',
-  });
-
-  // Status form
-  const [statusForm, setStatusForm] = useState({
-    status: '',
-    status_date: new Date().toISOString().split('T')[0],
-    remarks: '',
-  });
-
-  // File upload
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadNotes, setUploadNotes] = useState('');
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
+    watch,
   } = useForm<PreLeadForm>({
     resolver: zodResolver(preLeadSchema),
   });
 
-  const fetchAllData = useCallback(async () => {
+  const companyName = watch('company_name');
+
+  // Fetch pre-lead data
+  const fetchPreLead = useCallback(async () => {
     try {
-      const [preLeadRes, contactsRes, activitiesRes, memosRes, docsRes, historyRes, qualifiedRes] = await Promise.all([
-        api.getPreLead(preLeadId),
-        api.getPreLeadContacts(preLeadId),
-        api.getPreLeadActivities(preLeadId),
-        api.getPreLeadMemos(preLeadId),
-        api.getPreLeadDocuments(preLeadId),
-        api.getPreLeadStatusHistory(preLeadId),
-        api.getPreLeadQualifiedProfiles(preLeadId),
-      ]);
-
+      const preLeadRes = await api.getPreLead(preLeadId);
       setPreLeadData(preLeadRes);
-      setContacts(contactsRes);
-      setActivities(activitiesRes);
-      setMemos(memosRes);
-      setDocuments(docsRes);
-      setStatusHistory(historyRes);
-      setQualifiedProfiles(qualifiedRes);
+      setIsDiscarded(preLeadRes.status === 'discarded');
 
-      // Populate form
       let fromTimings = '';
       let toTimings = '';
       if (preLeadRes.office_timings) {
@@ -456,7 +334,6 @@ export default function EditPreLeadPage() {
         phone: preLeadRes.phone || '',
         email: preLeadRes.email || '',
         lead_since: leadSince,
-        lead_status: preLeadRes.lead_status || '',
         group_id: preLeadRes.group_id?.toString() || '',
         industry_id: preLeadRes.industry_id?.toString() || '',
         region_id: preLeadRes.region_id?.toString() || '',
@@ -465,24 +342,87 @@ export default function EditPreLeadPage() {
         timezone: preLeadRes.timezone || '',
         sales_rep: preLeadRes.sales_rep?.toString() || '',
         source: preLeadRes.source || '',
-        lead_score: preLeadRes.lead_score || '',
+        lead_score: preLeadRes.lead_score?.toString() || '',
         remarks: preLeadRes.remarks || '',
       });
-
-      setStatusForm(prev => ({ ...prev, status: preLeadRes.lead_status || '' }));
     } catch (err: any) {
-      setError('Failed to load data');
+      setError('Failed to load pre-lead');
       console.error(err);
     } finally {
       setIsLoading(false);
     }
   }, [preLeadId, reset]);
 
+  // Fetch contacts
+  const fetchContacts = useCallback(async () => {
+    try {
+      const res = await api.getPreLeadContacts(preLeadId);
+      setContacts(res);
+    } catch (err) {
+      console.error('Failed to load contacts', err);
+    }
+  }, [preLeadId]);
+
+  // Fetch memos
+  const fetchMemos = useCallback(async () => {
+    try {
+      const res = await api.getPreLeadMemos(preLeadId);
+      setMemos(res);
+    } catch (err) {
+      console.error('Failed to load memos', err);
+    }
+  }, [preLeadId]);
+
+  // Fetch qualified profiles
+  const fetchQualifiedProfile = useCallback(async () => {
+    try {
+      const res = await api.getPreLeadQualifiedProfiles(preLeadId);
+      if (res.length > 0) {
+        const profile = res[0];
+        setQualifiedProfile(profile);
+        setProfileForm({
+          q_contact_id: profile.q_contact_id?.toString() || '',
+          q_bes_time_call: profile.q_bes_time_call || '',
+          q_bes_time_call_timezone: profile.q_bes_time_call_timezone || '',
+          q_mode: profile.q_mode || '',
+          q_need_type: profile.q_need_type || '',
+          q_current_software: profile.q_current_software || '',
+          q_need_summery: profile.q_need_summery || '',
+          q_budget: profile.q_budget || '',
+          q_decision_maker: profile.q_decision_maker || '',
+          q_time_frame: profile.q_time_frame || '',
+          q_qualified_by: profile.q_qualified_by || '',
+          q_company_profile: profile.q_company_profile || '',
+          q_summery_Of_discussion: profile.q_summery_Of_discussion || '',
+          q_conclusion: profile.q_conclusion || '',
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load qualified profile', err);
+    }
+  }, [preLeadId]);
+
+  // Fetch status history
+  const fetchStatusHistory = useCallback(async () => {
+    try {
+      const res = await api.getPreLeadStatusHistory(preLeadId);
+      setStatusHistory(res);
+    } catch (err) {
+      console.error('Failed to load status history', err);
+    }
+  }, [preLeadId]);
+
   useEffect(() => {
     if (preLeadId) {
-      fetchAllData();
+      fetchPreLead();
+      fetchContacts();
+      fetchMemos();
+      fetchQualifiedProfile();
+      fetchStatusHistory();
     }
-  }, [preLeadId, fetchAllData]);
+  }, [preLeadId, fetchPreLead, fetchContacts, fetchMemos, fetchQualifiedProfile, fetchStatusHistory]);
+
+  // ============== Form Handlers ==============
 
   const onSubmit = async (data: PreLeadForm) => {
     setIsSubmitting(true);
@@ -490,9 +430,14 @@ export default function EditPreLeadPage() {
     setSuccess(null);
 
     try {
+      const officeTimings = data.from_timings && data.to_timings
+        ? `${data.from_timings} - ${data.to_timings}`
+        : '';
+
       const apiData: Record<string, any> = {
         ...data,
         first_name: data.company_name,
+        office_timings: officeTimings,
         country_id: data.country_id ? parseInt(data.country_id) : undefined,
         state_id: data.state_id ? parseInt(data.state_id) : undefined,
         city_id: data.city_id ? parseInt(data.city_id) : undefined,
@@ -500,6 +445,7 @@ export default function EditPreLeadPage() {
         industry_id: data.industry_id ? parseInt(data.industry_id) : undefined,
         region_id: data.region_id ? parseInt(data.region_id) : undefined,
         sales_rep: data.sales_rep ? parseInt(data.sales_rep) : undefined,
+        lead_score: data.lead_score ? parseInt(data.lead_score) : undefined,
       };
 
       await api.updatePreLead(preLeadId, apiData as Partial<PreLead>);
@@ -512,9 +458,92 @@ export default function EditPreLeadPage() {
     }
   };
 
-  // Contact handlers
-  const handleAddContact = () => {
+  const handleDiscard = async () => {
+    if (!window.confirm('Are you sure you want to discard this pre-lead?')) return;
+    try {
+      await api.discardPreLead(preLeadId, 'Discarded by user');
+      setIsDiscarded(true);
+      setSuccess('Pre-lead discarded successfully');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to discard pre-lead');
+    }
+  };
+
+  const handleRestore = async () => {
+    if (!window.confirm('Are you sure you want to restore this pre-lead?')) return;
+    try {
+      await api.updatePreLead(preLeadId, { status: 'new' } as Partial<PreLead>);
+      setIsDiscarded(false);
+      setSuccess('Pre-lead restored successfully');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to restore pre-lead');
+    }
+  };
+
+  const handleMoveToLead = async () => {
+    if (!window.confirm('Are you sure you want to move this to Lead?')) return;
+    try {
+      const result = await api.validatePreLead(preLeadId, {});
+      router.push(`/leads/${result.lead_id}/edit`);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to move to lead');
+    }
+  };
+
+  // ============== Contact Handlers ==============
+
+  const handleAddContact = async () => {
+    if (!contactForm.first_name || !contactForm.last_name || !contactForm.work_email) {
+      setError('Please fill required fields: First Name, Last Name, Work Email');
+      return;
+    }
+    try {
+      if (editingContact) {
+        await api.updatePreLeadContact(preLeadId, editingContact.id, contactForm);
+        setSuccess('Contact updated successfully');
+      } else {
+        await api.createPreLeadContact(preLeadId, contactForm);
+        setSuccess('Contact added successfully');
+      }
+      fetchContacts();
+      resetContactForm();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to save contact');
+    }
+  };
+
+  const handleEditContact = (contact: Contact) => {
+    setEditingContact(contact);
+    setContactForm({
+      contact_type: contact.contact_type || 'primary',
+      title: contact.title || '',
+      first_name: contact.first_name || '',
+      last_name: contact.last_name || '',
+      designation: contact.designation || '',
+      work_email: contact.work_email || '',
+      work_phone: contact.work_phone || '',
+      ext: contact.ext || '',
+      fax: contact.fax || '',
+      cell_phone: contact.cell_phone || '',
+      status: contact.status || 'active',
+    });
+    setShowContactForm(true);
+  };
+
+  const handleDeleteContact = async (contactId: number) => {
+    if (!window.confirm('Are you sure you want to delete this contact?')) return;
+    try {
+      await api.deletePreLeadContact(preLeadId, contactId);
+      fetchContacts();
+      setSuccess('Contact deleted successfully');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to delete contact');
+    }
+  };
+
+  const resetContactForm = () => {
     setEditingContact(null);
+    setShowContactForm(false);
     setContactForm({
       contact_type: 'primary',
       title: '',
@@ -528,325 +557,99 @@ export default function EditPreLeadPage() {
       cell_phone: '',
       status: 'active',
     });
-    setShowContactModal(true);
   };
 
-  const handleEditContact = (contact: PreLeadContact) => {
-    setEditingContact(contact);
-    setContactForm({
-      contact_type: contact.contact_type,
-      title: contact.title || '',
-      first_name: contact.first_name,
-      last_name: contact.last_name || '',
-      designation: contact.designation || '',
-      work_email: contact.work_email || '',
-      work_phone: contact.work_phone || '',
-      ext: contact.ext || '',
-      fax: contact.fax || '',
-      cell_phone: contact.cell_phone || '',
-      status: contact.status,
-    });
-    setShowContactModal(true);
-  };
+  // ============== Memo Handlers ==============
 
-  const handleSaveContact = async () => {
-    if (!contactForm.first_name) {
-      setError('First name is required');
-      return;
-    }
-    try {
-      if (editingContact) {
-        await api.updatePreLeadContact(preLeadId, editingContact.id, contactForm);
-      } else {
-        await api.createPreLeadContact(preLeadId, contactForm);
-      }
-      setShowContactModal(false);
-      const updatedContacts = await api.getPreLeadContacts(preLeadId);
-      setContacts(updatedContacts);
-      setSuccess(editingContact ? 'Contact updated' : 'Contact added');
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save contact');
-    }
-  };
-
-  const handleDeleteContact = async (contactId: number) => {
-    if (!confirm('Are you sure you want to delete this contact?')) return;
-    try {
-      await api.deletePreLeadContact(preLeadId, contactId);
-      setContacts(contacts.filter(c => c.id !== contactId));
-      setSuccess('Contact deleted');
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete contact');
-    }
-  };
-
-  // Activity handlers
-  const handleAddActivity = () => {
-    setEditingActivity(null);
-    setActivityForm({
-      activity_type: 'call',
-      subject: '',
-      description: '',
-      start_date: new Date().toISOString().split('T')[0],
-      due_date: new Date().toISOString().split('T')[0],
-      priority: 'medium',
-      status: 'pending',
-    });
-    setShowActivityModal(true);
-  };
-
-  const handleEditActivity = (activity: PreLeadActivity) => {
-    setEditingActivity(activity);
-    setActivityForm({
-      activity_type: activity.activity_type,
-      subject: activity.subject,
-      description: activity.description || '',
-      start_date: activity.start_date || '',
-      due_date: activity.due_date || '',
-      priority: activity.priority,
-      status: activity.status,
-    });
-    setShowActivityModal(true);
-  };
-
-  const handleSaveActivity = async () => {
-    if (!activityForm.subject) {
-      setError('Subject is required');
-      return;
-    }
-    try {
-      if (editingActivity) {
-        await api.updatePreLeadActivity(preLeadId, editingActivity.id, activityForm);
-      } else {
-        await api.createPreLeadActivity(preLeadId, activityForm);
-      }
-      setShowActivityModal(false);
-      const updatedActivities = await api.getPreLeadActivities(preLeadId);
-      setActivities(updatedActivities);
-      setSuccess(editingActivity ? 'Activity updated' : 'Activity added');
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save activity');
-    }
-  };
-
-  const handleDeleteActivity = async (activityId: number) => {
-    if (!confirm('Are you sure you want to delete this activity?')) return;
-    try {
-      await api.deletePreLeadActivity(preLeadId, activityId);
-      setActivities(activities.filter(a => a.id !== activityId));
-      setSuccess('Activity deleted');
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete activity');
-    }
-  };
-
-  // Memo handlers
   const handleAddMemo = () => {
     setEditingMemo(null);
-    setMemoForm({ details: '' });
+    setMemoContent('');
     setShowMemoModal(true);
   };
 
-  const handleEditMemo = (memo: PreLeadMemo) => {
+  const handleEditMemo = (memo: Memo) => {
     setEditingMemo(memo);
-    setMemoForm({ details: memo.details });
+    setMemoContent(memo.content);
     setShowMemoModal(true);
   };
 
   const handleSaveMemo = async () => {
-    if (!memoForm.details) {
-      setError('Memo details required');
+    if (!memoContent.trim()) {
+      setError('Please enter memo content');
       return;
     }
     try {
       if (editingMemo) {
-        await api.updatePreLeadMemo(preLeadId, editingMemo.id, memoForm);
+        await api.updatePreLeadMemo(preLeadId, editingMemo.id, {
+          title: 'Memo',
+          content: memoContent,
+        });
+        setSuccess('Memo updated successfully');
       } else {
-        await api.createPreLeadMemo(preLeadId, memoForm);
+        await api.createPreLeadMemo(preLeadId, {
+          title: 'Memo',
+          content: memoContent,
+          memo_type: 'general',
+        });
+        setSuccess('Memo added successfully');
       }
+      fetchMemos();
       setShowMemoModal(false);
-      const updatedMemos = await api.getPreLeadMemos(preLeadId);
-      setMemos(updatedMemos);
-      setSuccess(editingMemo ? 'Memo updated' : 'Memo added');
-      setTimeout(() => setSuccess(null), 3000);
+      setMemoContent('');
+      setEditingMemo(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to save memo');
     }
   };
 
   const handleDeleteMemo = async (memoId: number) => {
-    if (!confirm('Are you sure you want to delete this memo?')) return;
+    if (!window.confirm('Are you sure you want to delete this memo?')) return;
     try {
       await api.deletePreLeadMemo(preLeadId, memoId);
-      setMemos(memos.filter(m => m.id !== memoId));
-      setSuccess('Memo deleted');
-      setTimeout(() => setSuccess(null), 3000);
+      fetchMemos();
+      setSuccess('Memo deleted successfully');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to delete memo');
     }
   };
 
-  // Document handlers
-  const handleUploadDocument = async () => {
-    if (!uploadFile) {
-      setError('Please select a file');
-      return;
-    }
+  // ============== Qualified Profile Handlers ==============
+
+  const handleSaveProfile = async () => {
     try {
-      await api.uploadPreLeadDocument(preLeadId, uploadFile, uploadNotes);
-      const updatedDocs = await api.getPreLeadDocuments(preLeadId);
-      setDocuments(updatedDocs);
-      setUploadFile(null);
-      setUploadNotes('');
-      setSuccess('File uploaded');
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to upload file');
-    }
-  };
-
-  const handleDeleteDocument = async (docId: number) => {
-    if (!confirm('Are you sure you want to delete this file?')) return;
-    try {
-      await api.deletePreLeadDocument(preLeadId, docId);
-      setDocuments(documents.filter(d => d.id !== docId));
-      setSuccess('File deleted');
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete file');
-    }
-  };
-
-  // Status handler
-  const handleSaveStatus = async () => {
-    if (!statusForm.status) {
-      setError('Please select a status');
-      return;
-    }
-    try {
-      await api.changePreLeadStatus(preLeadId, statusForm);
-      const [updatedHistory, updatedPreLead] = await Promise.all([
-        api.getPreLeadStatusHistory(preLeadId),
-        api.getPreLead(preLeadId),
-      ]);
-      setStatusHistory(updatedHistory);
-      setPreLeadData(updatedPreLead);
-      setSuccess('Status updated');
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to update status');
-    }
-  };
-
-  // Qualified Profile handlers
-  const handleAddQualified = () => {
-    setEditingQualified(null);
-    setQualifiedForm({
-      contact_id: '',
-      company_name: preLeadData?.company_name || '',
-      industry_id: preLeadData?.industry_id?.toString() || '',
-      best_time_call: '',
-      best_time_call_timezone: '',
-      mode: '',
-      contact_name: '',
-      designation: '',
-      phone: preLeadData?.phone || '',
-      email: preLeadData?.email || '',
-      need_type: '',
-      current_software: '',
-      need_summary: '',
-      budget: '',
-      decision_maker: '',
-      time_frame: '',
-      company_profile: '',
-      summary_of_discussion: '',
-      conclusion: '',
-      status: 'draft',
-    });
-    setShowQualifiedModal(true);
-  };
-
-  const handleEditQualified = (profile: QualifiedLeadProfile) => {
-    setEditingQualified(profile);
-    setQualifiedForm({
-      contact_id: profile.contact_id?.toString() || '',
-      company_name: profile.company_name || '',
-      industry_id: profile.industry_id?.toString() || '',
-      best_time_call: profile.best_time_call || '',
-      best_time_call_timezone: profile.best_time_call_timezone?.toString() || '',
-      mode: profile.mode || '',
-      contact_name: profile.contact_name || '',
-      designation: profile.designation || '',
-      phone: profile.phone || '',
-      email: profile.email || '',
-      need_type: profile.need_type?.toString() || '',
-      current_software: profile.current_software || '',
-      need_summary: profile.need_summary || '',
-      budget: profile.budget?.toString() || '',
-      decision_maker: profile.decision_maker?.toString() || '',
-      time_frame: profile.time_frame?.toString() || '',
-      company_profile: profile.company_profile || '',
-      summary_of_discussion: profile.summary_of_discussion || '',
-      conclusion: profile.conclusion || '',
-      status: profile.status,
-    });
-    setShowQualifiedModal(true);
-  };
-
-  const handleSaveQualified = async () => {
-    try {
-      const payload = {
-        ...qualifiedForm,
-        contact_id: qualifiedForm.contact_id ? parseInt(qualifiedForm.contact_id) : null,
-        industry_id: qualifiedForm.industry_id ? parseInt(qualifiedForm.industry_id) : null,
-        best_time_call_timezone: qualifiedForm.best_time_call_timezone ? parseInt(qualifiedForm.best_time_call_timezone) : null,
-        need_type: qualifiedForm.need_type ? parseInt(qualifiedForm.need_type) : null,
-        budget: qualifiedForm.budget ? parseInt(qualifiedForm.budget) : null,
-        decision_maker: qualifiedForm.decision_maker ? parseInt(qualifiedForm.decision_maker) : null,
-        time_frame: qualifiedForm.time_frame ? parseInt(qualifiedForm.time_frame) : null,
+      const profileData = {
+        ...profileForm,
+        profile_type: 'basic',
       };
 
-      if (editingQualified) {
-        await api.updatePreLeadQualifiedProfile(preLeadId, editingQualified.id, payload);
+      if (qualifiedProfile) {
+        await api.updatePreLeadQualifiedProfile(preLeadId, qualifiedProfile.id, profileData);
       } else {
-        await api.createPreLeadQualifiedProfile(preLeadId, payload);
+        await api.createPreLeadQualifiedProfile(preLeadId, profileData);
       }
-      setShowQualifiedModal(false);
-      const updatedProfiles = await api.getPreLeadQualifiedProfiles(preLeadId);
-      setQualifiedProfiles(updatedProfiles);
-      setSuccess(editingQualified ? 'Qualified profile updated' : 'Qualified profile created');
-      setTimeout(() => setSuccess(null), 3000);
+      fetchQualifiedProfile();
+      setSuccess('Company Profile saved successfully');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save qualified profile');
+      setError(err.response?.data?.detail || 'Failed to save profile');
     }
   };
 
-  const handleDeleteQualified = async (profileId: number) => {
-    if (!confirm('Are you sure you want to delete this qualified profile?')) return;
-    try {
-      await api.deletePreLeadQualifiedProfile(preLeadId, profileId);
-      setQualifiedProfiles(qualifiedProfiles.filter(p => p.id !== profileId));
-      setSuccess('Qualified profile deleted');
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete qualified profile');
-    }
-  };
-
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return '-';
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  };
-
+  // ============== Styling ==============
   const inputClass = "w-full h-9 px-3 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500";
   const selectClass = "w-full h-9 px-3 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white";
-  const labelClass = "w-36 text-sm font-medium flex-shrink-0";
+  const labelClass = "w-36 text-sm text-blue-600 flex-shrink-0";
+
+  const tabs = [
+    { id: 'company_details' as TabType, label: 'Company Details' },
+    { id: 'contacts' as TabType, label: 'Contacts' },
+    { id: 'company_profile' as TabType, label: 'Company Profile' },
+    { id: 'memo' as TabType, label: 'Memo' },
+    { id: 'workflow' as TabType, label: 'Workflow & Audit Trail' },
+  ];
+
+  const filteredContacts = contactFilter === 'all'
+    ? contacts
+    : contacts.filter(c => c.contact_type === contactFilter);
 
   if (isLoading) {
     return (
@@ -858,885 +661,585 @@ export default function EditPreLeadPage() {
     );
   }
 
-  const renderCompanyDetails = () => (
-    <div className="grid grid-cols-2 gap-x-12 gap-y-3">
-      <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <label className={`${labelClass} text-blue-600`}>Company Name *</label>
-          <input type="text" placeholder="Company Name" className={`${inputClass} flex-1`} {...register('company_name')} />
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Address</label>
-          <input type="text" placeholder="Address Line 1" className={`${inputClass} flex-1`} {...register('address_line1')} />
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}></label>
-          <input type="text" placeholder="Address Line 2" className={`${inputClass} flex-1`} {...register('address_line2')} />
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Country</label>
-          <select className={`${selectClass} flex-1`} {...register('country_id')}>
-            {countryOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>State/Province</label>
-          <select className={`${selectClass} flex-1`} {...register('state_id')}>
-            {stateOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>City</label>
-          <select className={`${selectClass} flex-1`} {...register('city_id')}>
-            {cityOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Zip Code</label>
-          <input type="text" placeholder="Zip Code" className={`${inputClass} flex-1`} {...register('zip_code')} />
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Phone</label>
-          <input type="text" placeholder="Phone" className={`${inputClass} flex-1`} {...register('phone_no')} />
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Fax</label>
-          <input type="text" placeholder="Fax" className={`${inputClass} flex-1`} {...register('fax')} />
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Website</label>
-          <input type="text" placeholder="Website" className={`${inputClass} flex-1`} {...register('website')} />
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Name of Rep.</label>
-          <input type="text" placeholder="Representative" className={`${inputClass} flex-1`} {...register('nof_representative')} />
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Contact Phone</label>
-          <input type="text" placeholder="Contact Phone" className={`${inputClass} flex-1`} {...register('phone')} />
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Email</label>
-          <input type="email" placeholder="Email" className={`${inputClass} flex-1`} {...register('email')} />
-        </div>
-      </div>
-      <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Lead Since</label>
-          <input type="date" className={`${inputClass} flex-1`} {...register('lead_since')} />
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Lead Status</label>
-          <select className={`${selectClass} flex-1`} {...register('lead_status')}>
-            {leadStatusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Group</label>
-          <select className={`${selectClass} flex-1`} {...register('group_id')}>
-            {groupOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Industry</label>
-          <select className={`${selectClass} flex-1`} {...register('industry_id')}>
-            {industryOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Region</label>
-          <select className={`${selectClass} flex-1`} {...register('region_id')}>
-            {regionOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Office Timing</label>
-          <div className="flex gap-2 flex-1">
-            <input type="time" className={`${inputClass} flex-1`} {...register('from_timings')} />
-            <input type="time" className={`${inputClass} flex-1`} {...register('to_timings')} />
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Timezone</label>
-          <select className={`${selectClass} flex-1`} {...register('timezone')}>
-            {timezoneOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Sales Rep</label>
-          <select className={`${selectClass} flex-1`} {...register('sales_rep')}>
-            {salesRepOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Lead Source</label>
-          <select className={`${selectClass} flex-1`} {...register('source')}>
-            {sourceOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className={labelClass}>Lead Score</label>
-          <select className={`${selectClass} flex-1`} {...register('lead_score')}>
-            {leadScoreOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-        </div>
-        <div className="flex items-start gap-3">
-          <label className={`${labelClass} pt-2`}>Remarks</label>
-          <textarea placeholder="Remarks" rows={3} className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" {...register('remarks')} />
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderContacts = () => (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button size="sm" onClick={handleAddContact} className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700">
-          <Plus className="w-4 h-4" /> Add Contact
-        </Button>
-      </div>
-      <div className="border rounded overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-3 py-2 text-left font-medium">Title</th>
-              <th className="px-3 py-2 text-left font-medium">First Name</th>
-              <th className="px-3 py-2 text-left font-medium">Last Name</th>
-              <th className="px-3 py-2 text-left font-medium">Designation</th>
-              <th className="px-3 py-2 text-left font-medium">Email</th>
-              <th className="px-3 py-2 text-left font-medium">Phone</th>
-              <th className="px-3 py-2 text-left font-medium">Fax</th>
-              <th className="px-3 py-2 text-left font-medium">Cell</th>
-              <th className="px-3 py-2 text-left font-medium">Status</th>
-              <th className="px-3 py-2 text-center font-medium">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {contacts.length === 0 ? (
-              <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-500">No contacts found</td></tr>
-            ) : (
-              contacts.map(contact => (
-                <tr key={contact.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-2">{contact.title || '-'}</td>
-                  <td className="px-3 py-2">{contact.first_name}</td>
-                  <td className="px-3 py-2">{contact.last_name || '-'}</td>
-                  <td className="px-3 py-2">{contact.designation || '-'}</td>
-                  <td className="px-3 py-2">{contact.work_email || '-'}</td>
-                  <td className="px-3 py-2">{contact.work_phone || '-'}</td>
-                  <td className="px-3 py-2">{contact.fax || '-'}</td>
-                  <td className="px-3 py-2">{contact.cell_phone || '-'}</td>
-                  <td className="px-3 py-2">
-                    <span className={`px-2 py-0.5 rounded text-xs ${contact.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                      {contact.status}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <button onClick={() => handleEditContact(contact)} className="p-1 hover:bg-blue-100 rounded text-blue-600"><Edit className="w-4 h-4" /></button>
-                    <button onClick={() => handleDeleteContact(contact.id)} className="p-1 hover:bg-red-100 rounded text-red-600 ml-1"><Trash2 className="w-4 h-4" /></button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
-  const renderActivities = () => (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button size="sm" onClick={handleAddActivity} className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700">
-          <Plus className="w-4 h-4" /> Add Activity
-        </Button>
-      </div>
-      <div className="border rounded overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-3 py-2 text-left font-medium">Type</th>
-              <th className="px-3 py-2 text-left font-medium">Subject</th>
-              <th className="px-3 py-2 text-left font-medium">Start Date</th>
-              <th className="px-3 py-2 text-left font-medium">Due Date</th>
-              <th className="px-3 py-2 text-left font-medium">Priority</th>
-              <th className="px-3 py-2 text-left font-medium">Status</th>
-              <th className="px-3 py-2 text-center font-medium">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {activities.length === 0 ? (
-              <tr><td colSpan={7} className="px-3 py-8 text-center text-gray-500">No activities found</td></tr>
-            ) : (
-              activities.map(activity => (
-                <tr key={activity.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-2 capitalize">{activity.activity_type}</td>
-                  <td className="px-3 py-2">{activity.subject}</td>
-                  <td className="px-3 py-2">{activity.start_date || '-'}</td>
-                  <td className="px-3 py-2">{activity.due_date || '-'}</td>
-                  <td className="px-3 py-2">
-                    <span className={`px-2 py-0.5 rounded text-xs capitalize ${
-                      activity.priority === 'high' ? 'bg-red-100 text-red-700' :
-                      activity.priority === 'critical' ? 'bg-red-200 text-red-800' :
-                      activity.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>{activity.priority}</span>
-                  </td>
-                  <td className="px-3 py-2">
-                    <span className={`px-2 py-0.5 rounded text-xs capitalize ${
-                      activity.status === 'completed' ? 'bg-green-100 text-green-700' :
-                      activity.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>{activity.status}</span>
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <button onClick={() => handleEditActivity(activity)} className="p-1 hover:bg-blue-100 rounded text-blue-600"><Edit className="w-4 h-4" /></button>
-                    <button onClick={() => handleDeleteActivity(activity.id)} className="p-1 hover:bg-red-100 rounded text-red-600 ml-1"><Trash2 className="w-4 h-4" /></button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
-  const renderMemo = () => (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button size="sm" onClick={handleAddMemo} className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700">
-          <Plus className="w-4 h-4" /> Add Memo
-        </Button>
-      </div>
-      <div className="border rounded overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-3 py-2 text-left font-medium w-32">Date</th>
-              <th className="px-3 py-2 text-left font-medium">Details</th>
-              <th className="px-3 py-2 text-center font-medium w-24">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {memos.length === 0 ? (
-              <tr><td colSpan={3} className="px-3 py-8 text-center text-gray-500">No memos found</td></tr>
-            ) : (
-              memos.map(memo => (
-                <tr key={memo.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-2">{new Date(memo.created_at).toLocaleDateString()}</td>
-                  <td className="px-3 py-2"><div dangerouslySetInnerHTML={{ __html: memo.details }} /></td>
-                  <td className="px-3 py-2 text-center">
-                    <button onClick={() => handleEditMemo(memo)} className="p-1 hover:bg-blue-100 rounded text-blue-600"><Edit className="w-4 h-4" /></button>
-                    <button onClick={() => handleDeleteMemo(memo.id)} className="p-1 hover:bg-red-100 rounded text-red-600 ml-1"><Trash2 className="w-4 h-4" /></button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
-  const renderUpload = () => (
-    <div className="space-y-4">
-      <div className="flex items-end gap-4 p-4 bg-gray-50 rounded">
-        <div className="flex-1">
-          <label className="block text-sm font-medium mb-1">Document</label>
-          <input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} className="w-full text-sm" />
-        </div>
-        <div className="flex-1">
-          <label className="block text-sm font-medium mb-1">Notes</label>
-          <input type="text" value={uploadNotes} onChange={(e) => setUploadNotes(e.target.value)} className={inputClass} placeholder="Notes" />
-        </div>
-        <Button size="sm" onClick={handleUploadDocument} className="bg-blue-600 hover:bg-blue-700">
-          <Upload className="w-4 h-4 mr-1" /> Upload
-        </Button>
-      </div>
-      <div className="border rounded overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-3 py-2 text-left font-medium">File Name</th>
-              <th className="px-3 py-2 text-left font-medium">Uploaded On</th>
-              <th className="px-3 py-2 text-left font-medium">Size</th>
-              <th className="px-3 py-2 text-left font-medium">Notes</th>
-              <th className="px-3 py-2 text-center font-medium">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {documents.length === 0 ? (
-              <tr><td colSpan={5} className="px-3 py-8 text-center text-gray-500">No files uploaded</td></tr>
-            ) : (
-              documents.map(doc => (
-                <tr key={doc.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-2">{doc.original_name || doc.name}</td>
-                  <td className="px-3 py-2">{new Date(doc.created_at).toLocaleDateString()}</td>
-                  <td className="px-3 py-2">{formatFileSize(doc.size)}</td>
-                  <td className="px-3 py-2">{doc.notes || '-'}</td>
-                  <td className="px-3 py-2 text-center">
-                    <button onClick={() => handleDeleteDocument(doc.id)} className="p-1 hover:bg-red-100 rounded text-red-600"><Trash2 className="w-4 h-4" /></button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
-  const renderStatus = () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4 p-4 bg-gray-50 rounded">
-        <div className="flex-1">
-          <label className="block text-sm font-medium mb-1">Current Status</label>
-          <div className="px-3 py-2 bg-white border rounded text-sm">
-            {leadStatusOptions.find(o => o.value === preLeadData?.lead_status)?.label || 'Not Set'}
-          </div>
-        </div>
-      </div>
-
-      <div className="border rounded overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-3 py-2 text-left font-medium">Status</th>
-              <th className="px-3 py-2 text-left font-medium">Remarks</th>
-              <th className="px-3 py-2 text-left font-medium">Updated By</th>
-              <th className="px-3 py-2 text-left font-medium">Status Date</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {leadStatusOptions.filter(o => o.value).map(opt => {
-              const history = statusHistory.find(h => h.status === opt.value);
-              const isCurrentStatus = preLeadData?.lead_status === opt.value;
-              return (
-                <tr key={opt.value} className={isCurrentStatus ? 'bg-blue-50' : ''}>
-                  <td className="px-3 py-2">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="status"
-                        value={opt.value}
-                        checked={statusForm.status === opt.value}
-                        onChange={(e) => setStatusForm(prev => ({ ...prev, status: e.target.value }))}
-                        className="w-4 h-4"
-                      />
-                      <span>{opt.label}</span>
-                    </label>
-                  </td>
-                  <td className="px-3 py-2">{history?.remarks || '-'}</td>
-                  <td className="px-3 py-2">{history?.updated_by || '-'}</td>
-                  <td className="px-3 py-2">{history?.status_date || '-'}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {statusForm.status && statusForm.status !== preLeadData?.lead_status && (
-        <div className="flex items-end gap-4 p-4 bg-yellow-50 rounded">
-          <div className="flex-1">
-            <label className="block text-sm font-medium mb-1">Remarks</label>
-            <input
-              type="text"
-              value={statusForm.remarks}
-              onChange={(e) => setStatusForm(prev => ({ ...prev, remarks: e.target.value }))}
-              className={inputClass}
-              placeholder="Enter remarks"
-            />
-          </div>
-          <div className="w-40">
-            <label className="block text-sm font-medium mb-1">Status Date</label>
-            <input
-              type="date"
-              value={statusForm.status_date}
-              onChange={(e) => setStatusForm(prev => ({ ...prev, status_date: e.target.value }))}
-              className={inputClass}
-            />
-          </div>
-          <Button size="sm" onClick={handleSaveStatus} className="bg-green-600 hover:bg-green-700">
-            Save Status
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-
-  const renderWorkflow = () => (
-    <div className="space-y-4">
-      <h3 className="text-sm font-medium">Audit Trail</h3>
-      <div className="border rounded overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-3 py-2 text-left font-medium">Date & Time</th>
-              <th className="px-3 py-2 text-left font-medium">User</th>
-              <th className="px-3 py-2 text-left font-medium">Action</th>
-              <th className="px-3 py-2 text-left font-medium">Details</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <tr className="hover:bg-gray-50">
-              <td className="px-3 py-2">{preLeadData?.created_at ? new Date(preLeadData.created_at).toLocaleString() : '-'}</td>
-              <td className="px-3 py-2">System</td>
-              <td className="px-3 py-2"><span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">Created</span></td>
-              <td className="px-3 py-2">Pre-lead record created</td>
-            </tr>
-            {statusHistory.map(h => (
-              <tr key={h.id} className="hover:bg-gray-50">
-                <td className="px-3 py-2">{new Date(h.created_at).toLocaleString()}</td>
-                <td className="px-3 py-2">User #{h.updated_by || '-'}</td>
-                <td className="px-3 py-2"><span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">Status Change</span></td>
-                <td className="px-3 py-2">Status changed to {h.status}{h.remarks ? ` - ${h.remarks}` : ''}</td>
-              </tr>
-            ))}
-            {preLeadData?.updated_at && preLeadData.updated_at !== preLeadData.created_at && (
-              <tr className="hover:bg-gray-50">
-                <td className="px-3 py-2">{new Date(preLeadData.updated_at).toLocaleString()}</td>
-                <td className="px-3 py-2">System</td>
-                <td className="px-3 py-2"><span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">Updated</span></td>
-                <td className="px-3 py-2">Pre-lead record updated</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
-  const renderQualifiedProfile = () => (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button size="sm" onClick={handleAddQualified} className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700">
-          <Plus className="w-4 h-4" /> Create Qualified Profile
-        </Button>
-      </div>
-
-      {qualifiedProfiles.length === 0 ? (
-        <div className="p-8 text-center text-gray-500 border rounded">
-          <UserCheck className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-          <p>No qualified profiles yet.</p>
-          <p className="text-sm mt-2">Create a qualified profile to capture detailed qualification data including budget, decision makers, timeline, and requirements.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {qualifiedProfiles.map(profile => (
-            <div key={profile.id} className="border rounded p-4 bg-white">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h4 className="font-medium">{profile.company_name || 'Untitled Profile'}</h4>
-                  <p className="text-sm text-gray-500">
-                    Created: {new Date(profile.created_at).toLocaleDateString()}
-                    {profile.contact_name && ` | Contact: ${profile.contact_name}`}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded text-xs ${
-                    profile.status === 'approved' ? 'bg-green-100 text-green-700' :
-                    profile.status === 'submitted' ? 'bg-blue-100 text-blue-700' :
-                    profile.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>{profile.status}</span>
-                  <button onClick={() => handleEditQualified(profile)} className="p-1 hover:bg-blue-100 rounded text-blue-600">
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => handleDeleteQualified(profile.id)} className="p-1 hover:bg-red-100 rounded text-red-600">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-4 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-500">Mode:</span>
-                  <span className="ml-2">{modeOptions.find(o => o.value === profile.mode)?.label || '-'}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Budget:</span>
-                  <span className="ml-2">{budgetOptions.find(o => o.value === profile.budget?.toString())?.label || '-'}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Decision Maker:</span>
-                  <span className="ml-2">{decisionMakerOptions.find(o => o.value === profile.decision_maker?.toString())?.label || '-'}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Time Frame:</span>
-                  <span className="ml-2">{timeFrameOptions.find(o => o.value === profile.time_frame?.toString())?.label || '-'}</span>
-                </div>
-              </div>
-
-              {profile.need_summary && (
-                <div className="mt-3 pt-3 border-t">
-                  <span className="text-sm text-gray-500">Need Summary:</span>
-                  <p className="text-sm mt-1">{profile.need_summary}</p>
-                </div>
-              )}
-
-              {profile.conclusion && (
-                <div className="mt-3 pt-3 border-t">
-                  <span className="text-sm text-gray-500">Conclusion:</span>
-                  <p className="text-sm mt-1">{profile.conclusion}</p>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'company': return renderCompanyDetails();
-      case 'contacts': return renderContacts();
-      case 'activities': return renderActivities();
-      case 'qualified': return renderQualifiedProfile();
-      case 'memo': return renderMemo();
-      case 'upload': return renderUpload();
-      case 'status': return renderStatus();
-      case 'workflow': return renderWorkflow();
-      default: return renderCompanyDetails();
-    }
-  };
-
-  // Modal component
-  const Modal = ({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) => {
-    if (!isOpen) return null;
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto">
-          <div className="flex items-center justify-between p-4 border-b">
-            <h3 className="font-semibold">{title}</h3>
-            <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
-          </div>
-          <div className="p-4">{children}</div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <MainLayout>
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="flex items-center justify-between mb-4 pb-2 border-b">
-          <h1 className="text-lg font-semibold text-gray-800">EDIT PRE LEAD</h1>
-          <span className="text-sm text-gray-500">ID: {preLeadId}</span>
+      <div className="h-full flex flex-col">
+        {/* Header */}
+        <div className="bg-slate-700 text-white px-4 py-3 flex items-center justify-between">
+          <h1 className="text-sm font-medium">
+            MODIFY PRE LEAD - {companyName || preLeadData?.company_name || preLeadData?.first_name || ''}
+            {isDiscarded && <span className="ml-4 bg-red-200 text-red-800 px-2 py-1 rounded text-xs uppercase">DISCARDED</span>}
+          </h1>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <div className="flex flex-wrap gap-1 mb-0 border-b border-gray-200">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {tab.icon}
-                {tab.label}
-              </button>
-            ))}
-          </div>
+        {/* Tabs */}
+        <div className="bg-gray-100 border-b flex">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-          <div className="bg-white border border-gray-200 rounded-b p-6">
-            {error && <div className="bg-red-50 text-red-600 p-3 rounded text-sm mb-4">{error}</div>}
-            {success && <div className="bg-green-50 text-green-600 p-3 rounded text-sm mb-4">{success}</div>}
+        {error && <div className="mx-4 mt-4 p-3 bg-red-50 text-red-600 rounded text-sm">{error}</div>}
+        {success && <div className="mx-4 mt-4 p-3 bg-green-50 text-green-600 rounded text-sm">{success}</div>}
 
-            {renderTabContent()}
+        {/* Content */}
+        <div className="flex-1 overflow-auto p-6 bg-gray-50">
+          {/* ============== TAB 1: Company Details ============== */}
+          {activeTab === 'company_details' && (
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <div className="grid grid-cols-2 gap-x-12 gap-y-4">
+                {/* Left Column */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Company Name</label>
+                    <input placeholder="Company Name" className={`${inputClass} flex-1 bg-blue-50`} {...register('company_name')} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Address</label>
+                    <input placeholder="Address Line 1" className={`${inputClass} flex-1 bg-yellow-50`} {...register('address_line1')} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}></label>
+                    <input placeholder="P.O. Box" className={`${inputClass} flex-1`} {...register('address_line2')} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Country</label>
+                    <select className={`${selectClass} flex-1 bg-blue-50`} {...register('country_id')}>
+                      {countryOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>State/Province</label>
+                    <select className={`${selectClass} flex-1 bg-blue-50`} {...register('state_id')}>
+                      {stateOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>City</label>
+                    <div className="flex gap-2 flex-1">
+                      <select className={`${selectClass} flex-1 bg-blue-50`} {...register('city_id')}>
+                        {cityOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                      <button type="button" className="w-9 h-9 flex items-center justify-center border border-gray-300 rounded bg-white hover:bg-gray-50">
+                        <Plus className="w-4 h-4 text-gray-600" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Postal/Zip Code</label>
+                    <input placeholder="Postal/Zip Code" className={`${inputClass} flex-1`} {...register('zip_code')} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Phone</label>
+                    <input placeholder="+{Country Code}{Area Code}{Phone}" className={`${inputClass} flex-1 bg-blue-50`} {...register('phone_no')} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Fax</label>
+                    <input placeholder="+{Country Code}{Area Code}{Fax}" className={`${inputClass} flex-1`} {...register('fax')} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Website</label>
+                    <input placeholder="https://" className={`${inputClass} flex-1 bg-blue-50`} {...register('website')} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Name of Rep.</label>
+                    <input placeholder="Name of Representative" className={`${inputClass} flex-1`} {...register('nof_representative')} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Contact Phone</label>
+                    <input placeholder="+{Country Code}{Area Code}{Contact Phone}" className={`${inputClass} flex-1`} {...register('phone')} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Email ID</label>
+                    <input type="email" placeholder="Email" className={`${inputClass} flex-1 bg-blue-50`} {...register('email')} />
+                  </div>
+                </div>
 
-            <div className="flex justify-center gap-4 mt-6 pt-6 border-t">
-              <Button type="button" variant="secondary" onClick={() => router.push('/pre-leads')} className="px-8">Cancel</Button>
-              <Button type="submit" isLoading={isSubmitting} className="bg-green-500 hover:bg-green-600 px-8">Update</Button>
-            </div>
-          </div>
-        </form>
+                {/* Right Column */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Lead Registered</label>
+                    <div className="flex gap-2 flex-1">
+                      <input type="date" className={`${inputClass} flex-1`} {...register('lead_since')} />
+                      <button type="button" className="w-9 h-9 flex items-center justify-center border border-gray-300 rounded bg-white hover:bg-gray-50">
+                        <Calendar className="w-4 h-4 text-gray-600" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Group</label>
+                    <div className="flex gap-2 flex-1">
+                      <select className={`${selectClass} flex-1`} {...register('group_id')}>
+                        {groupOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                      <button type="button" className="w-9 h-9 flex items-center justify-center border border-gray-300 rounded bg-white hover:bg-gray-50">
+                        <Plus className="w-4 h-4 text-gray-600" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Industry</label>
+                    <div className="flex gap-2 flex-1">
+                      <select className={`${selectClass} flex-1`} {...register('industry_id')}>
+                        {industryOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                      <button type="button" className="w-9 h-9 flex items-center justify-center border border-gray-300 rounded bg-white hover:bg-gray-50">
+                        <Plus className="w-4 h-4 text-gray-600" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Company Region</label>
+                    <div className="flex gap-2 flex-1">
+                      <select className={`${selectClass} flex-1`} {...register('region_id')}>
+                        {regionOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                      <button type="button" className="w-9 h-9 flex items-center justify-center border border-gray-300 rounded bg-white hover:bg-gray-50">
+                        <Plus className="w-4 h-4 text-gray-600" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Office Timing</label>
+                    <div className="flex gap-2 flex-1 items-center">
+                      <input type="time" className={`${inputClass} flex-1`} {...register('from_timings')} />
+                      <input type="time" className={`${inputClass} flex-1`} {...register('to_timings')} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Company Timezone</label>
+                    <select className={`${selectClass} flex-1`} {...register('timezone')}>
+                      {timezoneOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Sales Representative</label>
+                    <select className={`${selectClass} flex-1`} {...register('sales_rep')}>
+                      {salesRepOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Lead Source</label>
+                    <div className="flex gap-2 flex-1">
+                      <select className={`${selectClass} flex-1`} {...register('source')}>
+                        {sourceOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                      <button type="button" className="w-9 h-9 flex items-center justify-center border border-gray-300 rounded bg-white hover:bg-gray-50">
+                        <Plus className="w-4 h-4 text-gray-600" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className={labelClass}>Lead Score</label>
+                    <select className={`${selectClass} flex-1`} {...register('lead_score')}>
+                      {leadScoreOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <label className={`${labelClass} pt-2`}>Remarks</label>
+                    <textarea placeholder="Remarks" rows={3} className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" {...register('remarks')} />
+                  </div>
+                </div>
+              </div>
 
-        {/* Contact Modal */}
-        <Modal isOpen={showContactModal} onClose={() => setShowContactModal(false)} title={editingContact ? 'Edit Contact' : 'Add Contact'}>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Contact Type *</label>
-              <select value={contactForm.contact_type} onChange={(e) => setContactForm(prev => ({ ...prev, contact_type: e.target.value }))} className={selectClass}>
-                {contactTypeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Title</label>
-              <select value={contactForm.title} onChange={(e) => setContactForm(prev => ({ ...prev, title: e.target.value }))} className={selectClass}>
-                <option value="">Select</option>
-                <option value="Mr.">Mr.</option>
-                <option value="Mrs.">Mrs.</option>
-                <option value="Ms.">Ms.</option>
-                <option value="Dr.">Dr.</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">First Name *</label>
-              <input type="text" value={contactForm.first_name} onChange={(e) => setContactForm(prev => ({ ...prev, first_name: e.target.value }))} className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Last Name</label>
-              <input type="text" value={contactForm.last_name} onChange={(e) => setContactForm(prev => ({ ...prev, last_name: e.target.value }))} className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Designation</label>
-              <input type="text" value={contactForm.designation} onChange={(e) => setContactForm(prev => ({ ...prev, designation: e.target.value }))} className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Work Email</label>
-              <input type="email" value={contactForm.work_email} onChange={(e) => setContactForm(prev => ({ ...prev, work_email: e.target.value }))} className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Work Phone</label>
-              <input type="text" value={contactForm.work_phone} onChange={(e) => setContactForm(prev => ({ ...prev, work_phone: e.target.value }))} className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Ext</label>
-              <input type="text" value={contactForm.ext} onChange={(e) => setContactForm(prev => ({ ...prev, ext: e.target.value }))} className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Fax</label>
-              <input type="text" value={contactForm.fax} onChange={(e) => setContactForm(prev => ({ ...prev, fax: e.target.value }))} className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Cell Phone</label>
-              <input type="text" value={contactForm.cell_phone} onChange={(e) => setContactForm(prev => ({ ...prev, cell_phone: e.target.value }))} className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Status</label>
-              <select value={contactForm.status} onChange={(e) => setContactForm(prev => ({ ...prev, status: e.target.value }))} className={selectClass}>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
-          <div className="flex justify-end gap-3 mt-6">
-            <Button type="button" variant="secondary" onClick={() => setShowContactModal(false)}>Cancel</Button>
-            <Button type="button" onClick={handleSaveContact} className="bg-green-500 hover:bg-green-600">Save</Button>
-          </div>
-        </Modal>
+              {/* Bottom Buttons */}
+              <div className="flex justify-center gap-3 mt-8 pt-4 border-t">
+                {!isDiscarded && (
+                  <button type="button" onClick={handleDiscard} className="px-6 py-2 text-sm font-medium text-white bg-red-500 rounded hover:bg-red-600 transition-colors">
+                    Discard
+                  </button>
+                )}
+                <button type="submit" disabled={isSubmitting} className="px-6 py-2 text-sm font-medium text-white bg-green-500 rounded hover:bg-green-600 transition-colors disabled:opacity-50">
+                  {isSubmitting ? 'Saving...' : 'Save'}
+                </button>
+                {!isDiscarded ? (
+                  <button type="button" onClick={handleMoveToLead} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors flex items-center gap-2">
+                    Move To Lead <ArrowRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button type="button" onClick={handleRestore} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors flex items-center gap-2">
+                    Restore Pre Lead <ArrowRight className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </form>
+          )}
 
-        {/* Activity Modal */}
-        <Modal isOpen={showActivityModal} onClose={() => setShowActivityModal(false)} title={editingActivity ? 'Edit Activity' : 'Add Activity'}>
-          <div className="grid grid-cols-2 gap-4">
+          {/* ============== TAB 2: Contacts ============== */}
+          {activeTab === 'contacts' && (
             <div>
-              <label className="block text-sm font-medium mb-1">Activity Type *</label>
-              <select value={activityForm.activity_type} onChange={(e) => setActivityForm(prev => ({ ...prev, activity_type: e.target.value }))} className={selectClass}>
-                {activityTypeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Subject *</label>
-              <input type="text" value={activityForm.subject} onChange={(e) => setActivityForm(prev => ({ ...prev, subject: e.target.value }))} className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Start Date</label>
-              <input type="date" value={activityForm.start_date} onChange={(e) => setActivityForm(prev => ({ ...prev, start_date: e.target.value }))} className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Due Date</label>
-              <input type="date" value={activityForm.due_date} onChange={(e) => setActivityForm(prev => ({ ...prev, due_date: e.target.value }))} className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Priority</label>
-              <select value={activityForm.priority} onChange={(e) => setActivityForm(prev => ({ ...prev, priority: e.target.value }))} className={selectClass}>
-                {priorityOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Status</label>
-              <select value={activityForm.status} onChange={(e) => setActivityForm(prev => ({ ...prev, status: e.target.value }))} className={selectClass}>
-                <option value="pending">Pending</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1">Description</label>
-              <textarea value={activityForm.description} onChange={(e) => setActivityForm(prev => ({ ...prev, description: e.target.value }))} className="w-full px-3 py-2 text-sm border rounded" rows={3} />
-            </div>
-          </div>
-          <div className="flex justify-end gap-3 mt-6">
-            <Button type="button" variant="secondary" onClick={() => setShowActivityModal(false)}>Cancel</Button>
-            <Button type="button" onClick={handleSaveActivity} className="bg-green-500 hover:bg-green-600">Save</Button>
-          </div>
-        </Modal>
+              {/* Filter */}
+              <div className="flex items-center gap-4 mb-4">
+                <label className="text-sm text-blue-600">Contact Type</label>
+                <select
+                  value={contactFilter}
+                  onChange={(e) => setContactFilter(e.target.value)}
+                  className={`${selectClass} w-48`}
+                >
+                  {contactTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+              </div>
 
-        {/* Memo Modal */}
-        <Modal isOpen={showMemoModal} onClose={() => setShowMemoModal(false)} title={editingMemo ? 'Edit Memo' : 'Add Memo'}>
-          <div>
-            <label className="block text-sm font-medium mb-1">Memo Details *</label>
-            <textarea value={memoForm.details} onChange={(e) => setMemoForm({ details: e.target.value })} className="w-full px-3 py-2 text-sm border rounded" rows={6} placeholder="Enter memo details..." />
-          </div>
-          <div className="flex justify-end gap-3 mt-6">
-            <Button type="button" variant="secondary" onClick={() => setShowMemoModal(false)}>Cancel</Button>
-            <Button type="button" onClick={handleSaveMemo} className="bg-green-500 hover:bg-green-600">Save</Button>
-          </div>
-        </Modal>
-
-        {/* Qualified Profile Modal */}
-        <Modal isOpen={showQualifiedModal} onClose={() => setShowQualifiedModal(false)} title={editingQualified ? 'Edit Qualified Profile' : 'Create Qualified Profile'}>
-          <div className="max-h-[70vh] overflow-y-auto pr-2">
-            {/* Contact Information Section */}
-            <div className="mb-6">
-              <h4 className="font-medium text-gray-700 mb-3 pb-2 border-b">Contact Information</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Select Contact</label>
-                  <select value={qualifiedForm.contact_id} onChange={(e) => {
-                    const contact = contacts.find(c => c.id.toString() === e.target.value);
-                    setQualifiedForm(prev => ({
-                      ...prev,
-                      contact_id: e.target.value,
-                      contact_name: contact ? `${contact.first_name} ${contact.last_name || ''}`.trim() : prev.contact_name,
-                      designation: contact?.designation || prev.designation,
-                      phone: contact?.work_phone || contact?.cell_phone || prev.phone,
-                      email: contact?.work_email || prev.email,
-                    }));
-                  }} className={selectClass}>
-                    <option value="">Select Contact</option>
-                    {contacts.map(c => (
-                      <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
+              {/* Contacts Table */}
+              <div className="bg-white border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Contact</th>
+                      <th className="px-3 py-2 text-left">Title</th>
+                      <th className="px-3 py-2 text-left">First Name</th>
+                      <th className="px-3 py-2 text-left">Last Name</th>
+                      <th className="px-3 py-2 text-left">Designation</th>
+                      <th className="px-3 py-2 text-left">Work Email</th>
+                      <th className="px-3 py-2 text-left">Work Phone</th>
+                      <th className="px-3 py-2 text-left">Ext.</th>
+                      <th className="px-3 py-2 text-left">Fax</th>
+                      <th className="px-3 py-2 text-left">Cell Phone</th>
+                      <th className="px-3 py-2 text-center">Status</th>
+                      <th className="px-3 py-2 text-center">Action</th>
+                    </tr>
+                    {/* Add Row */}
+                    {showContactForm && (
+                      <tr className="bg-blue-50">
+                        <td className="px-2 py-2">
+                          <select value={contactForm.contact_type} onChange={e => setContactForm({...contactForm, contact_type: e.target.value})} className={`${selectClass} w-full text-xs`}>
+                            {contactTypeOptions.filter(o => o.value !== 'all').map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                          </select>
+                        </td>
+                        <td className="px-2 py-2">
+                          <select value={contactForm.title} onChange={e => setContactForm({...contactForm, title: e.target.value})} className={`${selectClass} w-full text-xs`}>
+                            {titleOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                          </select>
+                        </td>
+                        <td className="px-2 py-2"><input value={contactForm.first_name} onChange={e => setContactForm({...contactForm, first_name: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="First Name" /></td>
+                        <td className="px-2 py-2"><input value={contactForm.last_name} onChange={e => setContactForm({...contactForm, last_name: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Last Name" /></td>
+                        <td className="px-2 py-2"><input value={contactForm.designation} onChange={e => setContactForm({...contactForm, designation: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Designation" /></td>
+                        <td className="px-2 py-2"><input value={contactForm.work_email} onChange={e => setContactForm({...contactForm, work_email: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Email" /></td>
+                        <td className="px-2 py-2"><input value={contactForm.work_phone} onChange={e => setContactForm({...contactForm, work_phone: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Phone" /></td>
+                        <td className="px-2 py-2"><input value={contactForm.ext} onChange={e => setContactForm({...contactForm, ext: e.target.value})} className={`${inputClass} w-16 text-xs`} placeholder="Ext" /></td>
+                        <td className="px-2 py-2"><input value={contactForm.fax} onChange={e => setContactForm({...contactForm, fax: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Fax" /></td>
+                        <td className="px-2 py-2"><input value={contactForm.cell_phone} onChange={e => setContactForm({...contactForm, cell_phone: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Cell" /></td>
+                        <td className="px-2 py-2">
+                          <select value={contactForm.status} onChange={e => setContactForm({...contactForm, status: e.target.value})} className={`${selectClass} w-full text-xs`}>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                          </select>
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <button onClick={handleAddContact} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 mr-1">
+                            {editingContact ? 'Save' : 'Add'}
+                          </button>
+                          <button onClick={resetContactForm} className="px-2 py-1 text-xs bg-gray-400 text-white rounded hover:bg-gray-500">
+                            Cancel
+                          </button>
+                        </td>
+                      </tr>
+                    )}
+                  </thead>
+                  <tbody>
+                    {!showContactForm && (
+                      <tr className="border-b bg-gray-50">
+                        <td colSpan={12} className="px-3 py-2">
+                          <button onClick={() => setShowContactForm(true)} className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                            + Add Contact
+                          </button>
+                        </td>
+                      </tr>
+                    )}
+                    {filteredContacts.map((contact) => (
+                      <tr key={contact.id} className="border-b hover:bg-gray-50">
+                        <td className="px-3 py-2">{contact.contact_type}</td>
+                        <td className="px-3 py-2">{contact.title}</td>
+                        <td className="px-3 py-2">{contact.first_name}</td>
+                        <td className="px-3 py-2">{contact.last_name}</td>
+                        <td className="px-3 py-2">{contact.designation}</td>
+                        <td className="px-3 py-2">{contact.work_email}</td>
+                        <td className="px-3 py-2">{contact.work_phone}</td>
+                        <td className="px-3 py-2">{contact.ext}</td>
+                        <td className="px-3 py-2">{contact.fax}</td>
+                        <td className="px-3 py-2">{contact.cell_phone}</td>
+                        <td className="px-3 py-2 text-center">
+                          <span className={`px-2 py-1 rounded text-xs ${contact.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                            {contact.status}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <button onClick={() => handleEditContact(contact)} className="p-1 text-blue-600 hover:bg-blue-50 rounded mr-1">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDeleteContact(contact.id)} className="p-1 text-red-600 hover:bg-red-50 rounded">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
                     ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Contact Name</label>
-                  <input type="text" value={qualifiedForm.contact_name} onChange={(e) => setQualifiedForm(prev => ({ ...prev, contact_name: e.target.value }))} className={inputClass} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Designation</label>
-                  <input type="text" value={qualifiedForm.designation} onChange={(e) => setQualifiedForm(prev => ({ ...prev, designation: e.target.value }))} className={inputClass} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Phone</label>
-                  <input type="text" value={qualifiedForm.phone} onChange={(e) => setQualifiedForm(prev => ({ ...prev, phone: e.target.value }))} className={inputClass} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Email</label>
-                  <input type="email" value={qualifiedForm.email} onChange={(e) => setQualifiedForm(prev => ({ ...prev, email: e.target.value }))} className={inputClass} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Best Time to Call</label>
-                  <input type="text" value={qualifiedForm.best_time_call} onChange={(e) => setQualifiedForm(prev => ({ ...prev, best_time_call: e.target.value }))} className={inputClass} placeholder="e.g., 10 AM - 2 PM" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Timezone</label>
-                  <select value={qualifiedForm.best_time_call_timezone} onChange={(e) => setQualifiedForm(prev => ({ ...prev, best_time_call_timezone: e.target.value }))} className={selectClass}>
-                    {timezoneOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Preferred Mode</label>
-                  <select value={qualifiedForm.mode} onChange={(e) => setQualifiedForm(prev => ({ ...prev, mode: e.target.value }))} className={selectClass}>
-                    {modeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
+                    {filteredContacts.length === 0 && (
+                      <tr>
+                        <td colSpan={12} className="px-3 py-8 text-center text-gray-500">No contacts found</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
+          )}
 
-            {/* Company Information Section */}
-            <div className="mb-6">
-              <h4 className="font-medium text-gray-700 mb-3 pb-2 border-b">Company Information</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Company Name</label>
-                  <input type="text" value={qualifiedForm.company_name} onChange={(e) => setQualifiedForm(prev => ({ ...prev, company_name: e.target.value }))} className={inputClass} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Industry</label>
-                  <select value={qualifiedForm.industry_id} onChange={(e) => setQualifiedForm(prev => ({ ...prev, industry_id: e.target.value }))} className={selectClass}>
-                    {industryOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1">Company Profile</label>
-                  <textarea value={qualifiedForm.company_profile} onChange={(e) => setQualifiedForm(prev => ({ ...prev, company_profile: e.target.value }))} className="w-full px-3 py-2 text-sm border rounded" rows={3} placeholder="Brief company description..." />
+          {/* ============== TAB 3: Company Profile ============== */}
+          {activeTab === 'company_profile' && (
+            <div className="space-y-6">
+              {/* PRE LEAD ACKNOWLEDGEMENT */}
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="text-md font-semibold mb-4 pb-2 border-b text-gray-700">PRE LEAD ACKNOWLEDGEMENT</h3>
+                <div className="grid grid-cols-2 gap-x-12 gap-y-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <label className={labelClass}>Company</label>
+                      <input value={preLeadData?.company_name || preLeadData?.first_name || ''} readOnly className={`${inputClass} flex-1 bg-gray-100`} />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className={labelClass}>Industry</label>
+                      <input value={industryOptions.find(o => o.value === preLeadData?.industry_id?.toString())?.label || ''} readOnly className={`${inputClass} flex-1 bg-gray-100`} />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className={labelClass}>Best Time (Call)</label>
+                      <div className="flex gap-2 flex-1">
+                        <input type="time" value={profileForm.q_bes_time_call} onChange={e => setProfileForm({...profileForm, q_bes_time_call: e.target.value})} className={`${inputClass} w-28`} />
+                        <select value={profileForm.q_bes_time_call_timezone} onChange={e => setProfileForm({...profileForm, q_bes_time_call_timezone: e.target.value})} className={`${selectClass} flex-1`}>
+                          {timezoneOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className={labelClass}>Mode</label>
+                      <select value={profileForm.q_mode} onChange={e => setProfileForm({...profileForm, q_mode: e.target.value})} className={`${selectClass} flex-1`}>
+                        {modeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <label className={labelClass}>Contact</label>
+                      <select value={profileForm.q_contact_id} onChange={e => setProfileForm({...profileForm, q_contact_id: e.target.value})} className={`${selectClass} flex-1`}>
+                        <option value="">Select Contact</option>
+                        {contacts.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className={labelClass}>Designation</label>
+                      <input value={contacts.find(c => c.id.toString() === profileForm.q_contact_id)?.designation || ''} readOnly className={`${inputClass} flex-1 bg-gray-100`} />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className={labelClass}>Phone</label>
+                      <input value={contacts.find(c => c.id.toString() === profileForm.q_contact_id)?.work_phone || ''} readOnly className={`${inputClass} flex-1 bg-gray-100`} />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className={labelClass}>Email</label>
+                      <input value={contacts.find(c => c.id.toString() === profileForm.q_contact_id)?.work_email || ''} readOnly className={`${inputClass} flex-1 bg-gray-100`} />
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Need Assessment Section */}
-            <div className="mb-6">
-              <h4 className="font-medium text-gray-700 mb-3 pb-2 border-b">Need Assessment</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Need Type</label>
-                  <select value={qualifiedForm.need_type} onChange={(e) => setQualifiedForm(prev => ({ ...prev, need_type: e.target.value }))} className={selectClass}>
-                    {needTypeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Current Software</label>
-                  <input type="text" value={qualifiedForm.current_software} onChange={(e) => setQualifiedForm(prev => ({ ...prev, current_software: e.target.value }))} className={inputClass} placeholder="Current solution being used" />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1">Need Summary</label>
-                  <textarea value={qualifiedForm.need_summary} onChange={(e) => setQualifiedForm(prev => ({ ...prev, need_summary: e.target.value }))} className="w-full px-3 py-2 text-sm border rounded" rows={3} placeholder="Describe the client's requirements..." />
+              {/* Additional Information */}
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="text-md font-semibold mb-4 pb-2 border-b text-gray-700">Additional Information</h3>
+                <div className="grid grid-cols-2 gap-x-12 gap-y-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <label className={labelClass}>Need Type</label>
+                      <select value={profileForm.q_need_type} onChange={e => setProfileForm({...profileForm, q_need_type: e.target.value})} className={`${selectClass} flex-1`}>
+                        {needTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className={labelClass}>Current Soft.</label>
+                      <input value={profileForm.q_current_software} onChange={e => setProfileForm({...profileForm, q_current_software: e.target.value})} className={`${inputClass} flex-1`} placeholder="Current Software" />
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <label className={`${labelClass} pt-2`}>Need Summary</label>
+                      <textarea value={profileForm.q_need_summery} onChange={e => setProfileForm({...profileForm, q_need_summery: e.target.value})} rows={3} className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded resize-none" placeholder="Summary" />
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <label className={labelClass}>Budget</label>
+                      <select value={profileForm.q_budget} onChange={e => setProfileForm({...profileForm, q_budget: e.target.value})} className={`${selectClass} flex-1`}>
+                        {budgetOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className={labelClass}>Decision Maker</label>
+                      <select value={profileForm.q_decision_maker} onChange={e => setProfileForm({...profileForm, q_decision_maker: e.target.value})} className={`${selectClass} flex-1`}>
+                        <option value="">Select Contact</option>
+                        {contacts.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className={labelClass}>Time Frame</label>
+                      <select value={profileForm.q_time_frame} onChange={e => setProfileForm({...profileForm, q_time_frame: e.target.value})} className={`${selectClass} flex-1`}>
+                        {timeFrameOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className={labelClass}>Qualified By</label>
+                      <select value={profileForm.q_qualified_by} onChange={e => setProfileForm({...profileForm, q_qualified_by: e.target.value})} className={`${selectClass} flex-1`}>
+                        {salesRepOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Qualification Criteria Section */}
-            <div className="mb-6">
-              <h4 className="font-medium text-gray-700 mb-3 pb-2 border-b">Qualification Criteria (BANT)</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Budget</label>
-                  <select value={qualifiedForm.budget} onChange={(e) => setQualifiedForm(prev => ({ ...prev, budget: e.target.value }))} className={selectClass}>
-                    {budgetOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Decision Maker</label>
-                  <select value={qualifiedForm.decision_maker} onChange={(e) => setQualifiedForm(prev => ({ ...prev, decision_maker: e.target.value }))} className={selectClass}>
-                    {decisionMakerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Time Frame</label>
-                  <select value={qualifiedForm.time_frame} onChange={(e) => setQualifiedForm(prev => ({ ...prev, time_frame: e.target.value }))} className={selectClass}>
-                    {timeFrameOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Profile Status</label>
-                  <select value={qualifiedForm.status} onChange={(e) => setQualifiedForm(prev => ({ ...prev, status: e.target.value }))} className={selectClass}>
-                    {qualifiedStatusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
+              {/* Company Profile Text */}
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="text-md font-semibold mb-4 pb-2 border-b text-gray-700">Company Profile</h3>
+                <textarea value={profileForm.q_company_profile} onChange={e => setProfileForm({...profileForm, q_company_profile: e.target.value})} rows={5} className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none" placeholder="Enter company profile..." />
+              </div>
+
+              {/* Summary Of Discussion */}
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="text-md font-semibold mb-4 pb-2 border-b text-gray-700">Summary Of Discussion</h3>
+                <textarea value={profileForm.q_summery_Of_discussion} onChange={e => setProfileForm({...profileForm, q_summery_Of_discussion: e.target.value})} rows={5} className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none" placeholder="Enter summary of discussion..." />
+              </div>
+
+              {/* Conclusion */}
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="text-md font-semibold mb-4 pb-2 border-b text-gray-700">Conclusion</h3>
+                <textarea value={profileForm.q_conclusion} onChange={e => setProfileForm({...profileForm, q_conclusion: e.target.value})} rows={5} className="w-full px-3 py-2 text-sm border border-gray-300 rounded resize-none" placeholder="Enter conclusion..." />
+              </div>
+
+              {/* Save Button */}
+              <div className="flex justify-center">
+                <button onClick={handleSaveProfile} className="px-6 py-2 text-sm font-medium text-white bg-green-500 rounded hover:bg-green-600 transition-colors">
+                  Save
+                </button>
               </div>
             </div>
+          )}
 
-            {/* Discussion & Conclusion Section */}
-            <div className="mb-6">
-              <h4 className="font-medium text-gray-700 mb-3 pb-2 border-b">Discussion & Conclusion</h4>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Summary of Discussion</label>
-                  <textarea value={qualifiedForm.summary_of_discussion} onChange={(e) => setQualifiedForm(prev => ({ ...prev, summary_of_discussion: e.target.value }))} className="w-full px-3 py-2 text-sm border rounded" rows={4} placeholder="Key points from the discussion..." />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Conclusion</label>
-                  <textarea value={qualifiedForm.conclusion} onChange={(e) => setQualifiedForm(prev => ({ ...prev, conclusion: e.target.value }))} className="w-full px-3 py-2 text-sm border rounded" rows={3} placeholder="Final conclusion and next steps..." />
-                </div>
+          {/* ============== TAB 4: Memo ============== */}
+          {activeTab === 'memo' && (
+            <div>
+              <button onClick={handleAddMemo} className="mb-4 px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                Add Memo
+              </button>
+
+              <div className="bg-white border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-4 py-3 text-left w-32">Date</th>
+                      <th className="px-4 py-3 text-left w-40">Added By</th>
+                      <th className="px-4 py-3 text-left">Details</th>
+                      <th className="px-4 py-3 text-center w-24">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {memos.map((memo) => (
+                      <tr key={memo.id} className="border-b hover:bg-gray-50">
+                        <td className="px-4 py-3">{new Date(memo.created_at).toLocaleDateString()}</td>
+                        <td className="px-4 py-3">User #{memo.created_by}</td>
+                        <td className="px-4 py-3" dangerouslySetInnerHTML={{ __html: memo.content }} />
+                        <td className="px-4 py-3 text-center">
+                          <button onClick={() => handleEditMemo(memo)} className="p-1 text-blue-600 hover:bg-blue-50 rounded mr-1">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDeleteMemo(memo.id)} className="p-1 text-red-600 hover:bg-red-50 rounded">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {memos.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-8 text-center text-gray-500">No memos found</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          </div>
 
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-            <Button type="button" variant="secondary" onClick={() => setShowQualifiedModal(false)}>Cancel</Button>
-            <Button type="button" onClick={handleSaveQualified} className="bg-green-500 hover:bg-green-600">Save</Button>
-          </div>
-        </Modal>
+              {/* Memo Modal */}
+              {showMemoModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <div className="bg-white rounded-lg w-full max-w-2xl">
+                    <div className="flex items-center justify-between px-4 py-3 border-b">
+                      <h3 className="text-lg font-semibold">Memo Details</h3>
+                      <button onClick={() => setShowMemoModal(false)} className="p-1 hover:bg-gray-100 rounded">
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <div className="p-4">
+                      <textarea
+                        value={memoContent}
+                        onChange={(e) => setMemoContent(e.target.value)}
+                        rows={10}
+                        className="w-full px-3 py-2 border border-gray-300 rounded resize-none"
+                        placeholder="Enter memo details..."
+                      />
+                    </div>
+                    <div className="flex justify-center gap-3 px-4 py-3 border-t">
+                      <button onClick={handleSaveMemo} className="px-6 py-2 text-sm bg-green-500 text-white rounded hover:bg-green-600">
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ============== TAB 5: Workflow & Audit Trail ============== */}
+          {activeTab === 'workflow' && (
+            <div className="bg-white border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Date</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left">Remarks</th>
+                    <th className="px-4 py-3 text-left">Updated By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {statusHistory.map((history) => (
+                    <tr key={history.id} className="border-b hover:bg-gray-50">
+                      <td className="px-4 py-3">{new Date(history.created_at).toLocaleDateString()}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          history.status === 'new' ? 'bg-blue-100 text-blue-800' :
+                          history.status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
+                          history.status === 'qualified' ? 'bg-green-100 text-green-800' :
+                          history.status === 'discarded' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {history.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">{history.remarks || '-'}</td>
+                      <td className="px-4 py-3">User #{history.updated_by}</td>
+                    </tr>
+                  ))}
+                  {statusHistory.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-8 text-center text-gray-500">No status history found</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </MainLayout>
   );

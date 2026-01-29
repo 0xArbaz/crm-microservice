@@ -19,6 +19,15 @@ from app.schemas.pre_lead_entities import (
     QualifiedLeadProfileCreate, QualifiedLeadProfileUpdate, QualifiedLeadProfileResponse,
     PreLeadFullResponse
 )
+from app.schemas.lead_entities import (
+    LeadContactCreate, LeadContactUpdate, LeadContactResponse,
+    LeadActivityCreate, LeadActivityUpdate, LeadActivityResponse,
+    LeadMemoCreate, LeadMemoUpdate, LeadMemoResponse,
+    LeadDocumentCreate, LeadDocumentResponse,
+    LeadStatusHistoryCreate, LeadStatusHistoryResponse,
+    LeadQualifiedProfileCreate, LeadQualifiedProfileUpdate, LeadQualifiedProfileResponse,
+    LeadFullResponse
+)
 
 __all__ = [
     # User
@@ -35,6 +44,14 @@ __all__ = [
     "PreLeadFullResponse",
     # Lead
     "LeadCreate", "LeadUpdate", "LeadResponse", "LeadConvert",
+    # Lead Entities
+    "LeadContactCreate", "LeadContactUpdate", "LeadContactResponse",
+    "LeadActivityCreate", "LeadActivityUpdate", "LeadActivityResponse",
+    "LeadMemoCreate", "LeadMemoUpdate", "LeadMemoResponse",
+    "LeadDocumentCreate", "LeadDocumentResponse",
+    "LeadStatusHistoryCreate", "LeadStatusHistoryResponse",
+    "LeadQualifiedProfileCreate", "LeadQualifiedProfileUpdate", "LeadQualifiedProfileResponse",
+    "LeadFullResponse",
     # Customer
     "CustomerCreate", "CustomerUpdate", "CustomerResponse",
     # Contact

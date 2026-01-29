@@ -6,6 +6,7 @@ from app.api.v1.endpoints import (
     pre_leads,
     pre_lead_entities,
     leads,
+    lead_entities,
     customers,
     contacts,
     activities,
@@ -33,6 +34,9 @@ api_router.include_router(pre_lead_entities.router, prefix="/pre-leads", tags=["
 
 # Leads
 api_router.include_router(leads.router, prefix="/leads", tags=["Leads"])
+
+# Lead Entities (Contacts, Activities, Memos, Documents, Status, Qualified Profiles)
+api_router.include_router(lead_entities.router, prefix="/leads", tags=["Lead Entities"])
 
 # Customers
 api_router.include_router(customers.router, prefix="/customers", tags=["Customers"])
