@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
+import { PreLead } from '@/types';
 
 const preLeadSchema = z.object({
   company_name: z.string().min(1, 'Company name is required'),
@@ -157,7 +158,7 @@ export default function NewPreLeadPage() {
     setSuccess(null);
 
     try {
-      const apiData = {
+      const apiData: Record<string, any> = {
         ...data,
         first_name: data.company_name,
         country_id: data.country_id ? parseInt(data.country_id) : undefined,
@@ -169,7 +170,7 @@ export default function NewPreLeadPage() {
         sales_rep: data.sales_rep ? parseInt(data.sales_rep) : undefined,
       };
 
-      await api.createPreLead(apiData);
+      await api.createPreLead(apiData as Partial<PreLead>);
       setSuccess('Pre-lead created successfully!');
       setTimeout(() => {
         router.push('/pre-leads');

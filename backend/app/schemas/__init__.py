@@ -10,12 +10,29 @@ from app.schemas.webhook import (
     WebhookLogResponse, IncomingWebhookPayload
 )
 from app.schemas.dashboard import DashboardStats, FunnelData, RecentActivity
+from app.schemas.pre_lead_entities import (
+    PreLeadContactCreate, PreLeadContactUpdate, PreLeadContactResponse,
+    PreLeadActivityCreate, PreLeadActivityUpdate, PreLeadActivityResponse,
+    PreLeadMemoCreate, PreLeadMemoUpdate, PreLeadMemoResponse,
+    PreLeadDocumentCreate, PreLeadDocumentResponse,
+    PreLeadStatusHistoryCreate, PreLeadStatusHistoryResponse,
+    QualifiedLeadProfileCreate, QualifiedLeadProfileUpdate, QualifiedLeadProfileResponse,
+    PreLeadFullResponse
+)
 
 __all__ = [
     # User
     "UserCreate", "UserUpdate", "UserResponse", "UserLogin", "Token",
     # Pre-Lead
     "PreLeadCreate", "PreLeadUpdate", "PreLeadResponse", "PreLeadValidate",
+    # Pre-Lead Entities
+    "PreLeadContactCreate", "PreLeadContactUpdate", "PreLeadContactResponse",
+    "PreLeadActivityCreate", "PreLeadActivityUpdate", "PreLeadActivityResponse",
+    "PreLeadMemoCreate", "PreLeadMemoUpdate", "PreLeadMemoResponse",
+    "PreLeadDocumentCreate", "PreLeadDocumentResponse",
+    "PreLeadStatusHistoryCreate", "PreLeadStatusHistoryResponse",
+    "QualifiedLeadProfileCreate", "QualifiedLeadProfileUpdate", "QualifiedLeadProfileResponse",
+    "PreLeadFullResponse",
     # Lead
     "LeadCreate", "LeadUpdate", "LeadResponse", "LeadConvert",
     # Customer

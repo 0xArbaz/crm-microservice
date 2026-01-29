@@ -6,6 +6,12 @@ from app.models.contact import Contact, ContactType
 from app.models.activity import Activity, ActivityType
 from app.models.sales_target import SalesTarget
 from app.models.webhook import WebhookConfig, WebhookLog
+from app.models.pre_lead_contact import PreLeadContact
+from app.models.pre_lead_activity import PreLeadActivity
+from app.models.pre_lead_memo import PreLeadMemo
+from app.models.pre_lead_document import PreLeadDocument
+from app.models.pre_lead_status_history import PreLeadStatusHistory
+from app.models.qualified_lead_profile import QualifiedLeadProfile
 
 __all__ = [
     "User",
@@ -21,4 +27,10 @@ __all__ = [
     "SalesTarget",
     "WebhookConfig",
     "WebhookLog",
+    "PreLeadContact",
+    "PreLeadActivity",
+    "PreLeadMemo",
+    "PreLeadDocument",
+    "PreLeadStatusHistory",
+    "QualifiedLeadProfile",
 ]

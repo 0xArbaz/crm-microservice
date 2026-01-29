@@ -160,6 +160,125 @@ class ApiService {
     await this.client.delete(`/pre-leads/${id}`);
   }
 
+  // Pre-Lead Full (with all entities)
+  async getPreLeadFull(id: number): Promise<any> {
+    const response = await this.client.get(`/pre-leads/${id}/full`);
+    return response.data;
+  }
+
+  // Pre-Lead Contacts
+  async getPreLeadContacts(preLeadId: number): Promise<any[]> {
+    const response = await this.client.get(`/pre-leads/${preLeadId}/contacts`);
+    return response.data;
+  }
+
+  async createPreLeadContact(preLeadId: number, data: any): Promise<any> {
+    const response = await this.client.post(`/pre-leads/${preLeadId}/contacts`, { ...data, pre_lead_id: preLeadId });
+    return response.data;
+  }
+
+  async updatePreLeadContact(preLeadId: number, contactId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/pre-leads/${preLeadId}/contacts/${contactId}`, data);
+    return response.data;
+  }
+
+  async deletePreLeadContact(preLeadId: number, contactId: number): Promise<void> {
+    await this.client.delete(`/pre-leads/${preLeadId}/contacts/${contactId}`);
+  }
+
+  // Pre-Lead Activities
+  async getPreLeadActivities(preLeadId: number): Promise<any[]> {
+    const response = await this.client.get(`/pre-leads/${preLeadId}/activities`);
+    return response.data;
+  }
+
+  async createPreLeadActivity(preLeadId: number, data: any): Promise<any> {
+    const response = await this.client.post(`/pre-leads/${preLeadId}/activities`, { ...data, pre_lead_id: preLeadId });
+    return response.data;
+  }
+
+  async updatePreLeadActivity(preLeadId: number, activityId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/pre-leads/${preLeadId}/activities/${activityId}`, data);
+    return response.data;
+  }
+
+  async deletePreLeadActivity(preLeadId: number, activityId: number): Promise<void> {
+    await this.client.delete(`/pre-leads/${preLeadId}/activities/${activityId}`);
+  }
+
+  // Pre-Lead Memos
+  async getPreLeadMemos(preLeadId: number): Promise<any[]> {
+    const response = await this.client.get(`/pre-leads/${preLeadId}/memos`);
+    return response.data;
+  }
+
+  async createPreLeadMemo(preLeadId: number, data: any): Promise<any> {
+    const response = await this.client.post(`/pre-leads/${preLeadId}/memos`, { ...data, pre_lead_id: preLeadId });
+    return response.data;
+  }
+
+  async updatePreLeadMemo(preLeadId: number, memoId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/pre-leads/${preLeadId}/memos/${memoId}`, data);
+    return response.data;
+  }
+
+  async deletePreLeadMemo(preLeadId: number, memoId: number): Promise<void> {
+    await this.client.delete(`/pre-leads/${preLeadId}/memos/${memoId}`);
+  }
+
+  // Pre-Lead Documents
+  async getPreLeadDocuments(preLeadId: number): Promise<any[]> {
+    const response = await this.client.get(`/pre-leads/${preLeadId}/documents`);
+    return response.data;
+  }
+
+  async uploadPreLeadDocument(preLeadId: number, file: File, notes?: string): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (notes) {
+      formData.append('notes', notes);
+    }
+    const response = await this.client.post(`/pre-leads/${preLeadId}/documents`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async deletePreLeadDocument(preLeadId: number, documentId: number): Promise<void> {
+    await this.client.delete(`/pre-leads/${preLeadId}/documents/${documentId}`);
+  }
+
+  // Pre-Lead Status History
+  async getPreLeadStatusHistory(preLeadId: number): Promise<any[]> {
+    const response = await this.client.get(`/pre-leads/${preLeadId}/status-history`);
+    return response.data;
+  }
+
+  async changePreLeadStatus(preLeadId: number, data: { status: string; status_date?: string; remarks?: string }): Promise<any> {
+    const response = await this.client.post(`/pre-leads/${preLeadId}/status`, { ...data, pre_lead_id: preLeadId });
+    return response.data;
+  }
+
+  // Pre-Lead Qualified Profiles
+  async getPreLeadQualifiedProfiles(preLeadId: number): Promise<any[]> {
+    const response = await this.client.get(`/pre-leads/${preLeadId}/qualified-profiles`);
+    return response.data;
+  }
+
+  async createPreLeadQualifiedProfile(preLeadId: number, data: any): Promise<any> {
+    const response = await this.client.post(`/pre-leads/${preLeadId}/qualified-profiles`, { ...data, pre_lead_id: preLeadId });
+    return response.data;
+  }
+
+  async updatePreLeadQualifiedProfile(preLeadId: number, profileId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/pre-leads/${preLeadId}/qualified-profiles/${profileId}`, data);
+    return response.data;
+  }
+
+  async deletePreLeadQualifiedProfile(preLeadId: number, profileId: number): Promise<void> {
+    await this.client.delete(`/pre-leads/${preLeadId}/qualified-profiles/${profileId}`);
+  }
+
   // Leads
   async getLeads(params?: {
     page?: number;
