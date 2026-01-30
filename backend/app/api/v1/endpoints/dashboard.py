@@ -8,8 +8,8 @@ from typing import Optional
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
-from app.models.pre_lead import PreLead, PreLeadStatus
-from app.models.lead import Lead, LeadStatus, LeadSource
+from app.models.pre_lead import PreLead
+from app.models.lead import Lead, LeadSource
 from app.models.customer import Customer
 from app.models.activity import Activity
 from app.models.sales_target import SalesTarget
@@ -89,14 +89,15 @@ def get_dashboard_stats(
         overall=round((total_customers / total_pre_leads) * 100, 2) if total_pre_leads else 0
     )
 
-    # Funnel data
+    # Funnel data - using lead_status workflow field
+    lead_status_values = ["new", "contacted", "qualified", "proposal_sent", "negotiation", "won", "lost"]
     funnel_stages = []
-    for status in LeadStatus:
-        count = db.query(func.count(Lead.id)).filter(Lead.status == status).scalar()
+    for status_val in lead_status_values:
+        count = db.query(func.count(Lead.id)).filter(Lead.lead_status == status_val).scalar()
         value = db.query(func.sum(Lead.expected_value)).filter(
-            Lead.status == status
+            Lead.lead_status == status_val
         ).scalar() or Decimal(0)
-        funnel_stages.append(FunnelStage(stage=status.value, count=count, value=value))
+        funnel_stages.append(FunnelStage(stage=status_val, count=count, value=value))
 
     funnel = FunnelData(
         pre_leads=pre_lead_stats.total,
@@ -159,13 +160,13 @@ def get_dashboard_stats(
         for item in leads_by_source_raw
     ]
 
-    # Leads by status
+    # Leads by status - using lead_status workflow field
     leads_by_status = [
         LeadsByStatus(
-            status=status.value,
-            count=db.query(func.count(Lead.id)).filter(Lead.status == status).scalar()
+            status=status_val,
+            count=db.query(func.count(Lead.id)).filter(Lead.lead_status == status_val).scalar()
         )
-        for status in LeadStatus
+        for status_val in lead_status_values
     ]
 
     # Sales targets

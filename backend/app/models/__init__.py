@@ -1,6 +1,6 @@
 from app.models.user import User
 from app.models.pre_lead import PreLead
-from app.models.lead import Lead, LeadStatus, LeadSource
+from app.models.lead import Lead, LeadSource
 from app.models.customer import Customer
 from app.models.contact import Contact, ContactType
 from app.models.activity import Activity, ActivityType
@@ -23,7 +23,6 @@ __all__ = [
     "User",
     "PreLead",
     "Lead",
-    "LeadStatus",
     "LeadSource",
     "Customer",
     "Contact",

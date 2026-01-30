@@ -16,7 +16,6 @@ export interface AuthResponse {
 }
 
 // Pre-Lead Types
-export type PreLeadStatus = 'new' | 'contacted' | 'validated' | 'discarded';
 export type PreLeadSource = 'website' | 'referral' | 'social_media' | 'cold_call' | 'walk_in' | 'whatsapp' | 'email' | 'erp' | 'other';
 
 export interface PreLead {
@@ -31,7 +30,7 @@ export interface PreLead {
   website?: string;
   source: PreLeadSource;
   source_details?: string;
-  status: PreLeadStatus;
+  status: number;  // 0 = active, 1 = discarded
   product_interest?: string;
   requirements?: string;
   budget_range?: string;
@@ -74,7 +73,6 @@ export interface PreLead {
 }
 
 // Lead Types
-export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'proposal_sent' | 'negotiation' | 'won' | 'lost';
 export type LeadSource = 'pre_lead' | 'direct' | 'website' | 'referral' | 'social_media' | 'cold_call' | 'walk_in' | 'whatsapp' | 'email' | 'erp' | 'other';
 export type LeadPriority = 'low' | 'medium' | 'high' | 'critical';
 
@@ -93,7 +91,8 @@ export interface Lead {
   website?: string;
   source: LeadSource;
   source_details?: string;
-  status: LeadStatus;
+  status: number;  // 0 = active, 1 = discarded
+  lead_status?: string;  // new, contacted, qualified, proposal_sent, negotiation, won, lost
   priority: LeadPriority;
   pipeline_stage: number;
   expected_value?: number;

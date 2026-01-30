@@ -7,7 +7,7 @@ from datetime import datetime
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
-from app.models.pre_lead import PreLead, PreLeadStatus, PreLeadSource
+from app.models.pre_lead import PreLead, PreLeadSource
 from app.models.lead import Lead, LeadSource
 from app.schemas.pre_lead import (
     PreLeadCreate, PreLeadUpdate, PreLeadResponse,
@@ -60,7 +60,7 @@ def list_pre_leads(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     search: Optional[str] = None,
-    status: Optional[PreLeadStatus] = None,
+    status: Optional[int] = None,  # 0 = active, 1 = discarded
     source: Optional[PreLeadSource] = None,
     assigned_to: Optional[int] = None,
     db: Session = Depends(get_db),
@@ -85,8 +85,12 @@ def list_pre_leads(
             )
         )
 
-    if status:
+    # Filter by status (0 = active, 1 = discarded)
+    if status is not None:
         query = query.filter(PreLead.status == status)
+        # For active pre-leads (status=0), exclude converted ones
+        if status == 0:
+            query = query.filter(PreLead.is_converted == False)
 
     if source:
         query = query.filter(PreLead.source == source)
@@ -191,7 +195,7 @@ def validate_pre_lead(
     if pre_lead.is_converted:
         raise HTTPException(status_code=400, detail="Pre-lead already converted")
 
-    if pre_lead.status == PreLeadStatus.DISCARDED:
+    if pre_lead.status == 1:  # Discarded
         raise HTTPException(status_code=400, detail="Cannot validate discarded pre-lead")
 
     # Map PreLeadSource to LeadSource
@@ -207,6 +211,9 @@ def validate_pre_lead(
         PreLeadSource.OTHER: LeadSource.OTHER,
     }
 
+    # Get source value safely (handle both Enum and string)
+    source_value = pre_lead.source.value if hasattr(pre_lead.source, 'value') else str(pre_lead.source) if pre_lead.source else 'unknown'
+
     # Create lead from pre-lead
     lead = Lead(
         first_name=pre_lead.first_name,
@@ -218,7 +225,7 @@ def validate_pre_lead(
         designation=pre_lead.designation,
         website=pre_lead.website,
         source=LeadSource.PRE_LEAD,
-        source_details=f"Pre-Lead #{pre_lead.id} - {pre_lead.source.value}",
+        source_details=f"Pre-Lead #{pre_lead.id} - {source_value}",
         product_interest=pre_lead.product_interest,
         requirements=pre_lead.requirements,
         city=pre_lead.city,
@@ -244,7 +251,7 @@ def validate_pre_lead(
     db.flush()  # Get lead ID
 
     # Update pre-lead
-    pre_lead.status = PreLeadStatus.VALIDATED
+    pre_lead.lead_status = "validated"  # Workflow tracking
     pre_lead.is_converted = True
     pre_lead.converted_lead_id = lead.id
     pre_lead.converted_at = datetime.utcnow()
@@ -278,7 +285,7 @@ def discard_pre_lead(
     if pre_lead.is_converted:
         raise HTTPException(status_code=400, detail="Cannot discard converted pre-lead")
 
-    pre_lead.status = PreLeadStatus.DISCARDED
+    pre_lead.status = 1  # Discarded
     pre_lead.discard_reason = discard_data.discard_reason
 
     db.commit()

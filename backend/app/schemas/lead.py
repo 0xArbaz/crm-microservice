@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime, date
 from decimal import Decimal
-from app.models.lead import LeadStatus, LeadSource, LeadPriority
+from app.models.lead import LeadSource, LeadPriority
 
 
 class LeadBase(BaseModel):
@@ -82,7 +82,8 @@ class LeadUpdate(BaseModel):
     website: Optional[str] = None
     source: Optional[LeadSource] = None
     source_details: Optional[str] = None
-    status: Optional[LeadStatus] = None
+    status: Optional[int] = None  # 0 = active, 1 = discarded
+    lead_status: Optional[str] = None  # new, contacted, qualified, proposal_sent, negotiation, won, lost
     priority: Optional[LeadPriority] = None
     pipeline_stage: Optional[int] = None
     expected_value: Optional[Decimal] = None
@@ -149,7 +150,8 @@ class LeadDiscard(BaseModel):
 
 class LeadResponse(LeadBase):
     id: int
-    status: LeadStatus
+    status: int  # 0 = active, 1 = discarded
+    lead_status: Optional[str] = None  # new, contacted, qualified, proposal_sent, negotiation, won, lost
     pipeline_stage: int
     actual_value: Optional[Decimal] = None
     last_contacted: Optional[datetime] = None

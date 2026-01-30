@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Eye, Edit, Copy, Trash2, FileText, FileSpreadsheet, File } from 'lucide-react';
+import { Eye, Edit, CheckCircle, Trash2, FileText, FileSpreadsheet, File } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
@@ -73,6 +74,7 @@ const sourceOptions = [
 ];
 
 export default function PreLeadsPage() {
+  const router = useRouter();
   const [preLeads, setPreLeads] = useState<PreLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -99,6 +101,8 @@ export default function PreLeadsPage() {
       if (filters.company) params.search = filters.company;
       if (filters.source) params.source = filters.source;
 
+      // Only fetch active pre-leads (status = 0)
+      params.status = 0;
       const response = await api.getPreLeads(params);
       setPreLeads(response.items);
       setTotalPages(response.total_pages);
@@ -124,12 +128,26 @@ export default function PreLeadsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm('Are you sure you want to delete this pre-lead?')) {
+    if (confirm('Are you sure you want to discard this pre-lead?')) {
       try {
-        await api.deletePreLead(id);
+        await api.discardPreLead(id, 'Discarded by user');
         fetchPreLeads();
       } catch (error) {
-        console.error('Failed to delete pre-lead:', error);
+        console.error('Failed to discard pre-lead:', error);
+      }
+    }
+  };
+
+  const handleValidate = async (id: number) => {
+    if (confirm('Are you sure you want to validate this pre-lead and convert it to a lead?')) {
+      try {
+        const result = await api.validatePreLead(id, {});
+        alert(`Pre-lead validated successfully! Lead ID: ${result.lead_id}`);
+        router.push(`/leads/${result.lead_id}`);
+      } catch (error: any) {
+        console.error('Failed to validate pre-lead:', error);
+        const errorMsg = error.response?.data?.detail || 'Failed to validate pre-lead. Please try again.';
+        alert(errorMsg);
       }
     }
   };
@@ -347,8 +365,12 @@ export default function PreLeadsPage() {
                               <Edit className="w-4 h-4" />
                             </button>
                           </Link>
-                          <button className="p-1.5 text-gray-600 hover:bg-gray-100 rounded" title="Copy">
-                            <Copy className="w-4 h-4" />
+                          <button
+                            onClick={() => handleValidate(preLead.id)}
+                            className="p-1.5 text-purple-600 hover:bg-purple-50 rounded"
+                            title="Validate to Lead"
+                          >
+                            <CheckCircle className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(preLead.id)}

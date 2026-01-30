@@ -10,6 +10,22 @@ import { Plus, Calendar, ArrowRight, Pencil, Trash2, X } from 'lucide-react';
 import api from '@/lib/api';
 import { PreLead } from '@/types';
 
+// Helper function to extract error message from API response
+const getErrorMessage = (err: any, fallback: string = 'An error occurred'): string => {
+  const detail = err?.response?.data?.detail;
+  if (!detail) return fallback;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((e: any) => {
+      if (typeof e === 'string') return e;
+      if (e.msg) return e.msg;
+      return JSON.stringify(e);
+    }).join(', ');
+  }
+  if (typeof detail === 'object' && detail.msg) return detail.msg;
+  return fallback;
+};
+
 // ============== Types ==============
 interface Contact {
   id: number;
@@ -234,6 +250,17 @@ export default function EditPreLeadPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Helper functions to show messages with auto-hide
+  const showError = useCallback((msg: string) => {
+    setError(msg);
+    setTimeout(() => setError(null), 3000);
+  }, []);
+
+  const showSuccess = useCallback((msg: string) => {
+    setSuccess(msg);
+    setTimeout(() => setSuccess(null), 3000);
+  }, []);
   const [preLeadData, setPreLeadData] = useState<PreLead | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('company_details');
   const [isDiscarded, setIsDiscarded] = useState(false);
@@ -346,12 +373,12 @@ export default function EditPreLeadPage() {
         remarks: preLeadRes.remarks || '',
       });
     } catch (err: any) {
-      setError('Failed to load pre-lead');
+      showError('Failed to load pre-lead');
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, [preLeadId, reset]);
+  }, [preLeadId, reset, showError]);
 
   // Fetch contacts
   const fetchContacts = useCallback(async () => {
@@ -380,21 +407,22 @@ export default function EditPreLeadPage() {
       if (res.length > 0) {
         const profile = res[0];
         setQualifiedProfile(profile);
+        // Map backend field names to frontend field names
         setProfileForm({
-          q_contact_id: profile.q_contact_id?.toString() || '',
-          q_bes_time_call: profile.q_bes_time_call || '',
-          q_bes_time_call_timezone: profile.q_bes_time_call_timezone || '',
-          q_mode: profile.q_mode || '',
-          q_need_type: profile.q_need_type || '',
-          q_current_software: profile.q_current_software || '',
-          q_need_summery: profile.q_need_summery || '',
-          q_budget: profile.q_budget || '',
-          q_decision_maker: profile.q_decision_maker || '',
-          q_time_frame: profile.q_time_frame || '',
-          q_qualified_by: profile.q_qualified_by || '',
-          q_company_profile: profile.q_company_profile || '',
-          q_summery_Of_discussion: profile.q_summery_Of_discussion || '',
-          q_conclusion: profile.q_conclusion || '',
+          q_contact_id: profile.contact_id?.toString() || '',
+          q_bes_time_call: profile.best_time_call || '',
+          q_bes_time_call_timezone: profile.best_time_call_timezone?.toString() || '',
+          q_mode: profile.mode || '',
+          q_need_type: profile.need_type?.toString() || '',
+          q_current_software: profile.current_software || '',
+          q_need_summery: profile.need_summary || '',
+          q_budget: profile.budget?.toString() || '',
+          q_decision_maker: profile.decision_maker?.toString() || '',
+          q_time_frame: profile.time_frame?.toString() || '',
+          q_qualified_by: profile.qualified_by?.toString() || '',
+          q_company_profile: profile.company_profile || '',
+          q_summery_Of_discussion: profile.summary_of_discussion || '',
+          q_conclusion: profile.conclusion || '',
         });
       }
     } catch (err) {
@@ -449,10 +477,9 @@ export default function EditPreLeadPage() {
       };
 
       await api.updatePreLead(preLeadId, apiData as Partial<PreLead>);
-      setSuccess('Pre-lead updated successfully!');
-      setTimeout(() => setSuccess(null), 3000);
+      showSuccess('Pre-lead updated successfully!');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to update pre-lead');
+      showError(getErrorMessage(err, 'Failed to update pre-lead'));
     } finally {
       setIsSubmitting(false);
     }
@@ -463,9 +490,9 @@ export default function EditPreLeadPage() {
     try {
       await api.discardPreLead(preLeadId, 'Discarded by user');
       setIsDiscarded(true);
-      setSuccess('Pre-lead discarded successfully');
+      showSuccess('Pre-lead discarded successfully');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to discard pre-lead');
+      showError(getErrorMessage(err, 'Failed to discard pre-lead'));
     }
   };
 
@@ -474,9 +501,9 @@ export default function EditPreLeadPage() {
     try {
       await api.updatePreLead(preLeadId, { status: 'new' } as Partial<PreLead>);
       setIsDiscarded(false);
-      setSuccess('Pre-lead restored successfully');
+      showSuccess('Pre-lead restored successfully');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to restore pre-lead');
+      showError(getErrorMessage(err, 'Failed to restore pre-lead'));
     }
   };
 
@@ -486,29 +513,39 @@ export default function EditPreLeadPage() {
       const result = await api.validatePreLead(preLeadId, {});
       router.push(`/leads/${result.lead_id}/edit`);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to move to lead');
+      showError(getErrorMessage(err, 'Failed to move to lead'));
     }
   };
 
   // ============== Contact Handlers ==============
 
   const handleAddContact = async () => {
-    if (!contactForm.first_name || !contactForm.last_name || !contactForm.work_email) {
-      setError('Please fill required fields: First Name, Last Name, Work Email');
+    if (!contactForm.first_name) {
+      showError('Please fill required field: First Name');
       return;
     }
     try {
+      // Clean up data - remove empty strings for email fields to avoid validation errors
+      const cleanedData: Record<string, any> = {};
+      Object.entries(contactForm).forEach(([key, value]) => {
+        if (key === 'work_email' && (!value || value.trim() === '')) {
+          // Skip empty email fields
+          return;
+        }
+        cleanedData[key] = value;
+      });
+
       if (editingContact) {
-        await api.updatePreLeadContact(preLeadId, editingContact.id, contactForm);
-        setSuccess('Contact updated successfully');
+        await api.updatePreLeadContact(preLeadId, editingContact.id, cleanedData);
+        showSuccess('Contact updated successfully');
       } else {
-        await api.createPreLeadContact(preLeadId, contactForm);
-        setSuccess('Contact added successfully');
+        await api.createPreLeadContact(preLeadId, cleanedData);
+        showSuccess('Contact added successfully');
       }
       fetchContacts();
       resetContactForm();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save contact');
+      showError(getErrorMessage(err, 'Failed to save contact'));
     }
   };
 
@@ -535,9 +572,9 @@ export default function EditPreLeadPage() {
     try {
       await api.deletePreLeadContact(preLeadId, contactId);
       fetchContacts();
-      setSuccess('Contact deleted successfully');
+      showSuccess('Contact deleted successfully');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete contact');
+      showError(getErrorMessage(err, 'Failed to delete contact'));
     }
   };
 
@@ -569,36 +606,33 @@ export default function EditPreLeadPage() {
 
   const handleEditMemo = (memo: Memo) => {
     setEditingMemo(memo);
-    setMemoContent(memo.content);
+    setMemoContent(memo.details || memo.content || '');
     setShowMemoModal(true);
   };
 
   const handleSaveMemo = async () => {
     if (!memoContent.trim()) {
-      setError('Please enter memo content');
+      showError('Please enter memo content');
       return;
     }
     try {
       if (editingMemo) {
         await api.updatePreLeadMemo(preLeadId, editingMemo.id, {
-          title: 'Memo',
-          content: memoContent,
+          details: memoContent,
         });
-        setSuccess('Memo updated successfully');
+        showSuccess('Memo updated successfully');
       } else {
         await api.createPreLeadMemo(preLeadId, {
-          title: 'Memo',
-          content: memoContent,
-          memo_type: 'general',
+          details: memoContent,
         });
-        setSuccess('Memo added successfully');
+        showSuccess('Memo added successfully');
       }
       fetchMemos();
       setShowMemoModal(false);
       setMemoContent('');
       setEditingMemo(null);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save memo');
+      showError(getErrorMessage(err, 'Failed to save memo'));
     }
   };
 
@@ -607,9 +641,9 @@ export default function EditPreLeadPage() {
     try {
       await api.deletePreLeadMemo(preLeadId, memoId);
       fetchMemos();
-      setSuccess('Memo deleted successfully');
+      showSuccess('Memo deleted successfully');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete memo');
+      showError(getErrorMessage(err, 'Failed to delete memo'));
     }
   };
 
@@ -617,9 +651,22 @@ export default function EditPreLeadPage() {
 
   const handleSaveProfile = async () => {
     try {
-      const profileData = {
-        ...profileForm,
-        profile_type: 'basic',
+      // Map frontend field names to backend field names
+      const profileData: Record<string, any> = {
+        contact_id: profileForm.q_contact_id ? parseInt(profileForm.q_contact_id) : null,
+        best_time_call: profileForm.q_bes_time_call || null,
+        best_time_call_timezone: profileForm.q_bes_time_call_timezone ? parseInt(profileForm.q_bes_time_call_timezone) : null,
+        mode: profileForm.q_mode || null,
+        need_type: profileForm.q_need_type ? parseInt(profileForm.q_need_type) : null,
+        current_software: profileForm.q_current_software || null,
+        need_summary: profileForm.q_need_summery || null,
+        budget: profileForm.q_budget ? parseInt(profileForm.q_budget) : null,
+        decision_maker: profileForm.q_decision_maker ? parseInt(profileForm.q_decision_maker) : null,
+        time_frame: profileForm.q_time_frame ? parseInt(profileForm.q_time_frame) : null,
+        qualified_by: profileForm.q_qualified_by ? parseInt(profileForm.q_qualified_by) : null,
+        company_profile: profileForm.q_company_profile || null,
+        summary_of_discussion: profileForm.q_summery_Of_discussion || null,
+        conclusion: profileForm.q_conclusion || null,
       };
 
       if (qualifiedProfile) {
@@ -628,9 +675,9 @@ export default function EditPreLeadPage() {
         await api.createPreLeadQualifiedProfile(preLeadId, profileData);
       }
       fetchQualifiedProfile();
-      setSuccess('Company Profile saved successfully');
+      showSuccess('Company Profile saved successfully');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save profile');
+      showError(getErrorMessage(err, 'Failed to save profile'));
     }
   };
 
@@ -1149,7 +1196,7 @@ export default function EditPreLeadPage() {
                       <tr key={memo.id} className="border-b hover:bg-gray-50">
                         <td className="px-4 py-3">{new Date(memo.created_at).toLocaleDateString()}</td>
                         <td className="px-4 py-3">User #{memo.created_by}</td>
-                        <td className="px-4 py-3" dangerouslySetInnerHTML={{ __html: memo.content }} />
+                        <td className="px-4 py-3">{memo.details || memo.content}</td>
                         <td className="px-4 py-3 text-center">
                           <button onClick={() => handleEditMemo(memo)} className="p-1 text-blue-600 hover:bg-blue-50 rounded mr-1">
                             <Pencil className="w-4 h-4" />

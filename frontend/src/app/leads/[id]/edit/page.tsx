@@ -33,13 +33,19 @@ interface LeadContact {
   id?: number;
   lead_id: number;
   contact_type: string;
+  title?: string;
   first_name: string;
   last_name?: string;
-  email?: string;
-  phone?: string;
   designation?: string;
+  email?: string;
+  work_phone?: string;
+  ext?: string;
+  fax?: string;
+  cell_phone?: string;
+  phone?: string;
   department?: string;
   is_primary: boolean;
+  status?: string;
   created_at?: string;
 }
 
@@ -51,9 +57,18 @@ interface LeadActivity {
   description?: string;
   outcome?: string;
   activity_date: string;
+  start_time?: string;
+  end_date?: string;
+  end_time?: string;
   due_date?: string;
   is_completed: boolean;
   performed_by?: number;
+  assigned_to?: number;
+  contact_id?: number;
+  contact_name?: string;
+  contact_email?: string;
+  priority?: string;
+  status?: string;
   created_at?: string;
 }
 
@@ -93,11 +108,34 @@ interface QualifiedLeadProfile {
   id?: number;
   lead_id: number;
   profile_type: string;
+  // Qualified Lead Acknowledgement
+  company?: string;
+  industry?: string;
+  best_time_call?: string;
+  timezone?: string;
+  mode?: string;
+  contact_id?: number;
+  contact_name?: string;
+  designation?: string;
+  phone?: string;
+  email?: string;
+  // Additional Information
+  need_type?: string;
+  current_software?: string;
+  need_summary?: string;
+  budget?: string;
+  decision_maker?: string;
+  time_frame?: string;
+  qualified_by?: number;
+  qualified_by_name?: string;
+  // Text Areas
+  company_profile?: string;
+  summary_of_discussion?: string;
+  conclusion?: string;
+  // Legacy fields
   company_type?: string;
   annual_revenue?: string;
   employee_count?: string;
-  decision_maker?: string;
-  budget?: string;
   timeline?: string;
   pain_points?: string;
   competitors?: string;
@@ -240,23 +278,52 @@ const cityOptions = [
 ];
 
 const contactTypeOptions = [
-  { value: 'primary', label: 'Primary' },
-  { value: 'billing', label: 'Billing' },
+  { value: 'management', label: 'Management' },
   { value: 'technical', label: 'Technical' },
-  { value: 'decision_maker', label: 'Decision Maker' },
-  { value: 'influencer', label: 'Influencer' },
+  { value: 'sales', label: 'Sales' },
+  { value: 'purchase', label: 'Purchase' },
+  { value: 'accounts', label: 'Accounts' },
+  { value: 'hr', label: 'HR' },
   { value: 'other', label: 'Other' },
 ];
 
+const titleOptions = [
+  { value: 'Mr.', label: 'Mr.' },
+  { value: 'Mrs.', label: 'Mrs.' },
+  { value: 'Ms.', label: 'Ms.' },
+  { value: 'Dr.', label: 'Dr.' },
+];
+
+const contactStatusOptions = [
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+];
+
 const activityTypeOptions = [
-  { value: 'call', label: 'Call' },
   { value: 'email', label: 'Email' },
+  { value: 'call', label: 'Call' },
   { value: 'meeting', label: 'Meeting' },
   { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'note', label: 'Note' },
-  { value: 'task', label: 'Task' },
+  { value: 'video_call', label: 'Video Call' },
+  { value: 'site_visit', label: 'Site Visit' },
   { value: 'follow_up', label: 'Follow Up' },
+  { value: 'task', label: 'Task' },
+  { value: 'note', label: 'Note' },
   { value: 'other', label: 'Other' },
+];
+
+const activityPriorityOptions = [
+  { value: 'low', label: 'Low' },
+  { value: 'regular', label: 'Regular' },
+  { value: 'high', label: 'High' },
+  { value: 'urgent', label: 'Urgent' },
+];
+
+const activityStatusOptions = [
+  { value: 'planned', label: 'Planned' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
 ];
 
 const memoTypeOptions = [
@@ -271,6 +338,45 @@ const profileTypeOptions = [
   { value: 'basic', label: 'Basic' },
   { value: 'detailed', label: 'Detailed' },
   { value: 'enterprise', label: 'Enterprise' },
+];
+
+// Qualified Profile Options
+const modeOptions = [
+  { value: '', label: 'Select Mode' },
+  { value: 'call', label: 'Call' },
+  { value: 'email', label: 'Email' },
+  { value: 'meeting', label: 'Meeting' },
+  { value: 'video_call', label: 'Video Call' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+];
+
+const needTypeOptions = [
+  { value: '', label: 'Select Need Type' },
+  { value: 'collaboration_software', label: 'Collaboration Software' },
+  { value: 'crm_software', label: 'CRM Software' },
+  { value: 'erp_software', label: 'ERP Software' },
+  { value: 'custom_development', label: 'Custom Development' },
+  { value: 'consulting', label: 'Consulting' },
+  { value: 'other', label: 'Other' },
+];
+
+const budgetOptions = [
+  { value: '', label: 'Select Budget' },
+  { value: 'under_10k', label: 'Under $10,000' },
+  { value: '10k_50k', label: '$10,000 - $50,000' },
+  { value: '50k_100k', label: '$50,000 - $100,000' },
+  { value: '100k_500k', label: '$100,000 - $500,000' },
+  { value: 'over_500k', label: 'Over $500,000' },
+];
+
+const timeFrameOptions = [
+  { value: '', label: 'Select Time Frame' },
+  { value: '1_month', label: '1 Month' },
+  { value: '2_months', label: '2 Months' },
+  { value: '3_months', label: '3 Months' },
+  { value: '6_months', label: '6 Months' },
+  { value: '1_year', label: '1 Year' },
+  { value: 'ongoing', label: 'Ongoing' },
 ];
 
 type TabType = 'company' | 'contacts' | 'activities' | 'qualified' | 'memo' | 'upload' | 'status' | 'workflow';
@@ -323,6 +429,33 @@ export default function EditLeadPage() {
   // Qualified Profile Modal state
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [editingProfile, setEditingProfile] = useState<QualifiedLeadProfile | null>(null);
+
+  // Qualified Profile Form state (for inline editing)
+  const [qualifiedProfileForm, setQualifiedProfileForm] = useState<QualifiedLeadProfile>({
+    lead_id: 0,
+    profile_type: 'qualified',
+    company: '',
+    industry: '',
+    best_time_call: '',
+    timezone: '',
+    mode: '',
+    contact_id: undefined,
+    contact_name: '',
+    designation: '',
+    phone: '',
+    email: '',
+    need_type: '',
+    current_software: '',
+    need_summary: '',
+    budget: '',
+    decision_maker: '',
+    time_frame: '',
+    qualified_by: undefined,
+    qualified_by_name: '',
+    company_profile: '',
+    summary_of_discussion: '',
+    conclusion: '',
+  });
 
   const {
     register,
@@ -413,6 +546,29 @@ export default function EditLeadPage() {
       try {
         const profilesRes = await api.getLeadQualifiedProfiles(leadId);
         setQualifiedProfiles(profilesRes || []);
+        // Load first profile into form if exists
+        if (profilesRes && profilesRes.length > 0) {
+          const profile = profilesRes[0];
+          setQualifiedProfileForm({
+            ...profile,
+            lead_id: leadId,
+            company: profile.company || leadRes.company_name || '',
+            industry: profile.industry || '',
+            contact_name: profile.contact_name || '',
+            designation: profile.designation || '',
+            phone: profile.phone || leadRes.phone || '',
+            email: profile.email || leadRes.email || '',
+          });
+        } else {
+          // Initialize with lead data
+          setQualifiedProfileForm(prev => ({
+            ...prev,
+            lead_id: leadId,
+            company: leadRes.company_name || '',
+            phone: leadRes.phone || '',
+            email: leadRes.email || '',
+          }));
+        }
       } catch { setQualifiedProfiles([]); }
 
     } catch (err: any) {
@@ -472,14 +628,20 @@ export default function EditLeadPage() {
     setEditingContactId(null);
     setInlineContactForm({
       lead_id: leadId,
-      contact_type: 'primary',
+      contact_type: 'management',
+      title: 'Mr.',
       first_name: '',
       last_name: '',
-      email: '',
-      phone: '',
       designation: '',
+      email: '',
+      work_phone: '',
+      ext: '',
+      fax: '',
+      cell_phone: '',
+      phone: '',
       department: '',
       is_primary: false,
+      status: 'active',
     });
   };
 
@@ -522,13 +684,23 @@ export default function EditLeadPage() {
 
   // Activity Handlers
   const handleAddActivity = () => {
+    const today = new Date().toISOString().split('T')[0];
     setEditingActivity({
       lead_id: leadId,
-      activity_type: 'call',
+      activity_type: 'email',
       subject: '',
       description: '',
       outcome: '',
-      activity_date: new Date().toISOString().split('T')[0],
+      activity_date: today,
+      start_time: '',
+      end_date: today,
+      end_time: '',
+      priority: 'regular',
+      status: 'in_progress',
+      assigned_to: undefined,
+      contact_id: undefined,
+      contact_name: '',
+      contact_email: '',
       is_completed: false,
     });
     setShowActivityModal(true);
@@ -705,6 +877,31 @@ export default function EditLeadPage() {
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to save profile');
+    }
+  };
+
+  // Save Qualified Profile Form (inline)
+  const handleSaveQualifiedProfileForm = async () => {
+    try {
+      const profileData = {
+        ...qualifiedProfileForm,
+        lead_id: leadId,
+      };
+
+      if (qualifiedProfiles.length > 0 && qualifiedProfiles[0].id) {
+        // Update existing profile
+        await api.updateLeadQualifiedProfile(leadId, qualifiedProfiles[0].id, profileData);
+      } else {
+        // Create new profile
+        await api.createLeadQualifiedProfile(leadId, profileData);
+      }
+
+      const profilesRes = await api.getLeadQualifiedProfiles(leadId);
+      setQualifiedProfiles(profilesRes || []);
+      setSuccess('Qualified profile saved successfully!');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to save qualified profile');
     }
   };
 
@@ -900,152 +1097,898 @@ export default function EditLeadPage() {
       ? contacts
       : contacts.filter(c => c.contact_type === contactTypeFilter);
 
+    const thClass = "px-2 py-2 text-left text-xs font-semibold text-blue-600 bg-blue-50 border-b border-gray-200";
+    const tdClass = "px-2 py-1.5 text-xs border-b border-gray-100";
+    const inputSmClass = "w-full h-7 px-2 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500";
+    const selectSmClass = "w-full h-7 px-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white";
+
     return (
       <div>
-        {/* Header with filter and add button */}
-        <div className="flex items-center justify-between mb-4 p-3 bg-blue-600 text-white rounded-t">
-          <div className="flex items-center gap-4">
-            <span className="font-medium">Contacts</span>
-            <select
-              value={contactTypeFilter}
-              onChange={(e) => setContactTypeFilter(e.target.value)}
-              className="h-8 px-2 text-sm bg-white text-gray-800 border-0 rounded"
-            >
-              <option value="all">All Types</option>
-              {contactTypeOptions.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-          <Button size="sm" variant="secondary" onClick={handleAddContact} className="flex items-center gap-1">
-            <Plus className="w-4 h-4" /> Add Contact
-          </Button>
+        {/* Contact Type Filter */}
+        <div className="flex items-center justify-center gap-4 mb-4">
+          <span className="text-sm font-medium text-blue-600">Contact type</span>
+          <select
+            value={contactTypeFilter}
+            onChange={(e) => setContactTypeFilter(e.target.value)}
+            className="h-8 px-3 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white min-w-[200px]"
+          >
+            <option value="all">All</option>
+            {contactTypeOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         </div>
 
-        {/* Inline Add/Edit Form */}
-        {inlineContactForm && (
-          <div className="mb-4 p-4 bg-gray-50 border rounded">
-            <div className="grid grid-cols-3 gap-4 mb-4">
+        {/* Contacts Table */}
+        <div className="border rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1100px]">
+              <thead>
+                <tr>
+                  <th className={thClass} style={{ width: '9%' }}>Contact</th>
+                  <th className={thClass} style={{ width: '6%' }}>Title</th>
+                  <th className={thClass} style={{ width: '10%' }}>First Name</th>
+                  <th className={thClass} style={{ width: '10%' }}>Last Name</th>
+                  <th className={thClass} style={{ width: '10%' }}>Designation</th>
+                  <th className={thClass} style={{ width: '13%' }}>Work Email</th>
+                  <th className={thClass} style={{ width: '11%' }}>Work Phone</th>
+                  <th className={thClass} style={{ width: '5%' }}>Ext.</th>
+                  <th className={thClass} style={{ width: '6%' }}>Fax</th>
+                  <th className={thClass} style={{ width: '11%' }}>Cell Phone</th>
+                  <th className={thClass} style={{ width: '7%' }}>Status</th>
+                  <th className={thClass} style={{ width: '8%' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Input Row for Adding New Contact */}
+                <tr className="bg-white">
+                  <td className={tdClass}>
+                    <select
+                      value={inlineContactForm?.contact_type || 'management'}
+                      onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, contact_type: e.target.value } : {
+                        lead_id: leadId, contact_type: e.target.value, title: 'Mr.', first_name: '', is_primary: false, status: 'active'
+                      })}
+                      className={selectSmClass}
+                    >
+                      {contactTypeOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className={tdClass}>
+                    <select
+                      value={inlineContactForm?.title || 'Mr.'}
+                      onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, title: e.target.value } : {
+                        lead_id: leadId, contact_type: 'management', title: e.target.value, first_name: '', is_primary: false, status: 'active'
+                      })}
+                      className={selectSmClass}
+                    >
+                      {titleOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className={tdClass}>
+                    <input
+                      type="text"
+                      placeholder="First Name"
+                      value={inlineContactForm?.first_name || ''}
+                      onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, first_name: e.target.value } : {
+                        lead_id: leadId, contact_type: 'management', title: 'Mr.', first_name: e.target.value, is_primary: false, status: 'active'
+                      })}
+                      className={inputSmClass}
+                    />
+                  </td>
+                  <td className={tdClass}>
+                    <input
+                      type="text"
+                      placeholder="Last Name"
+                      value={inlineContactForm?.last_name || ''}
+                      onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, last_name: e.target.value } : {
+                        lead_id: leadId, contact_type: 'management', title: 'Mr.', first_name: '', last_name: e.target.value, is_primary: false, status: 'active'
+                      })}
+                      className={inputSmClass}
+                    />
+                  </td>
+                  <td className={tdClass}>
+                    <input
+                      type="text"
+                      placeholder="Designation"
+                      value={inlineContactForm?.designation || ''}
+                      onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, designation: e.target.value } : {
+                        lead_id: leadId, contact_type: 'management', title: 'Mr.', first_name: '', designation: e.target.value, is_primary: false, status: 'active'
+                      })}
+                      className={inputSmClass}
+                    />
+                  </td>
+                  <td className={tdClass}>
+                    <input
+                      type="email"
+                      placeholder="Work Email ID"
+                      value={inlineContactForm?.email || ''}
+                      onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, email: e.target.value } : {
+                        lead_id: leadId, contact_type: 'management', title: 'Mr.', first_name: '', email: e.target.value, is_primary: false, status: 'active'
+                      })}
+                      className={inputSmClass}
+                    />
+                  </td>
+                  <td className={tdClass}>
+                    <input
+                      type="text"
+                      placeholder="Work Phone"
+                      value={inlineContactForm?.work_phone || ''}
+                      onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, work_phone: e.target.value } : {
+                        lead_id: leadId, contact_type: 'management', title: 'Mr.', first_name: '', work_phone: e.target.value, is_primary: false, status: 'active'
+                      })}
+                      className={inputSmClass}
+                    />
+                  </td>
+                  <td className={tdClass}>
+                    <input
+                      type="text"
+                      placeholder="Ext."
+                      value={inlineContactForm?.ext || ''}
+                      onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, ext: e.target.value } : {
+                        lead_id: leadId, contact_type: 'management', title: 'Mr.', first_name: '', ext: e.target.value, is_primary: false, status: 'active'
+                      })}
+                      className={inputSmClass}
+                    />
+                  </td>
+                  <td className={tdClass}>
+                    <input
+                      type="text"
+                      placeholder="Fax"
+                      value={inlineContactForm?.fax || ''}
+                      onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, fax: e.target.value } : {
+                        lead_id: leadId, contact_type: 'management', title: 'Mr.', first_name: '', fax: e.target.value, is_primary: false, status: 'active'
+                      })}
+                      className={inputSmClass}
+                    />
+                  </td>
+                  <td className={tdClass}>
+                    <input
+                      type="text"
+                      placeholder="Cell Phone"
+                      value={inlineContactForm?.cell_phone || inlineContactForm?.phone || ''}
+                      onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, cell_phone: e.target.value, phone: e.target.value } : {
+                        lead_id: leadId, contact_type: 'management', title: 'Mr.', first_name: '', cell_phone: e.target.value, phone: e.target.value, is_primary: false, status: 'active'
+                      })}
+                      className={inputSmClass}
+                    />
+                  </td>
+                  <td className={tdClass}>
+                    <select
+                      value={inlineContactForm?.status || 'active'}
+                      onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, status: e.target.value } : {
+                        lead_id: leadId, contact_type: 'management', title: 'Mr.', first_name: '', is_primary: false, status: e.target.value
+                      })}
+                      className={selectSmClass}
+                    >
+                      {contactStatusOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className={tdClass}>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          if (!inlineContactForm) {
+                            handleAddContact();
+                          } else {
+                            handleSaveContact();
+                          }
+                        }}
+                        className="px-3 py-1 text-xs font-medium text-white bg-blue-500 rounded hover:bg-blue-600"
+                      >
+                        Add
+                      </button>
+                      {inlineContactForm && editingContactId === null && (
+                        <button
+                          onClick={() => setInlineContactForm(null)}
+                          className="p-1 text-gray-500 hover:text-gray-700"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+
+                {/* Existing Contacts */}
+                {filteredContacts.length === 0 ? (
+                  <tr>
+                    <td colSpan={12} className="px-4 py-8 text-center text-gray-500">
+                      No contacts found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredContacts.map((contact) => (
+                    editingContactId === contact.id ? (
+                      /* Inline Edit Row */
+                      <tr key={contact.id} className="bg-yellow-50">
+                        <td className={tdClass}>
+                          <select
+                            value={inlineContactForm?.contact_type || ''}
+                            onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, contact_type: e.target.value } : null)}
+                            className={selectSmClass}
+                          >
+                            {contactTypeOptions.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className={tdClass}>
+                          <select
+                            value={inlineContactForm?.title || 'Mr.'}
+                            onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, title: e.target.value } : null)}
+                            className={selectSmClass}
+                          >
+                            {titleOptions.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className={tdClass}>
+                          <input
+                            type="text"
+                            value={inlineContactForm?.first_name || ''}
+                            onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, first_name: e.target.value } : null)}
+                            className={inputSmClass}
+                          />
+                        </td>
+                        <td className={tdClass}>
+                          <input
+                            type="text"
+                            value={inlineContactForm?.last_name || ''}
+                            onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, last_name: e.target.value } : null)}
+                            className={inputSmClass}
+                          />
+                        </td>
+                        <td className={tdClass}>
+                          <input
+                            type="text"
+                            value={inlineContactForm?.designation || ''}
+                            onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, designation: e.target.value } : null)}
+                            className={inputSmClass}
+                          />
+                        </td>
+                        <td className={tdClass}>
+                          <input
+                            type="email"
+                            value={inlineContactForm?.email || ''}
+                            onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, email: e.target.value } : null)}
+                            className={inputSmClass}
+                          />
+                        </td>
+                        <td className={tdClass}>
+                          <input
+                            type="text"
+                            value={inlineContactForm?.work_phone || ''}
+                            onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, work_phone: e.target.value } : null)}
+                            className={inputSmClass}
+                          />
+                        </td>
+                        <td className={tdClass}>
+                          <input
+                            type="text"
+                            value={inlineContactForm?.ext || ''}
+                            onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, ext: e.target.value } : null)}
+                            className={inputSmClass}
+                          />
+                        </td>
+                        <td className={tdClass}>
+                          <input
+                            type="text"
+                            value={inlineContactForm?.fax || ''}
+                            onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, fax: e.target.value } : null)}
+                            className={inputSmClass}
+                          />
+                        </td>
+                        <td className={tdClass}>
+                          <input
+                            type="text"
+                            value={inlineContactForm?.cell_phone || inlineContactForm?.phone || ''}
+                            onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, cell_phone: e.target.value, phone: e.target.value } : null)}
+                            className={inputSmClass}
+                          />
+                        </td>
+                        <td className={tdClass}>
+                          <select
+                            value={inlineContactForm?.status || 'active'}
+                            onChange={(e) => setInlineContactForm(prev => prev ? { ...prev, status: e.target.value } : null)}
+                            className={selectSmClass}
+                          >
+                            {contactStatusOptions.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className={tdClass}>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={handleSaveContact}
+                              className="p-1 text-green-600 hover:bg-green-50 rounded"
+                              title="Save"
+                            >
+                              <Save className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => { setInlineContactForm(null); setEditingContactId(null); }}
+                              className="p-1 text-gray-500 hover:bg-gray-100 rounded"
+                              title="Cancel"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      /* Display Row */
+                      <tr key={contact.id} className="hover:bg-gray-50">
+                        <td className={tdClass}>
+                          <span className="capitalize">{contact.contact_type?.replace('_', ' ')}</span>
+                        </td>
+                        <td className={tdClass}>{contact.title || 'Mr.'}</td>
+                        <td className={tdClass}>{contact.first_name}</td>
+                        <td className={tdClass}>{contact.last_name || ''}</td>
+                        <td className={tdClass}>{contact.designation || ''}</td>
+                        <td className={tdClass}>
+                          {contact.email && (
+                            <a href={`mailto:${contact.email}`} className="text-blue-600 hover:underline">
+                              {contact.email}
+                            </a>
+                          )}
+                        </td>
+                        <td className={tdClass}>
+                          {(contact.work_phone || contact.phone) && (
+                            <span className="flex items-center gap-1">
+                              {contact.work_phone || contact.phone}
+                              <Phone className="w-3 h-3 text-green-500" />
+                            </span>
+                          )}
+                        </td>
+                        <td className={tdClass}>{contact.ext || ''}</td>
+                        <td className={tdClass}>{contact.fax || ''}</td>
+                        <td className={tdClass}>
+                          {contact.cell_phone && (
+                            <span className="flex items-center gap-1">
+                              {contact.cell_phone}
+                              <Phone className="w-3 h-3 text-green-500" />
+                            </span>
+                          )}
+                        </td>
+                        <td className={tdClass}>
+                          {(contact.status === 'active' || !contact.status) ? (
+                            <span className="inline-flex items-center justify-center w-5 h-5 bg-green-500 rounded-full">
+                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center justify-center w-5 h-5 bg-gray-400 rounded-full">
+                              <X className="w-3 h-3 text-white" />
+                            </span>
+                          )}
+                        </td>
+                        <td className={tdClass}>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleEditContact(contact)}
+                              className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                              title="Edit"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => contact.id && handleDeleteContact(contact.id)}
+                              className="p-1 text-gray-500 hover:bg-gray-100 rounded"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render Activities Tab
+  const renderActivities = () => {
+    const thClass = "px-4 py-2.5 text-left text-xs font-semibold text-blue-700 bg-gradient-to-b from-blue-50 to-blue-100 border-b-2 border-blue-200";
+    const tdClass = "px-4 py-2.5 text-xs";
+
+    // Get activity type color
+    const getActivityTypeColor = (type: string) => {
+      switch (type) {
+        case 'email': return 'text-orange-500';
+        case 'call': return 'text-green-600';
+        case 'meeting': return 'text-purple-600';
+        case 'whatsapp': return 'text-green-500';
+        case 'video_call': return 'text-blue-600';
+        case 'site_visit': return 'text-indigo-600';
+        default: return 'text-gray-600';
+      }
+    };
+
+    return (
+      <div>
+        {/* Header with Add Button */}
+        <div className="flex items-center justify-end mb-4">
+          <button
+            onClick={handleAddActivity}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 transition-colors"
+          >
+            Add New Activity
+          </button>
+        </div>
+
+        {/* Activities Table */}
+        <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr>
+                  <th className={thClass}>Activity Type</th>
+                  <th className={thClass}>Contact</th>
+                  <th className={thClass}>Subject</th>
+                  <th className={thClass}>Start Date</th>
+                  <th className={thClass}>End Date</th>
+                  <th className={thClass}>Priority</th>
+                  <th className={thClass}>Assigned To</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activities.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500 bg-gray-50">
+                      No activities found
+                    </td>
+                  </tr>
+                ) : (
+                  activities.map((activity, index) => (
+                    <tr
+                      key={activity.id}
+                      className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-blue-50/50 cursor-pointer transition-colors`}
+                      onClick={() => handleEditActivity(activity)}
+                    >
+                      <td className={tdClass}>
+                        <span className={`font-medium capitalize ${getActivityTypeColor(activity.activity_type)}`}>
+                          {activity.activity_type?.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className={tdClass}>
+                        {activity.contact_name ? (
+                          <span className="text-blue-600 hover:underline">
+                            {activity.contact_name}
+                          </span>
+                        ) : '-'}
+                      </td>
+                      <td className={tdClass}>{activity.subject || '-'}</td>
+                      <td className={tdClass}>
+                        {activity.activity_date ? formatDate(activity.activity_date) : '-'}
+                      </td>
+                      <td className={tdClass}>
+                        {activity.end_date ? formatDate(activity.end_date) :
+                         activity.due_date ? formatDate(activity.due_date) : '-'}
+                      </td>
+                      <td className={tdClass}>
+                        <span className="text-blue-600 capitalize">
+                          {activity.priority || 'Regular'}
+                        </span>
+                      </td>
+                      <td className={tdClass}>
+                        {activity.assigned_to ? `User ${activity.assigned_to}` : '-'}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render Qualified Lead Profile Tab
+  const renderQualifiedProfile = () => {
+    const sectionTitleClass = "text-sm font-semibold text-orange-600 uppercase tracking-wide mb-4";
+    const labelClass = "text-xs font-medium text-blue-600 mb-1 block";
+    const inputClass = "w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500";
+    const selectClass = "w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white";
+
+    // Rich text toolbar component
+    const RichTextToolbar = () => (
+      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-200 bg-gray-50 flex-wrap">
+        <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded font-bold text-sm">B</button>
+        <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded italic text-sm font-serif">I</button>
+        <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded underline text-sm">U</button>
+        <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded text-sm">
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"/></svg>
+        </button>
+        <span className="w-px h-5 bg-gray-300 mx-1"></span>
+        <select className="h-7 text-xs border border-gray-300 rounded px-1 bg-white">
+          <option>Jost</option>
+          <option>Arial</option>
+        </select>
+        <select className="h-7 w-12 text-xs border border-gray-300 rounded px-1 bg-white ml-1">
+          <option>14</option>
+          <option>12</option>
+          <option>16</option>
+        </select>
+        <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded ml-1 bg-yellow-200 font-bold text-sm">A</button>
+        <span className="w-px h-5 bg-gray-300 mx-1"></span>
+        <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+        </button>
+        <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" /></svg>
+        </button>
+        <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
+        </button>
+      </div>
+    );
+
+    return (
+      <div className="space-y-6">
+        {/* QUALIFIED LEAD ACKNOWLEDGEMENT */}
+        <div>
+          <h3 className={sectionTitleClass}>QUALIFIED LEAD ACKNOWLEDGEMENT</h3>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+            {/* Left Column */}
+            <div className="space-y-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Contact Type</label>
+                <label className={labelClass}>Company</label>
+                <input
+                  type="text"
+                  value={qualifiedProfileForm.company || ''}
+                  onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, company: e.target.value })}
+                  className={inputClass}
+                  placeholder="Company Name"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Industry</label>
+                <input
+                  type="text"
+                  value={qualifiedProfileForm.industry || ''}
+                  onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, industry: e.target.value })}
+                  className={inputClass}
+                  placeholder="Industry"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Best Time (Call)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="time"
+                    value={qualifiedProfileForm.best_time_call || ''}
+                    onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, best_time_call: e.target.value })}
+                    className={`${inputClass} flex-1`}
+                  />
+                  <select
+                    value={qualifiedProfileForm.timezone || ''}
+                    onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, timezone: e.target.value })}
+                    className={`${selectClass} flex-1`}
+                  >
+                    <option value="">Select Company Timezone</option>
+                    {timezoneOptions.filter(o => o.value).map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className={labelClass}>Mode</label>
                 <select
-                  value={inlineContactForm.contact_type}
-                  onChange={(e) => setInlineContactForm({ ...inlineContactForm, contact_type: e.target.value })}
+                  value={qualifiedProfileForm.mode || ''}
+                  onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, mode: e.target.value })}
                   className={selectClass}
                 >
-                  {contactTypeOptions.map(opt => (
+                  {modeOptions.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
               </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">First Name *</label>
+                <label className={labelClass}>Contact</label>
+                <select
+                  value={qualifiedProfileForm.contact_id || ''}
+                  onChange={(e) => {
+                    const selectedContact = contacts.find(c => c.id === parseInt(e.target.value));
+                    setQualifiedProfileForm({
+                      ...qualifiedProfileForm,
+                      contact_id: e.target.value ? parseInt(e.target.value) : undefined,
+                      contact_name: selectedContact ? `${selectedContact.first_name} ${selectedContact.last_name || ''}`.trim() : '',
+                      designation: selectedContact?.designation || '',
+                      phone: selectedContact?.phone || selectedContact?.work_phone || '',
+                      email: selectedContact?.email || '',
+                    });
+                  }}
+                  className={selectClass}
+                >
+                  <option value="">Select Contact</option>
+                  {contacts.map(contact => (
+                    <option key={contact.id} value={contact.id}>
+                      {`${contact.first_name} ${contact.last_name || ''}`.trim()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Designation</label>
                 <input
                   type="text"
-                  value={inlineContactForm.first_name}
-                  onChange={(e) => setInlineContactForm({ ...inlineContactForm, first_name: e.target.value })}
+                  value={qualifiedProfileForm.designation || ''}
+                  onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, designation: e.target.value })}
                   className={inputClass}
-                  placeholder="First Name"
+                  placeholder="Auto Fill"
+                  readOnly
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Last Name</label>
+                <label className={labelClass}>Phone</label>
                 <input
                   type="text"
-                  value={inlineContactForm.last_name || ''}
-                  onChange={(e) => setInlineContactForm({ ...inlineContactForm, last_name: e.target.value })}
-                  className={inputClass}
-                  placeholder="Last Name"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={inlineContactForm.email || ''}
-                  onChange={(e) => setInlineContactForm({ ...inlineContactForm, email: e.target.value })}
-                  className={inputClass}
-                  placeholder="Email"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Phone</label>
-                <input
-                  type="text"
-                  value={inlineContactForm.phone || ''}
-                  onChange={(e) => setInlineContactForm({ ...inlineContactForm, phone: e.target.value })}
+                  value={qualifiedProfileForm.phone || ''}
+                  onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, phone: e.target.value })}
                   className={inputClass}
                   placeholder="Phone"
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Designation</label>
+                <label className={labelClass}>Email</label>
                 <input
-                  type="text"
-                  value={inlineContactForm.designation || ''}
-                  onChange={(e) => setInlineContactForm({ ...inlineContactForm, designation: e.target.value })}
+                  type="email"
+                  value={qualifiedProfileForm.email || ''}
+                  onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, email: e.target.value })}
                   className={inputClass}
-                  placeholder="Designation"
+                  placeholder="Email"
                 />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-2 text-sm">
+          </div>
+        </div>
+
+        {/* ADDITIONAL INFORMATION */}
+        <div>
+          <h3 className={sectionTitleClass}>ADDITIONAL INFORMATION</h3>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+            {/* Left Column */}
+            <div className="space-y-3">
+              <div>
+                <label className={labelClass}>Need Type</label>
+                <select
+                  value={qualifiedProfileForm.need_type || ''}
+                  onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, need_type: e.target.value })}
+                  className={selectClass}
+                >
+                  {needTypeOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Current Soft</label>
                 <input
-                  type="checkbox"
-                  checked={inlineContactForm.is_primary}
-                  onChange={(e) => setInlineContactForm({ ...inlineContactForm, is_primary: e.target.checked })}
+                  type="text"
+                  value={qualifiedProfileForm.current_software || ''}
+                  onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, current_software: e.target.value })}
+                  className={inputClass}
+                  placeholder="Current Software"
                 />
-                Primary Contact
-              </label>
+              </div>
+              <div>
+                <label className={labelClass}>Need Summary</label>
+                <textarea
+                  value={qualifiedProfileForm.need_summary || ''}
+                  onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, need_summary: e.target.value })}
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                  rows={2}
+                  placeholder="Summary"
+                />
+              </div>
             </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <Button type="button" variant="secondary" size="sm" onClick={() => { setInlineContactForm(null); setEditingContactId(null); }}>
-                Cancel
-              </Button>
-              <Button type="button" size="sm" onClick={handleSaveContact} className="flex items-center gap-1">
-                <Save className="w-4 h-4" /> Save
-              </Button>
+
+            {/* Right Column */}
+            <div className="space-y-3">
+              <div>
+                <label className={labelClass}>Budget</label>
+                <select
+                  value={qualifiedProfileForm.budget || ''}
+                  onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, budget: e.target.value })}
+                  className={selectClass}
+                >
+                  {budgetOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Decision Maker</label>
+                <select
+                  value={qualifiedProfileForm.decision_maker || ''}
+                  onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, decision_maker: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="">Select Decision Maker</option>
+                  {contacts.map(contact => (
+                    <option key={contact.id} value={`${contact.first_name} ${contact.last_name || ''}`.trim()}>
+                      {`${contact.first_name} ${contact.last_name || ''}`.trim()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Time Frame</label>
+                <select
+                  value={qualifiedProfileForm.time_frame || ''}
+                  onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, time_frame: e.target.value })}
+                  className={selectClass}
+                >
+                  {timeFrameOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Qualified By</label>
+                <select
+                  value={qualifiedProfileForm.qualified_by || ''}
+                  onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, qualified_by: e.target.value ? parseInt(e.target.value) : undefined })}
+                  className={selectClass}
+                >
+                  <option value="">Select User</option>
+                  {salesRepOptions.filter(opt => opt.value).map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Contacts Table */}
-        <div className="border rounded overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
+        {/* COMPANY PROFILE */}
+        <div>
+          <h3 className={sectionTitleClass}>COMPANY PROFILE</h3>
+          <div className="border border-gray-300 rounded overflow-hidden">
+            <RichTextToolbar />
+            <textarea
+              value={qualifiedProfileForm.company_profile || ''}
+              onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, company_profile: e.target.value })}
+              className="w-full px-3 py-2 text-sm focus:outline-none resize-none border-0"
+              rows={6}
+              placeholder="Enter company profile..."
+            />
+          </div>
+        </div>
+
+        {/* SUMMARY OF DISCUSSION */}
+        <div>
+          <h3 className={sectionTitleClass}>SUMMARY OF DISCUSSION</h3>
+          <div className="border border-gray-300 rounded overflow-hidden">
+            <RichTextToolbar />
+            <textarea
+              value={qualifiedProfileForm.summary_of_discussion || ''}
+              onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, summary_of_discussion: e.target.value })}
+              className="w-full px-3 py-2 text-sm focus:outline-none resize-none border-0"
+              rows={6}
+              placeholder="Enter summary of discussion..."
+            />
+          </div>
+        </div>
+
+        {/* CONCLUSION */}
+        <div>
+          <h3 className={sectionTitleClass}>CONCLUSION</h3>
+          <div className="border border-gray-300 rounded overflow-hidden">
+            <RichTextToolbar />
+            <textarea
+              value={qualifiedProfileForm.conclusion || ''}
+              onChange={(e) => setQualifiedProfileForm({ ...qualifiedProfileForm, conclusion: e.target.value })}
+              className="w-full px-3 py-2 text-sm focus:outline-none resize-none border-0"
+              rows={6}
+              placeholder="Enter conclusion..."
+            />
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-center gap-3 pt-4 border-t">
+          <button
+            onClick={handleSaveQualifiedProfileForm}
+            className="px-6 py-2 bg-green-500 text-white text-sm font-medium rounded hover:bg-green-600 transition-colors"
+          >
+            Save
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="px-6 py-2 bg-white text-gray-700 text-sm font-medium rounded border border-gray-300 hover:bg-gray-50 transition-colors"
+          >
+            Print
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Render Memo Tab
+  const renderMemo = () => {
+    const thClass = "px-4 py-2.5 text-left text-xs font-semibold text-white bg-blue-600";
+
+    return (
+      <div>
+        {/* Add Memo Button */}
+        <div className="flex items-center justify-start mb-4">
+          <button
+            onClick={handleAddMemo}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 transition-colors"
+          >
+            Add Memo
+          </button>
+        </div>
+
+        {/* Memos Table */}
+        <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+          <table className="w-full">
+            <thead>
               <tr>
-                <th className="px-4 py-2 text-left font-medium text-gray-600">Type</th>
-                <th className="px-4 py-2 text-left font-medium text-gray-600">Name</th>
-                <th className="px-4 py-2 text-left font-medium text-gray-600">Email</th>
-                <th className="px-4 py-2 text-left font-medium text-gray-600">Phone</th>
-                <th className="px-4 py-2 text-left font-medium text-gray-600">Designation</th>
-                <th className="px-4 py-2 text-left font-medium text-gray-600">Primary</th>
-                <th className="px-4 py-2 text-center font-medium text-gray-600">Actions</th>
+                <th className={thClass} style={{ width: '15%' }}>Date</th>
+                <th className={thClass} style={{ width: '20%' }}>Added By</th>
+                <th className={thClass}>Details</th>
+                <th className={thClass} style={{ width: '10%' }}>Action</th>
               </tr>
             </thead>
             <tbody>
-              {filteredContacts.length === 0 ? (
+              {memos.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                    No contacts found
+                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500 bg-gray-50">
+                    No memos found
                   </td>
                 </tr>
               ) : (
-                filteredContacts.map((contact) => (
-                  <tr key={contact.id} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-2 capitalize">{contact.contact_type?.replace('_', ' ')}</td>
-                    <td className="px-4 py-2">{`${contact.first_name} ${contact.last_name || ''}`.trim()}</td>
-                    <td className="px-4 py-2">{contact.email || '-'}</td>
-                    <td className="px-4 py-2">{contact.phone || '-'}</td>
-                    <td className="px-4 py-2">{contact.designation || '-'}</td>
-                    <td className="px-4 py-2">{contact.is_primary ? 'Yes' : 'No'}</td>
-                    <td className="px-4 py-2 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => handleEditContact(contact)} className="text-blue-600 hover:text-blue-800">
+                memos.map((memo, index) => (
+                  <tr
+                    key={memo.id}
+                    className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-blue-50/50 transition-colors`}
+                  >
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {memo.created_at ? formatDate(memo.created_at) : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {memo.created_by ? `User ${memo.created_by}` : 'System'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      <div className="line-clamp-2">{memo.content || memo.title}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleEditMemo(memo)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                          title="Edit"
+                        >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button onClick={() => contact.id && handleDeleteContact(contact.id)} className="text-red-600 hover:text-red-800">
+                        <button
+                          onClick={() => memo.id && handleDeleteMemo(memo.id)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                          title="Delete"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -1060,241 +2003,217 @@ export default function EditLeadPage() {
     );
   };
 
-  // Render Activities Tab
-  const renderActivities = () => (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-medium">Activities</h3>
-        <Button size="sm" onClick={handleAddActivity} className="flex items-center gap-1">
-          <Plus className="w-4 h-4" /> Add Activity
-        </Button>
-      </div>
-
-      <div className="space-y-3">
-        {activities.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 border rounded">No activities found</div>
-        ) : (
-          activities.map((activity) => (
-            <div key={activity.id} className="p-4 border rounded hover:bg-gray-50">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded ${activity.is_completed ? 'bg-green-100' : 'bg-blue-100'}`}>
-                    {activity.activity_type === 'call' && <Phone className="w-4 h-4" />}
-                    {activity.activity_type === 'email' && <Mail className="w-4 h-4" />}
-                    {activity.activity_type === 'meeting' && <User className="w-4 h-4" />}
-                    {activity.activity_type === 'whatsapp' && <MessageSquare className="w-4 h-4" />}
-                    {!['call', 'email', 'meeting', 'whatsapp'].includes(activity.activity_type) && <Clock className="w-4 h-4" />}
-                  </div>
-                  <div>
-                    <div className="font-medium">{activity.subject}</div>
-                    <div className="text-sm text-gray-500 capitalize">{activity.activity_type}</div>
-                    {activity.description && <div className="text-sm text-gray-600 mt-1">{activity.description}</div>}
-                    <div className="text-xs text-gray-400 mt-1">
-                      {formatDate(activity.activity_date)} {activity.is_completed && '• Completed'}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => handleEditActivity(activity)} className="text-blue-600 hover:text-blue-800">
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => activity.id && handleDeleteActivity(activity.id)} className="text-red-600 hover:text-red-800">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-
-  // Render Qualified Lead Profile Tab
-  const renderQualifiedProfile = () => (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-medium">Qualified Lead Profiles</h3>
-        <Button size="sm" onClick={handleAddProfile} className="flex items-center gap-1">
-          <Plus className="w-4 h-4" /> Add Profile
-        </Button>
-      </div>
-
-      <div className="space-y-4">
-        {qualifiedProfiles.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 border rounded">No profiles found</div>
-        ) : (
-          qualifiedProfiles.map((profile) => (
-            <div key={profile.id} className="p-4 border rounded">
-              <div className="flex items-start justify-between mb-3">
-                <div className="font-medium capitalize">{profile.profile_type} Profile</div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => handleEditProfile(profile)} className="text-blue-600 hover:text-blue-800">
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => profile.id && handleDeleteProfile(profile.id)} className="text-red-600 hover:text-red-800">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div><span className="text-gray-500">Company Type:</span> {profile.company_type || '-'}</div>
-                <div><span className="text-gray-500">Annual Revenue:</span> {profile.annual_revenue || '-'}</div>
-                <div><span className="text-gray-500">Employee Count:</span> {profile.employee_count || '-'}</div>
-                <div><span className="text-gray-500">Decision Maker:</span> {profile.decision_maker || '-'}</div>
-                <div><span className="text-gray-500">Budget:</span> {profile.budget || '-'}</div>
-                <div><span className="text-gray-500">Timeline:</span> {profile.timeline || '-'}</div>
-              </div>
-              {profile.pain_points && (
-                <div className="mt-3 text-sm">
-                  <span className="text-gray-500">Pain Points:</span> {profile.pain_points}
-                </div>
-              )}
-              {profile.notes && (
-                <div className="mt-2 text-sm">
-                  <span className="text-gray-500">Notes:</span> {profile.notes}
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-
-  // Render Memo Tab
-  const renderMemo = () => (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-medium">Memos</h3>
-        <Button size="sm" onClick={handleAddMemo} className="flex items-center gap-1">
-          <Plus className="w-4 h-4" /> Add Memo
-        </Button>
-      </div>
-
-      <div className="space-y-3">
-        {memos.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 border rounded">No memos found</div>
-        ) : (
-          memos.map((memo) => (
-            <div key={memo.id} className="p-4 border rounded hover:bg-gray-50">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="font-medium">{memo.title}</div>
-                  <div className="text-xs text-gray-500 capitalize mb-2">{memo.memo_type?.replace('_', ' ')}</div>
-                  <div className="text-sm text-gray-600">{memo.content}</div>
-                  <div className="text-xs text-gray-400 mt-2">{memo.created_at ? formatDate(memo.created_at) : ''}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => handleEditMemo(memo)} className="text-blue-600 hover:text-blue-800">
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => memo.id && handleDeleteMemo(memo.id)} className="text-red-600 hover:text-red-800">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-
   // Render Upload File Tab
-  const renderUploadFile = () => (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-medium">Documents</h3>
-        <Button size="sm" onClick={() => setShowDocumentModal(true)} className="flex items-center gap-1">
-          <Upload className="w-4 h-4" /> Upload Document
-        </Button>
-      </div>
+  const renderUploadFile = () => {
+    const thClass = "px-4 py-2.5 text-left text-xs font-semibold text-white bg-blue-600";
 
-      <div className="border rounded overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-2 text-left font-medium text-gray-600">File Name</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-600">Type</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-600">Size</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-600">Notes</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-600">Uploaded</th>
-              <th className="px-4 py-2 text-center font-medium text-gray-600">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {documents.length === 0 ? (
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+        setDocumentFile(e.target.files[0]);
+      }
+    };
+
+    const handleDirectUpload = async () => {
+      if (!documentFile) {
+        alert('Please select a file first');
+        return;
+      }
+      // Trigger the existing upload logic
+      setShowDocumentModal(true);
+    };
+
+    return (
+      <div>
+        {/* Upload Form */}
+        <div className="mb-6 space-y-4">
+          {/* Document Row */}
+          <div className="flex items-center gap-4">
+            <label className="w-24 text-sm font-medium text-gray-600 text-right">Document</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={documentFile?.name || ''}
+                readOnly
+                className="w-64 px-3 py-1.5 text-sm border border-gray-300 rounded bg-gray-50"
+                placeholder=""
+              />
+              <label className="px-4 py-1.5 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded cursor-pointer transition-colors flex items-center gap-1">
+                <Upload className="w-4 h-4" />
+                Choose File
+                <input
+                  type="file"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+              </label>
+              <button
+                onClick={handleDirectUpload}
+                className="px-4 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+              >
+                Upload
+              </button>
+            </div>
+          </div>
+
+          {/* Notes Row */}
+          <div className="flex items-center gap-4">
+            <label className="w-24 text-sm font-medium text-gray-600 text-right">Notes</label>
+            <input
+              type="text"
+              value={documentNotes}
+              onChange={(e) => setDocumentNotes(e.target.value)}
+              className="w-64 px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder=""
+            />
+          </div>
+        </div>
+
+        {/* Documents Table */}
+        <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+          <table className="w-full">
+            <thead>
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                  No documents uploaded
-                </td>
+                <th className={thClass}>File Name</th>
+                <th className={thClass} style={{ width: '15%' }}>Uploaded On</th>
+                <th className={thClass} style={{ width: '10%' }}>Size</th>
+                <th className={thClass}>Notes</th>
+                <th className={thClass} style={{ width: '12%' }}>Actions</th>
               </tr>
-            ) : (
-              documents.map((doc) => (
-                <tr key={doc.id} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-2 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-gray-400" />
-                    {doc.file_name}
-                  </td>
-                  <td className="px-4 py-2">{doc.file_type || '-'}</td>
-                  <td className="px-4 py-2">{doc.file_size ? `${Math.round(doc.file_size / 1024)} KB` : '-'}</td>
-                  <td className="px-4 py-2">{doc.notes || '-'}</td>
-                  <td className="px-4 py-2">{doc.created_at ? formatDate(doc.created_at) : '-'}</td>
-                  <td className="px-4 py-2 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <a href={doc.file_path} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
-                        <Download className="w-4 h-4" />
-                      </a>
-                      <button onClick={() => doc.id && handleDeleteDocument(doc.id)} className="text-red-600 hover:text-red-800">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+            </thead>
+            <tbody>
+              {documents.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500 bg-gray-50">
+                    No documents uploaded
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                documents.map((doc, index) => (
+                  <tr
+                    key={doc.id}
+                    className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-blue-50/50 transition-colors`}
+                  >
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-gray-400" />
+                        {doc.file_name}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {doc.created_at ? formatDate(doc.created_at) : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {doc.file_size ? `${Math.round(doc.file_size / 1024)} KB` : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {doc.notes || '-'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1">
+                        <a
+                          href={doc.file_path}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                          title="Download"
+                        >
+                          <Download className="w-4 h-4" />
+                        </a>
+                        <button
+                          onClick={() => doc.id && handleDeleteDocument(doc.id)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Render Status Tab
-  const renderStatus = () => (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="font-medium">Status History</h3>
-          <p className="text-sm text-gray-500">Current Status: <span className="font-medium capitalize">{leadData?.status || '-'}</span></p>
-        </div>
-        <Button size="sm" onClick={() => setShowStatusModal(true)} className="flex items-center gap-1">
-          <Plus className="w-4 h-4" /> Change Status
-        </Button>
-      </div>
+  const renderStatus = () => {
+    const thClass = "px-4 py-2.5 text-left text-xs font-semibold text-white bg-blue-600";
 
-      <div className="space-y-3">
-        {statusHistory.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 border rounded">No status changes recorded</div>
-        ) : (
-          statusHistory.map((history, index) => (
-            <div key={history.id || index} className="p-4 border rounded flex items-start gap-4">
-              <div className="p-2 bg-blue-100 rounded">
-                <CalendarIcon className="w-4 h-4 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <div className="font-medium capitalize">{history.status?.replace('_', ' ')}</div>
-                {history.remarks && <div className="text-sm text-gray-600 mt-1">{history.remarks}</div>}
-                <div className="text-xs text-gray-400 mt-1">
-                  {history.status_date ? formatDate(history.status_date) : history.created_at ? formatDate(history.created_at) : '-'}
-                </div>
-              </div>
-            </div>
-          ))
-        )}
+    return (
+      <div>
+        {/* Current Status Row */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium text-blue-600">Current Status</label>
+            <input
+              type="text"
+              value={leadData?.lead_status ? leadData.lead_status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-'}
+              readOnly
+              className="w-64 px-3 py-1.5 text-sm border border-gray-300 rounded bg-gray-50"
+            />
+          </div>
+          <button
+            onClick={() => setShowStatusModal(true)}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+          >
+            Status Change History
+          </button>
+        </div>
+
+        {/* Status History Table */}
+        <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+          <table className="w-full">
+            <thead>
+              <tr>
+                <th className={`${thClass} w-10`}></th>
+                <th className={thClass}>Status</th>
+                <th className={thClass}>Remarks</th>
+                <th className={thClass} style={{ width: '18%' }}>Updated By</th>
+                <th className={thClass} style={{ width: '12%' }}>Status Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {statusHistory.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500 bg-gray-50">
+                    No status changes recorded
+                  </td>
+                </tr>
+              ) : (
+                statusHistory.map((history, index) => (
+                  <tr
+                    key={history.id || index}
+                    className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-blue-50/50 transition-colors`}
+                  >
+                    <td className="px-4 py-3">
+                      <input type="checkbox" className="w-4 h-4 rounded border-gray-300" />
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <span className="text-blue-600 hover:underline cursor-pointer capitalize">
+                        {typeof history.status === 'string' ? history.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {history.remarks || 'No Remarks'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {history.changed_by ? `User ${history.changed_by}` : history.created_by ? `User ${history.created_by}` : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-blue-600">
+                      {history.status_date ? formatDate(history.status_date) : history.created_at ? formatDate(history.created_at) : '-'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Render Workflow & Audit Trail Tab
   const renderWorkflow = () => (
@@ -1393,80 +2312,242 @@ export default function EditLeadPage() {
 
         {/* Activity Modal */}
         {showActivityModal && editingActivity && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">{editingActivity.id ? 'Edit Activity' : 'Add Activity'}</h3>
-                <button onClick={() => setShowActivityModal(false)} className="text-gray-500 hover:text-gray-700">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg w-full max-w-[580px] overflow-hidden shadow-2xl">
+              {/* Modal Header */}
+              <div className="bg-blue-600 px-5 py-3 flex items-center justify-between">
+                <h3 className="text-white font-semibold tracking-wide">
+                  {editingActivity.id ? 'EDIT ACTIVITY' : 'NEW ACTIVITY'}
+                </h3>
+                <button onClick={() => setShowActivityModal(false)} className="text-white hover:text-gray-200">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Activity Type</label>
-                  <select
-                    value={editingActivity.activity_type}
-                    onChange={(e) => setEditingActivity({ ...editingActivity, activity_type: e.target.value })}
-                    className={selectClass}
-                  >
-                    {activityTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
+
+              {/* Modal Body */}
+              <div className="p-5 max-h-[calc(100vh-200px)] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-x-5 gap-y-3">
+                  {/* Left Column */}
+                  <div className="space-y-3">
+                    {/* Contact */}
+                    <div>
+                      <label className="block text-xs font-medium text-blue-600 mb-1">Contact</label>
+                      <select
+                        value={editingActivity.contact_id || ''}
+                        onChange={(e) => {
+                          const selectedContact = contacts.find(c => c.id === parseInt(e.target.value));
+                          setEditingActivity({
+                            ...editingActivity,
+                            contact_id: e.target.value ? parseInt(e.target.value) : undefined,
+                            contact_name: selectedContact ? `${selectedContact.first_name} ${selectedContact.last_name || ''}`.trim() : '',
+                            contact_email: selectedContact?.email || ''
+                          });
+                        }}
+                        className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                      >
+                        <option value="">Select Contact</option>
+                        {contacts.map(contact => (
+                          <option key={contact.id} value={contact.id}>
+                            {`${contact.first_name} ${contact.last_name || ''}`.trim()}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Email */}
+                    <div>
+                      <label className="block text-xs font-medium text-blue-600 mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={editingActivity.contact_email || ''}
+                        onChange={(e) => setEditingActivity({ ...editingActivity, contact_email: e.target.value })}
+                        className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="email@example.com"
+                      />
+                    </div>
+
+                    {/* Priority */}
+                    <div>
+                      <label className="block text-xs font-medium text-blue-600 mb-1">Priority</label>
+                      <select
+                        value={editingActivity.priority || 'regular'}
+                        onChange={(e) => setEditingActivity({ ...editingActivity, priority: e.target.value })}
+                        className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                      >
+                        {activityPriorityOptions.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Start Date / Time */}
+                    <div>
+                      <label className="block text-xs font-medium text-blue-600 mb-1">Start Date / Time</label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <input
+                            type="date"
+                            value={editingActivity.activity_date?.split('T')[0] || ''}
+                            onChange={(e) => setEditingActivity({ ...editingActivity, activity_date: e.target.value })}
+                            className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div className="relative flex-1">
+                          <input
+                            type="time"
+                            value={editingActivity.start_time || ''}
+                            onChange={(e) => setEditingActivity({ ...editingActivity, start_time: e.target.value })}
+                            className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* End Date / Time */}
+                    <div>
+                      <label className="block text-xs font-medium text-blue-600 mb-1">End Date / Time</label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <input
+                            type="date"
+                            value={editingActivity.end_date?.split('T')[0] || ''}
+                            onChange={(e) => setEditingActivity({ ...editingActivity, end_date: e.target.value })}
+                            className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div className="relative flex-1">
+                          <input
+                            type="time"
+                            value={editingActivity.end_time || ''}
+                            onChange={(e) => setEditingActivity({ ...editingActivity, end_time: e.target.value })}
+                            className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column */}
+                  <div className="space-y-3">
+                    {/* Subject */}
+                    <div>
+                      <label className="block text-xs font-medium text-blue-600 mb-1">Subject</label>
+                      <input
+                        type="text"
+                        value={editingActivity.subject}
+                        onChange={(e) => setEditingActivity({ ...editingActivity, subject: e.target.value })}
+                        className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="Enter subject"
+                      />
+                    </div>
+
+                    {/* Activity Type */}
+                    <div>
+                      <label className="block text-xs font-medium text-blue-600 mb-1">Activity Type</label>
+                      <select
+                        value={editingActivity.activity_type}
+                        onChange={(e) => setEditingActivity({ ...editingActivity, activity_type: e.target.value })}
+                        className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                      >
+                        {activityTypeOptions.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Assigned To */}
+                    <div>
+                      <label className="block text-xs font-medium text-blue-600 mb-1">Assigned To</label>
+                      <select
+                        value={editingActivity.assigned_to || ''}
+                        onChange={(e) => setEditingActivity({ ...editingActivity, assigned_to: e.target.value ? parseInt(e.target.value) : undefined })}
+                        className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                      >
+                        <option value="">Select User</option>
+                        {salesRepOptions.filter(opt => opt.value).map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Status */}
+                    <div>
+                      <label className="block text-xs font-medium text-blue-600 mb-1">Status</label>
+                      <select
+                        value={editingActivity.status || 'in_progress'}
+                        onChange={(e) => {
+                          const status = e.target.value;
+                          setEditingActivity({
+                            ...editingActivity,
+                            status,
+                            is_completed: status === 'completed'
+                          });
+                        }}
+                        className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                      >
+                        {activityStatusOptions.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Subject *</label>
-                  <input
-                    type="text"
-                    value={editingActivity.subject}
-                    onChange={(e) => setEditingActivity({ ...editingActivity, subject: e.target.value })}
-                    className={inputClass}
-                    placeholder="Activity Subject"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Description</label>
-                  <textarea
-                    value={editingActivity.description || ''}
-                    onChange={(e) => setEditingActivity({ ...editingActivity, description: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    rows={3}
-                    placeholder="Description"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Activity Date</label>
-                    <input
-                      type="date"
-                      value={editingActivity.activity_date?.split('T')[0] || ''}
-                      onChange={(e) => setEditingActivity({ ...editingActivity, activity_date: e.target.value })}
-                      className={inputClass}
+
+                {/* Description - Full Width */}
+                <div className="mt-4">
+                  <label className="block text-xs font-medium text-blue-600 mb-1">Description</label>
+                  <div className="border border-gray-300 rounded overflow-hidden">
+                    {/* Rich Text Toolbar */}
+                    <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-200 bg-gray-50 flex-wrap">
+                      <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded font-bold text-sm">B</button>
+                      <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded italic text-sm font-serif">I</button>
+                      <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded underline text-sm">U</button>
+                      <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded text-sm">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"/></svg>
+                      </button>
+                      <span className="w-px h-5 bg-gray-300 mx-1"></span>
+                      <select className="h-7 text-xs border border-gray-300 rounded px-1 bg-white">
+                        <option>Jost</option>
+                        <option>Arial</option>
+                        <option>Times</option>
+                      </select>
+                      <select className="h-7 w-14 text-xs border border-gray-300 rounded px-1 bg-white ml-1">
+                        <option>14</option>
+                        <option>12</option>
+                        <option>16</option>
+                        <option>18</option>
+                      </select>
+                      <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded ml-1 bg-yellow-200 font-bold text-sm">A</button>
+                      <span className="w-px h-5 bg-gray-300 mx-1"></span>
+                      <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                      </button>
+                      <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" /></svg>
+                      </button>
+                      <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
+                      </button>
+                    </div>
+                    <textarea
+                      value={editingActivity.description || ''}
+                      onChange={(e) => setEditingActivity({ ...editingActivity, description: e.target.value })}
+                      className="w-full px-3 py-2 text-sm focus:outline-none resize-none border-0"
+                      rows={5}
+                      placeholder="Enter activity description..."
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Outcome</label>
-                    <input
-                      type="text"
-                      value={editingActivity.outcome || ''}
-                      onChange={(e) => setEditingActivity({ ...editingActivity, outcome: e.target.value })}
-                      className={inputClass}
-                      placeholder="Outcome"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={editingActivity.is_completed}
-                      onChange={(e) => setEditingActivity({ ...editingActivity, is_completed: e.target.checked })}
-                    />
-                    <span className="text-sm">Mark as Completed</span>
-                  </label>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 mt-6">
-                <Button variant="secondary" onClick={() => setShowActivityModal(false)}>Cancel</Button>
-                <Button onClick={handleSaveActivity}>Save Activity</Button>
+
+              {/* Modal Footer */}
+              <div className="px-5 py-3 flex justify-center border-t border-gray-100">
+                <button
+                  onClick={handleSaveActivity}
+                  className="px-6 py-1.5 bg-green-500 text-white text-sm font-medium rounded hover:bg-green-600 transition-colors"
+                >
+                  Save
+                </button>
               </div>
             </div>
           </div>
@@ -1474,49 +2555,70 @@ export default function EditLeadPage() {
 
         {/* Memo Modal */}
         {showMemoModal && editingMemo && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">{editingMemo.id ? 'Edit Memo' : 'Add Memo'}</h3>
-                <button onClick={() => setShowMemoModal(false)} className="text-gray-500 hover:text-gray-700">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg w-full max-w-xl overflow-hidden shadow-2xl">
+              {/* Modal Header */}
+              <div className="bg-blue-600 px-5 py-3 flex items-center justify-between">
+                <h3 className="text-white font-semibold tracking-wide">MEMO DETAILS</h3>
+                <button onClick={() => setShowMemoModal(false)} className="text-white hover:text-gray-200">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Memo Type</label>
-                  <select
-                    value={editingMemo.memo_type}
-                    onChange={(e) => setEditingMemo({ ...editingMemo, memo_type: e.target.value })}
-                    className={selectClass}
-                  >
-                    {memoTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Title *</label>
-                  <input
-                    type="text"
-                    value={editingMemo.title}
-                    onChange={(e) => setEditingMemo({ ...editingMemo, title: e.target.value })}
-                    className={inputClass}
-                    placeholder="Memo Title"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Content *</label>
+
+              {/* Modal Body */}
+              <div className="p-5">
+                {/* Rich Text Editor */}
+                <div className="border border-gray-300 rounded overflow-hidden">
+                  {/* Toolbar */}
+                  <div className="flex items-center gap-0.5 px-3 py-2 border-b border-gray-200 bg-white flex-wrap">
+                    <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded font-bold text-base">B</button>
+                    <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded italic text-base font-serif">I</button>
+                    <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded underline text-base">U</button>
+                    <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded text-base">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"/></svg>
+                    </button>
+                    <span className="w-px h-6 bg-gray-300 mx-2"></span>
+                    <select className="h-8 text-sm border border-gray-300 rounded px-2 bg-white">
+                      <option>Jost</option>
+                      <option>Arial</option>
+                      <option>Times</option>
+                    </select>
+                    <select className="h-8 w-16 text-sm border border-gray-300 rounded px-2 bg-white ml-1">
+                      <option>14</option>
+                      <option>12</option>
+                      <option>16</option>
+                      <option>18</option>
+                    </select>
+                    <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded ml-1 bg-yellow-200 font-bold text-base border border-yellow-300">A</button>
+                    <span className="w-px h-6 bg-gray-300 mx-2"></span>
+                    <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                    </button>
+                    <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" /></svg>
+                    </button>
+                    <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
+                    </button>
+                  </div>
+                  {/* Text Area */}
                   <textarea
                     value={editingMemo.content}
-                    onChange={(e) => setEditingMemo({ ...editingMemo, content: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    rows={5}
-                    placeholder="Memo content..."
+                    onChange={(e) => setEditingMemo({ ...editingMemo, content: e.target.value, title: e.target.value.substring(0, 50) || 'Memo' })}
+                    className="w-full px-4 py-3 text-sm focus:outline-none resize-none border-0 min-h-[250px]"
+                    placeholder="Enter memo details..."
                   />
                 </div>
               </div>
-              <div className="flex justify-end gap-2 mt-6">
-                <Button variant="secondary" onClick={() => setShowMemoModal(false)}>Cancel</Button>
-                <Button onClick={handleSaveMemo}>Save Memo</Button>
+
+              {/* Modal Footer */}
+              <div className="px-5 py-4 flex justify-center border-t border-gray-100">
+                <button
+                  onClick={handleSaveMemo}
+                  className="px-8 py-2 bg-green-500 text-white text-sm font-medium rounded hover:bg-green-600 transition-colors"
+                >
+                  Save
+                </button>
               </div>
             </div>
           </div>
@@ -1524,25 +2626,40 @@ export default function EditLeadPage() {
 
         {/* Document Upload Modal */}
         {showDocumentModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Upload Document</h3>
-                <button onClick={() => setShowDocumentModal(false)} className="text-gray-500 hover:text-gray-700">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg w-full max-w-md overflow-hidden shadow-2xl">
+              {/* Modal Header */}
+              <div className="bg-blue-600 px-5 py-3 flex items-center justify-between">
+                <h3 className="text-white font-semibold tracking-wide">UPLOAD DOCUMENT</h3>
+                <button onClick={() => setShowDocumentModal(false)} className="text-white hover:text-gray-200">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="space-y-4">
+
+              {/* Modal Body */}
+              <div className="p-5 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Select File *</label>
-                  <input
-                    type="file"
-                    onChange={(e) => setDocumentFile(e.target.files?.[0] || null)}
-                    className="w-full text-sm"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Select File *</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={documentFile?.name || ''}
+                      readOnly
+                      className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded bg-gray-50"
+                      placeholder="No file selected"
+                    />
+                    <label className="px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded cursor-pointer transition-colors">
+                      Browse
+                      <input
+                        type="file"
+                        onChange={(e) => setDocumentFile(e.target.files?.[0] || null)}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Notes</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
                   <textarea
                     value={documentNotes}
                     onChange={(e) => setDocumentNotes(e.target.value)}
@@ -1552,9 +2669,16 @@ export default function EditLeadPage() {
                   />
                 </div>
               </div>
-              <div className="flex justify-end gap-2 mt-6">
-                <Button variant="secondary" onClick={() => setShowDocumentModal(false)}>Cancel</Button>
-                <Button onClick={handleUploadDocument} disabled={!documentFile}>Upload</Button>
+
+              {/* Modal Footer */}
+              <div className="px-5 py-4 flex justify-center border-t border-gray-100">
+                <button
+                  onClick={handleUploadDocument}
+                  disabled={!documentFile}
+                  className="px-8 py-2 bg-green-500 text-white text-sm font-medium rounded hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  Upload
+                </button>
               </div>
             </div>
           </div>

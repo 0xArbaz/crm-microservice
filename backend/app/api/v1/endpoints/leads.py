@@ -7,7 +7,7 @@ from datetime import datetime
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
-from app.models.lead import Lead, LeadStatus, LeadSource, LeadPriority
+from app.models.lead import Lead, LeadSource, LeadPriority
 from app.models.customer import Customer, CustomerType
 from app.models.contact import Contact
 from app.schemas.lead import (
@@ -69,7 +69,8 @@ def list_leads(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     search: Optional[str] = None,
-    status: Optional[LeadStatus] = None,
+    status: Optional[int] = None,  # 0 = active, 1 = discarded
+    lead_status: Optional[str] = None,  # new, contacted, qualified, proposal_sent, negotiation, won, lost
     source: Optional[LeadSource] = None,
     priority: Optional[LeadPriority] = None,
     assigned_to: Optional[int] = None,
@@ -96,8 +97,11 @@ def list_leads(
             )
         )
 
-    if status:
+    if status is not None:
         query = query.filter(Lead.status == status)
+
+    if lead_status:
+        query = query.filter(Lead.lead_status == lead_status)
 
     if source:
         query = query.filter(Lead.source == source)
@@ -220,8 +224,8 @@ def convert_lead(
     if lead.is_converted:
         raise HTTPException(status_code=400, detail="Lead already converted")
 
-    if lead.status == LeadStatus.LOST:
-        raise HTTPException(status_code=400, detail="Cannot convert lost lead")
+    if lead.status == 1:  # Discarded
+        raise HTTPException(status_code=400, detail="Cannot convert discarded lead")
 
     # Generate customer code if not provided
     customer_code = convert_data.customer_code
@@ -269,7 +273,7 @@ def convert_lead(
     db.flush()  # Get customer ID
 
     # Update lead
-    lead.status = LeadStatus.WON
+    lead.lead_status = "won"  # Workflow tracking
     lead.is_converted = True
     lead.converted_customer_id = customer.id
     lead.converted_at = datetime.utcnow()
@@ -310,7 +314,8 @@ def discard_lead(
     if lead.is_converted:
         raise HTTPException(status_code=400, detail="Cannot discard converted lead")
 
-    lead.status = LeadStatus.LOST
+    lead.status = 1  # Discarded
+    lead.lead_status = "lost"  # Workflow tracking
     lead.loss_reason = discard_data.loss_reason
 
     db.commit()
@@ -336,16 +341,16 @@ def update_lead_stage(
 
     lead.pipeline_stage = stage
 
-    # Auto-update status based on stage
+    # Auto-update lead_status based on stage
     stage_status_mapping = {
-        1: LeadStatus.NEW,
-        2: LeadStatus.CONTACTED,
-        3: LeadStatus.QUALIFIED,
-        4: LeadStatus.PROPOSAL_SENT,
-        5: LeadStatus.NEGOTIATION,
-        6: LeadStatus.WON
+        1: "new",
+        2: "contacted",
+        3: "qualified",
+        4: "proposal_sent",
+        5: "negotiation",
+        6: "won"
     }
-    lead.status = stage_status_mapping.get(stage, lead.status)
+    lead.lead_status = stage_status_mapping.get(stage, lead.lead_status)
 
     db.commit()
     db.refresh(lead)

@@ -82,7 +82,6 @@ const statusOptions = [
   { value: 'proposal_sent', label: 'Proposal Sent' },
   { value: 'negotiation', label: 'Negotiation' },
   { value: 'won', label: 'Won' },
-  { value: 'lost', label: 'Lost' },
 ];
 
 export default function LeadsPage() {
@@ -109,11 +108,12 @@ export default function LeadsPage() {
   const fetchLeads = async () => {
     setLoading(true);
     try {
-      const params: any = { page, page_size: 20 };
+      // Only fetch active leads (status = 0)
+      const params: any = { page, page_size: 20, status: 0 };
       if (filters.company) params.search = filters.company;
       if (filters.source) params.source = filters.source;
       if (filters.priority) params.priority = filters.priority;
-      if (filters.status) params.status = filters.status;
+      if (filters.status) params.lead_status = filters.status;  // Use lead_status for workflow filter
 
       const response = await api.getLeads(params);
       setLeads(response.items);
@@ -140,12 +140,13 @@ export default function LeadsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm('Are you sure you want to delete this lead?')) {
+    if (confirm('Are you sure you want to discard this lead?')) {
       try {
-        await api.deleteLead(id);
+        // Mark as discarded (status = 1)
+        await api.updateLead(id, { status: 1, lead_status: 'lost' } as Partial<Lead>);
         fetchLeads();
       } catch (error) {
-        console.error('Failed to delete lead:', error);
+        console.error('Failed to discard lead:', error);
       }
     }
   };
@@ -403,8 +404,8 @@ export default function LeadsPage() {
                         </span>
                       </td>
                       <td className={tdClass}>
-                        <span className={`px-2 py-0.5 text-xs rounded ${getStatusBadgeClass(lead.status)}`}>
-                          {lead.status.replace('_', ' ')}
+                        <span className={`px-2 py-0.5 text-xs rounded ${getStatusBadgeClass(lead.lead_status || 'new')}`}>
+                          {(lead.lead_status || 'new').replace('_', ' ')}
                         </span>
                       </td>
                       <td className={tdClass}>
@@ -419,12 +420,16 @@ export default function LeadsPage() {
                               <Edit className="w-4 h-4" />
                             </button>
                           </Link>
-                          {!lead.is_converted && lead.status !== 'lost' && lead.status !== 'won' && (
+                          {!lead.is_converted && lead.lead_status !== 'won' && (
                             <>
                               <button className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded" title="Convert to Customer">
                                 <UserCheck className="w-4 h-4" />
                               </button>
-                              <button className="p-1.5 text-orange-600 hover:bg-orange-50 rounded" title="Mark as Lost">
+                              <button
+                                onClick={() => handleDelete(lead.id)}
+                                className="p-1.5 text-orange-600 hover:bg-orange-50 rounded"
+                                title="Mark as Lost"
+                              >
                                 <XCircle className="w-4 h-4" />
                               </button>
                             </>
@@ -432,13 +437,15 @@ export default function LeadsPage() {
                           <button className="p-1.5 text-gray-600 hover:bg-gray-100 rounded" title="Copy">
                             <Copy className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => handleDelete(lead.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {lead.lead_status === 'won' && (
+                            <button
+                              onClick={() => handleDelete(lead.id)}
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                              title="Discard"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

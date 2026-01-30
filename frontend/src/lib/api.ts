@@ -119,7 +119,7 @@ class ApiService {
     page?: number;
     page_size?: number;
     search?: string;
-    status?: string;
+    status?: number;  // 0 = active, 1 = discarded
     source?: string;
   }): Promise<PaginatedResponse<PreLead>> {
     const response = await this.client.get<PaginatedResponse<PreLead>>('/pre-leads', { params });
@@ -284,7 +284,8 @@ class ApiService {
     page?: number;
     page_size?: number;
     search?: string;
-    status?: string;
+    status?: number;  // 0 = active, 1 = discarded
+    lead_status?: string;  // new, contacted, qualified, proposal_sent, negotiation, won, lost
     source?: string;
     priority?: string;
     pipeline_stage?: number;

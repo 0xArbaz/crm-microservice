@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime, date
-from app.models.pre_lead import PreLeadStatus, PreLeadSource
+from app.models.pre_lead import PreLeadSource
 
 
 class PreLeadBase(BaseModel):
@@ -76,7 +76,7 @@ class PreLeadUpdate(BaseModel):
     website: Optional[str] = None
     source: Optional[PreLeadSource] = None
     source_details: Optional[str] = None
-    status: Optional[PreLeadStatus] = None
+    status: Optional[int] = None  # 0 = active, 1 = discarded
     product_interest: Optional[str] = None
     requirements: Optional[str] = None
     budget_range: Optional[str] = None
@@ -138,7 +138,7 @@ class PreLeadResponse(BaseModel):
     website: Optional[str] = None
     source: PreLeadSource
     source_details: Optional[str] = None
-    status: PreLeadStatus
+    status: int  # 0 = active, 1 = discarded
     product_interest: Optional[str] = None
     requirements: Optional[str] = None
     budget_range: Optional[str] = None

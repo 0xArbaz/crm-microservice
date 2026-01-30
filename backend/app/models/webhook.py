@@ -10,11 +10,44 @@ class WebhookDirection(str, enum.Enum):
 
 
 class WebhookEvent(str, enum.Enum):
-    # Incoming events
+    # Incoming events - General
     NEW_INQUIRY = "new_inquiry"
     ORDER_CREATED = "order_created"
     PAYMENT_RECEIVED = "payment_received"
     SUPPORT_TICKET = "support_ticket"
+
+    # Incoming events - Pre-Lead
+    PRE_LEAD_UPDATE = "pre_lead_update"
+    PRE_LEAD_DISCARD = "pre_lead_discard"
+    PRE_LEAD_CONTACT_ADD = "pre_lead_contact_add"
+    PRE_LEAD_CONTACT_UPDATE = "pre_lead_contact_update"
+    PRE_LEAD_CONTACT_DELETE = "pre_lead_contact_delete"
+    PRE_LEAD_MEMO_ADD = "pre_lead_memo_add"
+    PRE_LEAD_MEMO_UPDATE = "pre_lead_memo_update"
+    PRE_LEAD_MEMO_DELETE = "pre_lead_memo_delete"
+    PRE_LEAD_DOCUMENT_ADD = "pre_lead_document_add"
+    PRE_LEAD_DOCUMENT_DELETE = "pre_lead_document_delete"
+    PRE_LEAD_STATUS_UPDATE = "pre_lead_status_update"
+    PRE_LEAD_CONVERT = "pre_lead_convert"
+
+    # Incoming events - Lead
+    NEW_LEAD = "new_lead"
+    LEAD_UPDATE = "lead_update"
+    LEAD_DISCARD = "lead_discard"
+    LEAD_CONTACT_ADD = "lead_contact_add"
+    LEAD_CONTACT_UPDATE = "lead_contact_update"
+    LEAD_CONTACT_DELETE = "lead_contact_delete"
+    LEAD_ACTIVITY_ADD = "lead_activity_add"
+    LEAD_ACTIVITY_UPDATE = "lead_activity_update"
+    LEAD_ACTIVITY_DELETE = "lead_activity_delete"
+    LEAD_QUALIFIED_PROFILE_UPDATE = "lead_qualified_profile_update"
+    LEAD_MEMO_ADD = "lead_memo_add"
+    LEAD_MEMO_UPDATE = "lead_memo_update"
+    LEAD_MEMO_DELETE = "lead_memo_delete"
+    LEAD_DOCUMENT_ADD = "lead_document_add"
+    LEAD_DOCUMENT_DELETE = "lead_document_delete"
+    LEAD_STATUS_UPDATE = "lead_status_update"
+    LEAD_CONVERT = "lead_convert"
 
     # Outgoing events
     PRE_LEAD_CREATED = "pre_lead_created"

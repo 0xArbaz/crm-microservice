@@ -5,13 +5,6 @@ from app.core.database import Base
 import enum
 
 
-class PreLeadStatus(str, enum.Enum):
-    NEW = "new"
-    CONTACTED = "contacted"
-    VALIDATED = "validated"
-    DISCARDED = "discarded"
-
-
 class PreLeadSource(str, enum.Enum):
     WEBSITE = "website"
     REFERRAL = "referral"
@@ -44,7 +37,8 @@ class PreLead(Base):
     # Lead Details
     source = Column(Enum(PreLeadSource), default=PreLeadSource.WEBSITE, nullable=False)
     source_details = Column(String(255), nullable=True)
-    status = Column(Enum(PreLeadStatus), default=PreLeadStatus.NEW, nullable=False)
+    # Status: 0 = active, 1 = discarded
+    status = Column(Integer, default=0, nullable=False)
 
     # Interest & Requirements
     product_interest = Column(String(255), nullable=True)

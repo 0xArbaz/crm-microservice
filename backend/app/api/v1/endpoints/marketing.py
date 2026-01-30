@@ -8,7 +8,7 @@ from pydantic import BaseModel, EmailStr
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
-from app.models.lead import Lead, LeadStatus
+from app.models.lead import Lead
 from app.models.customer import Customer
 from app.models.activity import Activity, ActivityType
 from app.core.permissions import check_permission

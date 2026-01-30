@@ -5,16 +5,6 @@ from app.core.database import Base
 import enum
 
 
-class LeadStatus(str, enum.Enum):
-    NEW = "new"
-    CONTACTED = "contacted"
-    QUALIFIED = "qualified"
-    PROPOSAL_SENT = "proposal_sent"
-    NEGOTIATION = "negotiation"
-    WON = "won"
-    LOST = "lost"
-
-
 class LeadSource(str, enum.Enum):
     PRE_LEAD = "pre_lead"
     DIRECT = "direct"
@@ -59,7 +49,10 @@ class Lead(Base):
     # Lead Details
     source = Column(Enum(LeadSource), default=LeadSource.DIRECT, nullable=False)
     source_details = Column(String(255), nullable=True)
-    status = Column(Enum(LeadStatus), default=LeadStatus.NEW, nullable=False)
+    # Status: 0 = active, 1 = discarded
+    status = Column(Integer, default=0, nullable=False)
+    # Workflow tracking: new, contacted, qualified, proposal_sent, negotiation, won, lost
+    lead_status = Column(String(50), default="new", nullable=True)
     priority = Column(Enum(LeadPriority), default=LeadPriority.MEDIUM, nullable=False)
 
     # Pipeline Stage
