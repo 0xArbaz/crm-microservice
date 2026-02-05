@@ -101,8 +101,8 @@ export default function PreLeadDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge className={getStatusColor(preLead.status)}>
-              {preLead.status}
+            <Badge className={getStatusColor(preLead.lead_status || (preLead.status === 0 ? 'new' : 'discarded'))}>
+              {preLead.lead_status || (preLead.status === 0 ? 'New' : 'Discarded')}
             </Badge>
             <Link href={`/pre-leads/${preLead.id}/edit`}>
               <Button size="sm" className="flex items-center gap-2">

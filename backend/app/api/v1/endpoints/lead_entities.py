@@ -101,6 +101,71 @@ def get_lead_full(
 
 # ============== Contacts ==============
 
+@router.get("/all-contacts", response_model=List[dict])
+def list_all_lead_contacts(
+    skip: int = 0,
+    limit: int = 100,
+    search: Optional[str] = None,
+    contact_type: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List all contacts across all leads with lead/company information"""
+    if not check_permission(current_user.role, "leads", "read"):
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    query = db.query(LeadContact, Lead).join(Lead, LeadContact.lead_id == Lead.id)
+
+    if search:
+        search_filter = f"%{search}%"
+        query = query.filter(
+            (LeadContact.first_name.ilike(search_filter)) |
+            (LeadContact.last_name.ilike(search_filter)) |
+            (LeadContact.work_email.ilike(search_filter)) |
+            (Lead.company_name.ilike(search_filter))
+        )
+
+    if contact_type and contact_type != 'all':
+        query = query.filter(LeadContact.contact_type == contact_type)
+
+    results = query.offset(skip).limit(limit).all()
+
+    contacts_with_lead = []
+    for contact, lead in results:
+        contact_dict = {
+            "id": contact.id,
+            "lead_id": contact.lead_id,
+            "contact_type": contact.contact_type,
+            "title": contact.title,
+            "first_name": contact.first_name,
+            "last_name": contact.last_name,
+            "designation": contact.designation,
+            "department": contact.department,
+            "email": contact.email,
+            "work_email": contact.work_email,
+            "personal_email": contact.personal_email,
+            "phone": contact.phone,
+            "work_phone": contact.work_phone,
+            "ext": contact.ext,
+            "fax": contact.fax,
+            "cell_phone": contact.cell_phone,
+            "home_phone": contact.home_phone,
+            "linkedin_url": contact.linkedin_url,
+            "facebook_url": contact.facebook_url,
+            "twitter_url": contact.twitter_url,
+            "status": contact.status,
+            "notes": contact.notes,
+            "created_at": contact.created_at,
+            # Lead/Company info
+            "company_name": lead.company_name,
+            "industry_id": lead.industry_id,
+            "group_id": lead.group_id,
+        }
+        contacts_with_lead.append(contact_dict)
+
+    return contacts_with_lead
+
+
 @router.get("/{lead_id}/contacts", response_model=List[LeadContactResponse])
 def list_contacts(
     lead_id: int,
@@ -131,16 +196,23 @@ def create_contact(
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
 
-    data = contact_data.model_dump()
-    data['lead_id'] = lead_id
-    data['created_by'] = current_user.id
+    try:
+        data = contact_data.model_dump(exclude_unset=False)
+        data['lead_id'] = lead_id
+        data['created_by'] = current_user.id
 
-    contact = LeadContact(**data)
-    db.add(contact)
-    db.commit()
-    db.refresh(contact)
+        contact = LeadContact(**data)
+        db.add(contact)
+        db.commit()
+        db.refresh(contact)
 
-    return contact
+        return contact
+    except Exception as e:
+        db.rollback()
+        import traceback
+        print(f"Error creating contact: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to create contact: {str(e)}")
 
 
 @router.put("/{lead_id}/contacts/{contact_id}", response_model=LeadContactResponse)
@@ -162,16 +234,23 @@ def update_contact(
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
 
-    update_data = contact_data.model_dump(exclude_unset=True)
-    update_data['updated_by'] = current_user.id
+    try:
+        update_data = contact_data.model_dump(exclude_unset=True)
+        update_data['updated_by'] = current_user.id
 
-    for field, value in update_data.items():
-        setattr(contact, field, value)
+        for field, value in update_data.items():
+            setattr(contact, field, value)
 
-    db.commit()
-    db.refresh(contact)
+        db.commit()
+        db.refresh(contact)
 
-    return contact
+        return contact
+    except Exception as e:
+        db.rollback()
+        import traceback
+        print(f"Error updating contact: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to update contact: {str(e)}")
 
 
 @router.delete("/{lead_id}/contacts/{contact_id}")
@@ -199,6 +278,75 @@ def delete_contact(
 
 
 # ============== Activities ==============
+
+@router.get("/all-activities", response_model=List[dict])
+def list_all_lead_activities(
+    skip: int = 0,
+    limit: int = 500,
+    activity_type: Optional[str] = None,
+    status: Optional[str] = None,
+    assigned_to: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List all activities across all leads with lead/contact information"""
+    if not check_permission(current_user.role, "leads", "read"):
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    query = db.query(LeadActivity, Lead).join(Lead, LeadActivity.lead_id == Lead.id)
+
+    if activity_type and activity_type != 'all':
+        query = query.filter(LeadActivity.activity_type == activity_type)
+
+    if status:
+        if status == 'open':
+            query = query.filter(LeadActivity.is_completed == False)
+        elif status == 'closed':
+            query = query.filter(LeadActivity.is_completed == True)
+
+    if assigned_to:
+        query = query.filter(LeadActivity.created_by == assigned_to)
+
+    results = query.order_by(LeadActivity.created_at.desc()).offset(skip).limit(limit).all()
+
+    activities_with_lead = []
+    for activity, lead in results:
+        # Get contact name if contact_id exists
+        contact_name = None
+        if activity.contact_id:
+            contact = db.query(LeadContact).filter(LeadContact.id == activity.contact_id).first()
+            if contact:
+                contact_name = f"{contact.first_name or ''} {contact.last_name or ''}".strip()
+
+        # Get assigned user name
+        assigned_to_name = None
+        if activity.created_by:
+            user = db.query(User).filter(User.id == activity.created_by).first()
+            if user:
+                assigned_to_name = user.full_name or user.email
+
+        activity_dict = {
+            "id": activity.id,
+            "lead_id": activity.lead_id,
+            "activity_type": activity.activity_type,
+            "subject": activity.subject,
+            "description": activity.description,
+            "activity_date": activity.activity_date.isoformat() if activity.activity_date else None,
+            "due_date": activity.due_date.isoformat() if activity.due_date else None,
+            "is_completed": activity.is_completed,
+            "completed_at": activity.completed_at.isoformat() if activity.completed_at else None,
+            "contact_id": activity.contact_id,
+            "contact_name": contact_name,
+            "created_at": activity.created_at.isoformat() if activity.created_at else None,
+            "created_by": activity.created_by,
+            "assigned_to": assigned_to_name,
+            "company_name": lead.company_name,
+            "lead_status": lead.status,
+        }
+        activities_with_lead.append(activity_dict)
+
+    return activities_with_lead
+
 
 @router.get("/{lead_id}/activities", response_model=List[LeadActivityResponse])
 def list_activities(

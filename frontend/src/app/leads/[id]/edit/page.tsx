@@ -22,7 +22,8 @@ import {
   User,
   MessageSquare,
   Clock,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Link2
 } from 'lucide-react';
 import api from '@/lib/api';
 import { Lead, Contact, Activity } from '@/types';
@@ -37,16 +38,24 @@ interface LeadContact {
   first_name: string;
   last_name?: string;
   designation?: string;
+  department?: string;
   email?: string;
+  work_email?: string;
+  personal_email?: string;
+  phone?: string;
   work_phone?: string;
   ext?: string;
   fax?: string;
   cell_phone?: string;
-  phone?: string;
-  department?: string;
+  home_phone?: string;
+  linkedin_url?: string;
+  facebook_url?: string;
+  twitter_url?: string;
+  notes?: string;
   is_primary: boolean;
   status?: string;
   created_at?: string;
+  updated_at?: string;
 }
 
 interface LeadActivity {
@@ -101,6 +110,7 @@ interface LeadStatusHistory {
   status_date: string;
   remarks?: string;
   changed_by?: number;
+  created_by?: number;
   created_at?: string;
 }
 
@@ -409,6 +419,17 @@ export default function EditLeadPage() {
   const [inlineContactForm, setInlineContactForm] = useState<LeadContact | null>(null);
   const [editingContactId, setEditingContactId] = useState<number | null>(null);
 
+  // Social Media Links Modal state
+  const [showSocialMediaModal, setShowSocialMediaModal] = useState(false);
+  const [selectedContactForSocial, setSelectedContactForSocial] = useState<LeadContact | null>(null);
+  const [socialMediaForm, setSocialMediaForm] = useState({
+    business_card: null as File | null,
+    linkedin_url: '',
+    facebook_url: '',
+    twitter_url: '',
+    notes: '',
+  });
+
   // Activity Modal state
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [editingActivity, setEditingActivity] = useState<LeadActivity | null>(null);
@@ -502,7 +523,7 @@ export default function EditLeadPage() {
         phone: leadRes.phone || '',
         email: leadRes.email || '',
         lead_since: leadSince,
-        status: leadRes.status || '',
+        status: leadRes.status?.toString() || '',
         group_id: leadRes.group_id?.toString() || '',
         industry_id: leadRes.industry_id?.toString() || '',
         region_id: leadRes.region_id?.toString() || '',
@@ -633,13 +654,20 @@ export default function EditLeadPage() {
       first_name: '',
       last_name: '',
       designation: '',
+      department: '',
       email: '',
+      work_email: '',
+      personal_email: '',
+      phone: '',
       work_phone: '',
       ext: '',
       fax: '',
       cell_phone: '',
-      phone: '',
-      department: '',
+      home_phone: '',
+      linkedin_url: '',
+      facebook_url: '',
+      twitter_url: '',
+      notes: '',
       is_primary: false,
       status: 'active',
     });
@@ -653,10 +681,53 @@ export default function EditLeadPage() {
   const handleSaveContact = async () => {
     if (!inlineContactForm) return;
     try {
+      // Build clean data object with proper null handling
+      const cleanData: Record<string, any> = {};
+
+      // Required fields
+      cleanData.lead_id = leadId;
+      cleanData.first_name = inlineContactForm.first_name?.trim() || '';
+      cleanData.contact_type = inlineContactForm.contact_type || 'management';
+      cleanData.is_primary = inlineContactForm.is_primary || false;
+      cleanData.status = inlineContactForm.status || 'active';
+
+      // Validate required field
+      if (!cleanData.first_name) {
+        setError('First name is required');
+        return;
+      }
+
+      // Optional string fields - convert empty/whitespace to null
+      const optionalStringFields = ['last_name', 'designation', 'department', 'title',
+        'phone', 'work_phone', 'ext', 'fax', 'cell_phone', 'home_phone',
+        'linkedin_url', 'facebook_url', 'twitter_url', 'notes'];
+
+      optionalStringFields.forEach(field => {
+        const value = (inlineContactForm as any)[field];
+        if (value && typeof value === 'string' && value.trim() !== '') {
+          cleanData[field] = value.trim();
+        } else {
+          cleanData[field] = null;
+        }
+      });
+
+      // Email fields - strict validation, convert empty to null
+      const emailFields = ['email', 'work_email', 'personal_email'];
+      emailFields.forEach(field => {
+        const value = (inlineContactForm as any)[field];
+        if (value && typeof value === 'string' && value.trim() !== '') {
+          cleanData[field] = value.trim();
+        } else {
+          cleanData[field] = null;
+        }
+      });
+
+      console.log('Saving contact with data:', JSON.stringify(cleanData, null, 2));
+
       if (editingContactId) {
-        await api.updateLeadContact(leadId, editingContactId, inlineContactForm);
+        await api.updateLeadContact(leadId, editingContactId, cleanData);
       } else {
-        await api.createLeadContact(leadId, inlineContactForm);
+        await api.createLeadContact(leadId, cleanData);
       }
       setInlineContactForm(null);
       setEditingContactId(null);
@@ -665,6 +736,7 @@ export default function EditLeadPage() {
       setSuccess('Contact saved successfully!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
+      console.error('Save contact error:', err);
       setError(err.response?.data?.detail || 'Failed to save contact');
     }
   };
@@ -679,6 +751,41 @@ export default function EditLeadPage() {
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to delete contact');
+    }
+  };
+
+  // Social Media Links Handlers
+  const handleOpenSocialMediaModal = (contact: LeadContact) => {
+    setSelectedContactForSocial(contact);
+    setSocialMediaForm({
+      business_card: null,
+      linkedin_url: contact.linkedin_url || '',
+      facebook_url: contact.facebook_url || '',
+      twitter_url: contact.twitter_url || '',
+      notes: '',
+    });
+    setShowSocialMediaModal(true);
+  };
+
+  const handleSaveSocialMediaLinks = async () => {
+    if (!selectedContactForSocial || !selectedContactForSocial.id) return;
+
+    try {
+      const updateData: Record<string, any> = {
+        linkedin_url: socialMediaForm.linkedin_url || null,
+        facebook_url: socialMediaForm.facebook_url || null,
+        twitter_url: socialMediaForm.twitter_url || null,
+      };
+
+      await api.updateLeadContact(leadId, selectedContactForSocial.id, updateData);
+      const contactsRes = await api.getLeadContactsForEdit(leadId);
+      setContacts(contactsRes || []);
+      setShowSocialMediaModal(false);
+      setSelectedContactForSocial(null);
+      setSuccess('Social media links updated successfully!');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to update social media links');
     }
   };
 
@@ -714,10 +821,42 @@ export default function EditLeadPage() {
   const handleSaveActivity = async () => {
     if (!editingActivity) return;
     try {
-      if (editingActivity.id) {
-        await api.updateLeadActivity(leadId, editingActivity.id, editingActivity);
+      // Clean data - convert empty strings to null for optional fields
+      const cleanData: any = { ...editingActivity };
+      const optionalFields = ['description', 'outcome', 'due_date', 'start_time', 'end_date', 'end_time', 'contact_name', 'contact_email'];
+
+      optionalFields.forEach(field => {
+        if (cleanData[field] === '' || cleanData[field] === undefined) {
+          cleanData[field] = null;
+        }
+      });
+
+      // Handle optional integer fields
+      if (cleanData.contact_id === '' || cleanData.contact_id === undefined) {
+        cleanData.contact_id = null;
+      }
+      if (cleanData.assigned_to === '' || cleanData.assigned_to === undefined) {
+        cleanData.assigned_to = null;
+      }
+
+      // Validate required fields
+      if (!cleanData.activity_type || cleanData.activity_type.trim() === '') {
+        setError('Activity type is required');
+        return;
+      }
+      if (!cleanData.subject || cleanData.subject.trim() === '') {
+        setError('Subject is required');
+        return;
+      }
+      if (!cleanData.activity_date) {
+        setError('Activity date is required');
+        return;
+      }
+
+      if (cleanData.id) {
+        await api.updateLeadActivity(leadId, cleanData.id, cleanData);
       } else {
-        await api.createLeadActivity(leadId, editingActivity);
+        await api.createLeadActivity(leadId, cleanData);
       }
       setShowActivityModal(false);
       setEditingActivity(null);
@@ -762,10 +901,26 @@ export default function EditLeadPage() {
   const handleSaveMemo = async () => {
     if (!editingMemo) return;
     try {
-      if (editingMemo.id) {
-        await api.updateLeadMemo(leadId, editingMemo.id, editingMemo);
+      // Clean data
+      const cleanData: any = { ...editingMemo };
+
+      // Validate required fields
+      if (!cleanData.title || cleanData.title.trim() === '') {
+        setError('Title is required');
+        return;
+      }
+      if (!cleanData.content || cleanData.content.trim() === '') {
+        setError('Content is required');
+        return;
+      }
+      if (!cleanData.memo_type) {
+        cleanData.memo_type = 'general';
+      }
+
+      if (cleanData.id) {
+        await api.updateLeadMemo(leadId, cleanData.id, cleanData);
       } else {
-        await api.createLeadMemo(leadId, editingMemo);
+        await api.createLeadMemo(leadId, cleanData);
       }
       setShowMemoModal(false);
       setEditingMemo(null);
@@ -823,9 +978,21 @@ export default function EditLeadPage() {
 
   // Status Handlers
   const handleChangeStatus = async () => {
-    if (!newStatus.status) return;
+    if (!newStatus.status) {
+      setError('Status is required');
+      return;
+    }
     try {
-      await api.changeLeadStatus(leadId, newStatus);
+      // Clean data - convert empty strings to null for optional fields
+      const cleanData: any = { ...newStatus };
+      if (cleanData.status_date === '' || cleanData.status_date === undefined) {
+        cleanData.status_date = null;
+      }
+      if (cleanData.remarks === '' || cleanData.remarks === undefined) {
+        cleanData.remarks = null;
+      }
+
+      await api.changeLeadStatus(leadId, cleanData);
       setShowStatusModal(false);
       setNewStatus({ status: '', status_date: '', remarks: '' });
       const historyRes = await api.getLeadStatusHistory(leadId);
@@ -864,10 +1031,32 @@ export default function EditLeadPage() {
   const handleSaveProfile = async () => {
     if (!editingProfile) return;
     try {
-      if (editingProfile.id) {
-        await api.updateLeadQualifiedProfile(leadId, editingProfile.id, editingProfile);
+      // Clean data - convert empty strings to null for optional fields
+      const cleanData: any = { ...editingProfile };
+      const optionalStringFields = ['company_name', 'company_type', 'annual_revenue', 'employee_count',
+        'decision_maker', 'decision_process', 'budget', 'timeline', 'competitors',
+        'current_solution', 'pain_points', 'requirements', 'notes'];
+
+      optionalStringFields.forEach(field => {
+        if (cleanData[field] === '' || cleanData[field] === undefined) {
+          cleanData[field] = null;
+        }
+      });
+
+      // Handle optional integer field
+      if (cleanData.industry_id === '' || cleanData.industry_id === undefined) {
+        cleanData.industry_id = null;
+      }
+
+      // Set default profile_type if not set
+      if (!cleanData.profile_type) {
+        cleanData.profile_type = 'basic';
+      }
+
+      if (cleanData.id) {
+        await api.updateLeadQualifiedProfile(leadId, cleanData.id, cleanData);
       } else {
-        await api.createLeadQualifiedProfile(leadId, editingProfile);
+        await api.createLeadQualifiedProfile(leadId, cleanData);
       }
       setShowProfileModal(false);
       setEditingProfile(null);
@@ -883,17 +1072,34 @@ export default function EditLeadPage() {
   // Save Qualified Profile Form (inline)
   const handleSaveQualifiedProfileForm = async () => {
     try {
-      const profileData = {
-        ...qualifiedProfileForm,
-        lead_id: leadId,
-      };
+      // Clean data - convert empty strings to null for optional fields
+      const cleanData: any = { ...qualifiedProfileForm, lead_id: leadId };
+      const optionalStringFields = ['company_name', 'company_type', 'annual_revenue', 'employee_count',
+        'decision_maker', 'decision_process', 'budget', 'timeline', 'competitors',
+        'current_solution', 'pain_points', 'requirements', 'notes'];
+
+      optionalStringFields.forEach(field => {
+        if (cleanData[field] === '' || cleanData[field] === undefined) {
+          cleanData[field] = null;
+        }
+      });
+
+      // Handle optional integer field
+      if (cleanData.industry_id === '' || cleanData.industry_id === undefined) {
+        cleanData.industry_id = null;
+      }
+
+      // Set default profile_type if not set
+      if (!cleanData.profile_type) {
+        cleanData.profile_type = 'basic';
+      }
 
       if (qualifiedProfiles.length > 0 && qualifiedProfiles[0].id) {
         // Update existing profile
-        await api.updateLeadQualifiedProfile(leadId, qualifiedProfiles[0].id, profileData);
+        await api.updateLeadQualifiedProfile(leadId, qualifiedProfiles[0].id, cleanData);
       } else {
         // Create new profile
-        await api.createLeadQualifiedProfile(leadId, profileData);
+        await api.createLeadQualifiedProfile(leadId, cleanData);
       }
 
       const profilesRes = await api.getLeadQualifiedProfiles(leadId);
@@ -1479,6 +1685,13 @@ export default function EditLeadPage() {
                               title="Edit"
                             >
                               <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleOpenSocialMediaModal(contact)}
+                              className="p-1 text-green-600 hover:bg-green-50 rounded"
+                              title="Social Media Links"
+                            >
+                              <Link2 className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => contact.id && handleDeleteContact(contact.id)}
@@ -2309,6 +2522,110 @@ export default function EditLeadPage() {
           {activeTab === 'status' && renderStatus()}
           {activeTab === 'workflow' && renderWorkflow()}
         </div>
+
+        {/* Social Media Links Modal */}
+        {showSocialMediaModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg w-full max-w-3xl overflow-hidden">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-4 py-3 bg-blue-600">
+                <h3 className="text-lg font-semibold text-white">CONTACT LINKS</h3>
+                <button onClick={() => setShowSocialMediaModal(false)} className="p-1 hover:bg-blue-700 rounded text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6">
+                <div className="grid grid-cols-2 gap-8">
+                  {/* Left Column - Business Card */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-4">BUSINESS CARD</h4>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="text"
+                        value={socialMediaForm.business_card?.name || ''}
+                        readOnly
+                        className="flex-1 h-9 px-3 text-sm border border-gray-300 rounded bg-gray-50"
+                        placeholder=""
+                      />
+                      <label className="px-4 py-2 text-sm text-white bg-blue-500 rounded cursor-pointer hover:bg-blue-600 flex items-center gap-1 whitespace-nowrap">
+                        <Upload className="w-4 h-4" />
+                        Choose File
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*,.pdf"
+                          onChange={(e) => setSocialMediaForm({
+                            ...socialMediaForm,
+                            business_card: e.target.files?.[0] || null
+                          })}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Right Column - Social Media Links */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-4">SOCIAL MEDIA LINKS</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <label className="w-20 text-sm text-blue-600">LinkedIn</label>
+                        <input
+                          type="url"
+                          value={socialMediaForm.linkedin_url}
+                          onChange={(e) => setSocialMediaForm({ ...socialMediaForm, linkedin_url: e.target.value })}
+                          className="flex-1 h-9 px-3 text-sm border border-gray-300 rounded"
+                          placeholder="URL..."
+                        />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <label className="w-20 text-sm text-blue-600">Facebook</label>
+                        <input
+                          type="url"
+                          value={socialMediaForm.facebook_url}
+                          onChange={(e) => setSocialMediaForm({ ...socialMediaForm, facebook_url: e.target.value })}
+                          className="flex-1 h-9 px-3 text-sm border border-gray-300 rounded"
+                          placeholder="URL..."
+                        />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <label className="w-20 text-sm text-blue-600">Twitter</label>
+                        <input
+                          type="url"
+                          value={socialMediaForm.twitter_url}
+                          onChange={(e) => setSocialMediaForm({ ...socialMediaForm, twitter_url: e.target.value })}
+                          className="flex-1 h-9 px-3 text-sm border border-gray-300 rounded"
+                          placeholder="URL..."
+                        />
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <label className="w-20 text-sm text-blue-600 pt-2">Notes</label>
+                        <textarea
+                          value={socialMediaForm.notes}
+                          onChange={(e) => setSocialMediaForm({ ...socialMediaForm, notes: e.target.value })}
+                          rows={4}
+                          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded resize-none"
+                          placeholder=""
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex justify-center px-4 py-4 border-t">
+                <button
+                  onClick={handleSaveSocialMediaLinks}
+                  className="px-6 py-2 text-sm text-white bg-green-500 rounded hover:bg-green-600"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Activity Modal */}
         {showActivityModal && editingActivity && (

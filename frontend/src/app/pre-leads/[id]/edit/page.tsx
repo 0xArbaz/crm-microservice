@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Plus, Calendar, ArrowRight, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, Calendar, ArrowRight, Pencil, Trash2, X, Link2, Upload } from 'lucide-react';
 import api from '@/lib/api';
 import { PreLead } from '@/types';
 
@@ -40,12 +40,16 @@ interface Contact {
   fax: string;
   cell_phone: string;
   status: string;
+  linkedin_url?: string;
+  facebook_url?: string;
+  twitter_url?: string;
 }
 
 interface Memo {
   id: number;
-  title: string;
-  content: string;
+  title?: string;
+  content?: string;
+  details?: string;
   created_at: string;
   created_by: number;
 }
@@ -294,6 +298,17 @@ export default function EditPreLeadPage() {
     status: 'active',
   });
 
+  // Social Media Links modal state
+  const [showSocialMediaModal, setShowSocialMediaModal] = useState(false);
+  const [selectedContactForSocial, setSelectedContactForSocial] = useState<Contact | null>(null);
+  const [socialMediaForm, setSocialMediaForm] = useState({
+    business_card: null as File | null,
+    linkedin_url: '',
+    facebook_url: '',
+    twitter_url: '',
+    notes: '',
+  });
+
   // Qualified Profile form state
   const [profileForm, setProfileForm] = useState({
     q_contact_id: '',
@@ -329,7 +344,7 @@ export default function EditPreLeadPage() {
     try {
       const preLeadRes = await api.getPreLead(preLeadId);
       setPreLeadData(preLeadRes);
-      setIsDiscarded(preLeadRes.status === 'discarded');
+      setIsDiscarded(preLeadRes.status === 1 || preLeadRes.lead_status === 'discarded');
 
       let fromTimings = '';
       let toTimings = '';
@@ -499,7 +514,7 @@ export default function EditPreLeadPage() {
   const handleRestore = async () => {
     if (!window.confirm('Are you sure you want to restore this pre-lead?')) return;
     try {
-      await api.updatePreLead(preLeadId, { status: 'new' } as Partial<PreLead>);
+      await api.updatePreLead(preLeadId, { status: 0, lead_status: 'new' } as Partial<PreLead>);
       setIsDiscarded(false);
       showSuccess('Pre-lead restored successfully');
     } catch (err: any) {
@@ -525,14 +540,33 @@ export default function EditPreLeadPage() {
       return;
     }
     try {
-      // Clean up data - remove empty strings for email fields to avoid validation errors
+      // Clean up data - convert empty strings to null for optional fields
       const cleanedData: Record<string, any> = {};
+      const emailFields = ['work_email', 'personal_email'];
+      const optionalStringFields = ['last_name', 'designation', 'title', 'work_phone', 'ext', 'fax',
+        'cell_phone', 'home_phone', 'linkedin_url', 'facebook_url', 'twitter_url', 'notes'];
+
       Object.entries(contactForm).forEach(([key, value]) => {
-        if (key === 'work_email' && (!value || value.trim() === '')) {
-          // Skip empty email fields
-          return;
+        // Handle email fields - set to null if empty
+        if (emailFields.includes(key)) {
+          if (!value || (typeof value === 'string' && value.trim() === '')) {
+            cleanedData[key] = null;
+          } else {
+            cleanedData[key] = value;
+          }
         }
-        cleanedData[key] = value;
+        // Handle optional string fields - set to null if empty
+        else if (optionalStringFields.includes(key)) {
+          if (value === '' || value === undefined) {
+            cleanedData[key] = null;
+          } else {
+            cleanedData[key] = value;
+          }
+        }
+        // Copy other fields as-is
+        else {
+          cleanedData[key] = value;
+        }
       });
 
       if (editingContact) {
@@ -594,6 +628,40 @@ export default function EditPreLeadPage() {
       cell_phone: '',
       status: 'active',
     });
+  };
+
+  // ============== Social Media Links Handlers ==============
+
+  const handleOpenSocialMediaModal = (contact: Contact) => {
+    setSelectedContactForSocial(contact);
+    setSocialMediaForm({
+      business_card: null,
+      linkedin_url: contact.linkedin_url || '',
+      facebook_url: contact.facebook_url || '',
+      twitter_url: contact.twitter_url || '',
+      notes: '',
+    });
+    setShowSocialMediaModal(true);
+  };
+
+  const handleSaveSocialMediaLinks = async () => {
+    if (!selectedContactForSocial) return;
+
+    try {
+      const updateData: Record<string, any> = {
+        linkedin_url: socialMediaForm.linkedin_url || null,
+        facebook_url: socialMediaForm.facebook_url || null,
+        twitter_url: socialMediaForm.twitter_url || null,
+      };
+
+      await api.updatePreLeadContact(preLeadId, selectedContactForSocial.id, updateData);
+      fetchContacts();
+      setShowSocialMediaModal(false);
+      setSelectedContactForSocial(null);
+      showSuccess('Social media links updated successfully');
+    } catch (err: any) {
+      showError(getErrorMessage(err, 'Failed to update social media links'));
+    }
   };
 
   // ============== Memo Handlers ==============
@@ -1021,10 +1089,13 @@ export default function EditPreLeadPage() {
                           </span>
                         </td>
                         <td className="px-3 py-2 text-center">
-                          <button onClick={() => handleEditContact(contact)} className="p-1 text-blue-600 hover:bg-blue-50 rounded mr-1">
+                          <button onClick={() => handleEditContact(contact)} className="p-1 text-blue-600 hover:bg-blue-50 rounded mr-1" title="Edit">
                             <Pencil className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleDeleteContact(contact.id)} className="p-1 text-red-600 hover:bg-red-50 rounded">
+                          <button onClick={() => handleOpenSocialMediaModal(contact)} className="p-1 text-green-600 hover:bg-green-50 rounded mr-1" title="Social Media Links">
+                            <Link2 className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDeleteContact(contact.id)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Delete">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
@@ -1243,6 +1314,110 @@ export default function EditPreLeadPage() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Social Media Links Modal */}
+          {showSocialMediaModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg w-full max-w-3xl overflow-hidden">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between px-4 py-3 bg-blue-600">
+                  <h3 className="text-lg font-semibold text-white">CONTACT LINKS</h3>
+                  <button onClick={() => setShowSocialMediaModal(false)} className="p-1 hover:bg-blue-700 rounded text-white">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="p-6">
+                  <div className="grid grid-cols-2 gap-8">
+                    {/* Left Column - Business Card */}
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-700 mb-4">BUSINESS CARD</h4>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="text"
+                          value={socialMediaForm.business_card?.name || ''}
+                          readOnly
+                          className="flex-1 h-9 px-3 text-sm border border-gray-300 rounded bg-gray-50"
+                          placeholder=""
+                        />
+                        <label className="px-4 py-2 text-sm text-white bg-blue-500 rounded cursor-pointer hover:bg-blue-600 flex items-center gap-1 whitespace-nowrap">
+                          <Upload className="w-4 h-4" />
+                          Choose File
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*,.pdf"
+                            onChange={(e) => setSocialMediaForm({
+                              ...socialMediaForm,
+                              business_card: e.target.files?.[0] || null
+                            })}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Right Column - Social Media Links */}
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-700 mb-4">SOCIAL MEDIA LINKS</h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <label className="w-20 text-sm text-blue-600">LinkedIn</label>
+                          <input
+                            type="url"
+                            value={socialMediaForm.linkedin_url}
+                            onChange={(e) => setSocialMediaForm({ ...socialMediaForm, linkedin_url: e.target.value })}
+                            className="flex-1 h-9 px-3 text-sm border border-gray-300 rounded"
+                            placeholder="URL..."
+                          />
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <label className="w-20 text-sm text-blue-600">Facebook</label>
+                          <input
+                            type="url"
+                            value={socialMediaForm.facebook_url}
+                            onChange={(e) => setSocialMediaForm({ ...socialMediaForm, facebook_url: e.target.value })}
+                            className="flex-1 h-9 px-3 text-sm border border-gray-300 rounded"
+                            placeholder="URL..."
+                          />
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <label className="w-20 text-sm text-blue-600">Twitter</label>
+                          <input
+                            type="url"
+                            value={socialMediaForm.twitter_url}
+                            onChange={(e) => setSocialMediaForm({ ...socialMediaForm, twitter_url: e.target.value })}
+                            className="flex-1 h-9 px-3 text-sm border border-gray-300 rounded"
+                            placeholder="URL..."
+                          />
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <label className="w-20 text-sm text-blue-600 pt-2">Twitter</label>
+                          <textarea
+                            value={socialMediaForm.notes}
+                            onChange={(e) => setSocialMediaForm({ ...socialMediaForm, notes: e.target.value })}
+                            rows={4}
+                            className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded resize-none"
+                            placeholder=""
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="flex justify-center px-4 py-4 border-t">
+                  <button
+                    onClick={handleSaveSocialMediaLinks}
+                    className="px-6 py-2 text-sm text-white bg-green-500 rounded hover:bg-green-600"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

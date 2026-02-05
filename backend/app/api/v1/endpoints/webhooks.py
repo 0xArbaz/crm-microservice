@@ -487,6 +487,113 @@ async def webhook_update_pre_lead_status(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/incoming/pre-lead/{pre_lead_id}/document/add", status_code=status.HTTP_200_OK)
+async def webhook_add_pre_lead_document(
+    pre_lead_id: int,
+    request: Request,
+    payload: IncomingWebhookPayload,
+    x_webhook_signature: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Add a document to a pre-lead via webhook
+
+    **Event:** `pre_lead_document_add`
+
+    **Payload Data Fields:**
+    - name: str (required) - Stored filename
+    - original_name: str (required) - Original filename uploaded by user
+    - file_path: str (required) - Path where file is stored
+    - file_type: str (optional) - MIME type or file extension (e.g., "application/pdf", "image/png")
+    - size: int (optional) - File size in bytes
+    - notes: str (optional) - Additional notes about the document
+    - uploaded_by: int (optional) - User ID who uploaded the file
+    - company_id: int (optional) - Company ID for tracking
+
+    **Example Payload:**
+    ```json
+    {
+        "event": "pre_lead_document_add",
+        "source": "erp",
+        "data": {
+            "name": "doc_12345.pdf",
+            "original_name": "Business_Proposal.pdf",
+            "file_path": "/uploads/pre_leads/123/doc_12345.pdf",
+            "file_type": "application/pdf",
+            "size": 524288,
+            "notes": "Initial business proposal document",
+            "uploaded_by": 1,
+            "company_id": 1
+        }
+    }
+    ```
+    """
+    from app.models.lead_document import LeadDocument
+
+    log = log_webhook(db, WebhookDirection.INCOMING, "pre_lead_document_add", payload.model_dump(), "pre_lead", pre_lead_id)
+
+    try:
+        pre_lead = db.query(PreLead).filter(PreLead.id == pre_lead_id).first()
+        if not pre_lead:
+            raise HTTPException(status_code=404, detail="Pre-lead not found")
+
+        data = payload.data
+
+        # Validate required fields
+        if not data.get("name"):
+            raise HTTPException(status_code=400, detail="name is required")
+        if not data.get("original_name"):
+            raise HTTPException(status_code=400, detail="original_name is required")
+        if not data.get("file_path"):
+            raise HTTPException(status_code=400, detail="file_path is required")
+
+        # For pre-lead documents, we use lead_id as NULL and set pre_lead_id
+        # This allows tracking documents even before lead conversion
+        document = LeadDocument(
+            lead_id=pre_lead.converted_lead_id if pre_lead.is_converted else None,
+            name=data.get("name"),
+            original_name=data.get("original_name"),
+            file_path=data.get("file_path"),
+            file_type=data.get("file_type"),
+            size=data.get("size"),
+            notes=data.get("notes"),
+            uploaded_by=data.get("uploaded_by"),
+            company_id=data.get("company_id") or pre_lead.company_id,
+            pre_lead_id=pre_lead_id
+        )
+        db.add(document)
+        db.flush()
+
+        log.is_successful = True
+        log.response_status = 200
+        log.processed_at = datetime.utcnow()
+        db.add(log)
+        db.commit()
+
+        return {
+            "status": "success",
+            "message": "Document added to pre-lead successfully",
+            "data": {
+                "document_id": document.id,
+                "pre_lead_id": pre_lead_id,
+                "name": document.name,
+                "original_name": document.original_name,
+                "file_path": document.file_path,
+                "file_type": document.file_type,
+                "size": document.size
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.is_successful = False
+        log.error_message = str(e)
+        db.add(log)
+        db.commit()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/incoming/pre-lead/{pre_lead_id}/convert", status_code=status.HTTP_200_OK)
 async def webhook_convert_pre_lead_to_lead(
     pre_lead_id: int,
@@ -1119,6 +1226,284 @@ async def webhook_add_lead_memo(
             "status": "success",
             "message": "Memo added successfully",
             "data": {"memo_id": memo.id, "lead_id": lead_id}
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.is_successful = False
+        log.error_message = str(e)
+        db.add(log)
+        db.commit()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/incoming/lead/{lead_id}/document/add", status_code=status.HTTP_200_OK)
+async def webhook_add_lead_document(
+    lead_id: int,
+    request: Request,
+    payload: IncomingWebhookPayload,
+    x_webhook_signature: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Add a document to a lead via webhook
+
+    **Event:** `lead_document_add`
+
+    **Payload Data Fields:**
+    - name: str (required) - Stored filename
+    - original_name: str (required) - Original filename uploaded by user
+    - file_path: str (required) - Path where file is stored
+    - file_type: str (optional) - MIME type or file extension (e.g., "application/pdf", "image/png")
+    - size: int (optional) - File size in bytes
+    - notes: str (optional) - Additional notes about the document
+    - uploaded_by: int (optional) - User ID who uploaded the file
+    - company_id: int (optional) - Company ID for tracking
+    - pre_lead_id: int (optional) - Pre-lead ID for tracking origin
+
+    **Example Payload:**
+    ```json
+    {
+        "event": "lead_document_add",
+        "source": "erp",
+        "data": {
+            "name": "doc_12345.pdf",
+            "original_name": "Contract_Agreement.pdf",
+            "file_path": "/uploads/leads/123/doc_12345.pdf",
+            "file_type": "application/pdf",
+            "size": 1048576,
+            "notes": "Signed contract document",
+            "uploaded_by": 1,
+            "company_id": 1,
+            "pre_lead_id": null
+        }
+    }
+    ```
+    """
+    from app.models.lead_document import LeadDocument
+
+    log = log_webhook(db, WebhookDirection.INCOMING, "lead_document_add", payload.model_dump(), "lead", lead_id)
+
+    try:
+        lead = db.query(Lead).filter(Lead.id == lead_id).first()
+        if not lead:
+            raise HTTPException(status_code=404, detail="Lead not found")
+
+        data = payload.data
+
+        # Validate required fields
+        if not data.get("name"):
+            raise HTTPException(status_code=400, detail="name is required")
+        if not data.get("original_name"):
+            raise HTTPException(status_code=400, detail="original_name is required")
+        if not data.get("file_path"):
+            raise HTTPException(status_code=400, detail="file_path is required")
+
+        document = LeadDocument(
+            lead_id=lead_id,
+            name=data.get("name"),
+            original_name=data.get("original_name"),
+            file_path=data.get("file_path"),
+            file_type=data.get("file_type"),
+            size=data.get("size"),
+            notes=data.get("notes"),
+            uploaded_by=data.get("uploaded_by"),
+            company_id=data.get("company_id") or lead.company_id,
+            pre_lead_id=data.get("pre_lead_id") or lead.pre_lead_id
+        )
+        db.add(document)
+        db.flush()
+
+        log.is_successful = True
+        log.response_status = 200
+        log.processed_at = datetime.utcnow()
+        db.add(log)
+        db.commit()
+
+        return {
+            "status": "success",
+            "message": "Document added successfully",
+            "data": {
+                "document_id": document.id,
+                "lead_id": lead_id,
+                "name": document.name,
+                "original_name": document.original_name,
+                "file_path": document.file_path,
+                "file_type": document.file_type,
+                "size": document.size
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.is_successful = False
+        log.error_message = str(e)
+        db.add(log)
+        db.commit()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/incoming/lead/{lead_id}/document/{document_id}/update", status_code=status.HTTP_200_OK)
+async def webhook_update_lead_document(
+    lead_id: int,
+    document_id: int,
+    request: Request,
+    payload: IncomingWebhookPayload,
+    x_webhook_signature: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Update a lead document via webhook
+
+    **Event:** `lead_document_update`
+
+    **Payload Data Fields:** (all optional)
+    - name: str - Stored filename
+    - original_name: str - Original filename
+    - file_path: str - Path where file is stored
+    - file_type: str - MIME type or file extension
+    - size: int - File size in bytes
+    - notes: str - Additional notes about the document
+    - uploaded_by: int - User ID who uploaded the file
+    - company_id: int - Company ID for tracking
+    - pre_lead_id: int - Pre-lead ID for tracking origin
+
+    **Example Payload:**
+    ```json
+    {
+        "event": "lead_document_update",
+        "source": "erp",
+        "data": {
+            "notes": "Updated contract - Version 2",
+            "file_type": "application/pdf",
+            "size": 2097152
+        }
+    }
+    ```
+    """
+    from app.models.lead_document import LeadDocument
+
+    log = log_webhook(db, WebhookDirection.INCOMING, "lead_document_update", payload.model_dump(), "lead", lead_id)
+
+    try:
+        lead = db.query(Lead).filter(Lead.id == lead_id).first()
+        if not lead:
+            raise HTTPException(status_code=404, detail="Lead not found")
+
+        document = db.query(LeadDocument).filter(
+            LeadDocument.id == document_id,
+            LeadDocument.lead_id == lead_id
+        ).first()
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        data = payload.data
+
+        # Update fields if provided
+        updatable_fields = [
+            'name', 'original_name', 'file_path', 'file_type',
+            'size', 'notes', 'uploaded_by', 'company_id', 'pre_lead_id'
+        ]
+
+        for field in updatable_fields:
+            if field in data and data[field] is not None:
+                setattr(document, field, data[field])
+
+        log.is_successful = True
+        log.response_status = 200
+        log.processed_at = datetime.utcnow()
+        db.add(log)
+        db.commit()
+
+        return {
+            "status": "success",
+            "message": "Document updated successfully",
+            "data": {
+                "document_id": document.id,
+                "lead_id": lead_id,
+                "name": document.name,
+                "original_name": document.original_name,
+                "file_path": document.file_path,
+                "file_type": document.file_type,
+                "size": document.size,
+                "notes": document.notes
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.is_successful = False
+        log.error_message = str(e)
+        db.add(log)
+        db.commit()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/incoming/lead/{lead_id}/document/{document_id}/delete", status_code=status.HTTP_200_OK)
+async def webhook_delete_lead_document(
+    lead_id: int,
+    document_id: int,
+    request: Request,
+    payload: IncomingWebhookPayload,
+    x_webhook_signature: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a lead document via webhook
+
+    **Event:** `lead_document_delete`
+
+    **Payload Data Fields:**
+    - reason: str (optional) - Reason for deletion
+
+    **Example Payload:**
+    ```json
+    {
+        "event": "lead_document_delete",
+        "source": "erp",
+        "data": {
+            "reason": "Duplicate document"
+        }
+    }
+    ```
+    """
+    from app.models.lead_document import LeadDocument
+
+    log = log_webhook(db, WebhookDirection.INCOMING, "lead_document_delete", payload.model_dump(), "lead", lead_id)
+
+    try:
+        lead = db.query(Lead).filter(Lead.id == lead_id).first()
+        if not lead:
+            raise HTTPException(status_code=404, detail="Lead not found")
+
+        document = db.query(LeadDocument).filter(
+            LeadDocument.id == document_id,
+            LeadDocument.lead_id == lead_id
+        ).first()
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        document_info = {
+            "document_id": document.id,
+            "name": document.name,
+            "original_name": document.original_name
+        }
+
+        db.delete(document)
+
+        log.is_successful = True
+        log.response_status = 200
+        log.processed_at = datetime.utcnow()
+        db.add(log)
+        db.commit()
+
+        return {
+            "status": "success",
+            "message": "Document deleted successfully",
+            "data": document_info
         }
 
     except HTTPException:

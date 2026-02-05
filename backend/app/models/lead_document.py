@@ -8,7 +8,11 @@ class LeadDocument(Base):
     __tablename__ = "lead_documents"
 
     id = Column(Integer, primary_key=True, index=True)
-    lead_id = Column(Integer, ForeignKey("leads.id"), nullable=False, index=True)
+    lead_id = Column(Integer, ForeignKey("leads.id"), nullable=True, index=True)
+
+    # Tracking Fields - to track data for specific customers
+    company_id = Column(Integer, nullable=True, index=True)
+    pre_lead_id = Column(Integer, ForeignKey("pre_leads.id"), nullable=True, index=True)
 
     # File Details
     name = Column(String(255), nullable=False)  # Stored filename
@@ -24,8 +28,9 @@ class LeadDocument(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     uploaded_by = Column(Integer, nullable=True)
 
-    # Relationship
+    # Relationships
     lead = relationship("Lead", backref="lead_documents")
+    pre_lead = relationship("PreLead", backref="pre_lead_documents")
 
     def __repr__(self):
         return f"<LeadDocument {self.original_name}>"

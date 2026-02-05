@@ -7,13 +7,21 @@ from app.models.sales_target import TargetPeriod, TargetType
 
 class SalesTargetBase(BaseModel):
     name: str
+    designation: Optional[str] = None
+    reporting_to: Optional[str] = None
+    region: Optional[str] = None
+    frequency: str = "monthly"  # daily, weekly, monthly, quarterly, yearly
+    stage: Optional[str] = None
+    sales_type: Optional[str] = None  # lead_generated, email, linkedin, whatsapp, call, meeting
+    target_value: Decimal
+    start_date: datetime
+    end_date: datetime
+    remarks: Optional[str] = None
+    # Legacy fields
     description: Optional[str] = None
     target_type: TargetType = TargetType.REVENUE
     period: TargetPeriod = TargetPeriod.MONTHLY
-    target_value: Decimal
     currency: str = "INR"
-    start_date: datetime
-    end_date: datetime
 
 
 class SalesTargetCreate(SalesTargetBase):
@@ -23,14 +31,22 @@ class SalesTargetCreate(SalesTargetBase):
 
 class SalesTargetUpdate(BaseModel):
     name: Optional[str] = None
+    designation: Optional[str] = None
+    reporting_to: Optional[str] = None
+    region: Optional[str] = None
+    frequency: Optional[str] = None
+    stage: Optional[str] = None
+    sales_type: Optional[str] = None
+    target_value: Optional[Decimal] = None
+    achieved_value: Optional[Decimal] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    remarks: Optional[str] = None
+    # Legacy fields
     description: Optional[str] = None
     target_type: Optional[TargetType] = None
     period: Optional[TargetPeriod] = None
-    target_value: Optional[Decimal] = None
-    achieved_value: Optional[Decimal] = None
     currency: Optional[str] = None
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
     user_id: Optional[int] = None
     team_id: Optional[int] = None
 

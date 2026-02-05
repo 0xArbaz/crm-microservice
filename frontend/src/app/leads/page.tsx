@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Eye, Edit, Copy, Trash2, UserCheck, XCircle } from 'lucide-react';
+import { Eye, Edit, Trash2, FileText, XCircle } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
@@ -422,9 +422,11 @@ export default function LeadsPage() {
                           </Link>
                           {!lead.is_converted && lead.lead_status !== 'won' && (
                             <>
-                              <button className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded" title="Convert to Customer">
-                                <UserCheck className="w-4 h-4" />
-                              </button>
+                              <Link href={`/leads/${lead.id}/customer-requirement`}>
+                                <button className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded" title="Customer Requirement Information">
+                                  <FileText className="w-4 h-4" />
+                                </button>
+                              </Link>
                               <button
                                 onClick={() => handleDelete(lead.id)}
                                 className="p-1.5 text-orange-600 hover:bg-orange-50 rounded"
@@ -434,9 +436,6 @@ export default function LeadsPage() {
                               </button>
                             </>
                           )}
-                          <button className="p-1.5 text-gray-600 hover:bg-gray-100 rounded" title="Copy">
-                            <Copy className="w-4 h-4" />
-                          </button>
                           {lead.lead_status === 'won' && (
                             <button
                               onClick={() => handleDelete(lead.id)}

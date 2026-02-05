@@ -340,6 +340,11 @@ class ApiService {
   }
 
   // Lead Contacts
+  async getAllLeadContacts(params?: { search?: string; contact_type?: string; skip?: number; limit?: number }): Promise<any[]> {
+    const response = await this.client.get('/leads/all-contacts', { params });
+    return response.data;
+  }
+
   async getLeadContactsForEdit(leadId: number): Promise<any[]> {
     const response = await this.client.get(`/leads/${leadId}/contacts`);
     return response.data;
@@ -360,6 +365,36 @@ class ApiService {
   }
 
   // Lead Activities
+  async getAllLeadActivities(params?: { activity_type?: string; status?: string; assigned_to?: number; skip?: number; limit?: number }): Promise<any[]> {
+    try {
+      const response = await this.client.get('/leads/all-activities', { params });
+      return response.data;
+    } catch (err) {
+      // Fallback: fetch all leads and their activities individually
+      console.log('Falling back to fetching activities per lead');
+      const leadsRes = await this.client.get('/leads', { params: { page_size: 100 } });
+      const leads = leadsRes.data.items || [];
+      const allActivities: any[] = [];
+
+      for (const lead of leads) {
+        try {
+          const activitiesRes = await this.client.get(`/leads/${lead.id}/activities`);
+          const activities = activitiesRes.data || [];
+          activities.forEach((activity: any) => {
+            allActivities.push({
+              ...activity,
+              company_name: lead.company_name,
+              lead_status: lead.status,
+            });
+          });
+        } catch (e) {
+          console.error(`Failed to fetch activities for lead ${lead.id}:`, e);
+        }
+      }
+      return allActivities;
+    }
+  }
+
   async getLeadActivitiesForEdit(leadId: number): Promise<any[]> {
     const response = await this.client.get(`/leads/${leadId}/activities`);
     return response.data;
@@ -544,6 +579,7 @@ class ApiService {
   // Sales Targets
   async getSalesTargets(params?: {
     page?: number;
+    page_size?: number;
     user_id?: number;
     active_only?: boolean;
   }): Promise<PaginatedResponse<SalesTarget>> {
@@ -566,6 +602,10 @@ class ApiService {
   async updateSalesTarget(id: number, data: Partial<SalesTarget>): Promise<SalesTarget> {
     const response = await this.client.put<SalesTarget>(`/sales-targets/${id}`, data);
     return response.data;
+  }
+
+  async deleteSalesTarget(id: number): Promise<void> {
+    await this.client.delete(`/sales-targets/${id}`);
   }
 
   // Webhooks
@@ -635,6 +675,189 @@ class ApiService {
   async getWhatsAppTemplates(): Promise<{ templates: any[] }> {
     const response = await this.client.get('/marketing/whatsapp/templates');
     return response.data;
+  }
+
+  // Customer Requirements
+  async getCustomerRequirementByLead(leadId: number): Promise<any> {
+    const response = await this.client.get(`/customer-requirements/lead/${leadId}`);
+    return response.data;
+  }
+
+  async getCustomerRequirement(crId: number): Promise<any> {
+    const response = await this.client.get(`/customer-requirements/${crId}`);
+    return response.data;
+  }
+
+  async updateCustomerRequirement(crId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/customer-requirements/${crId}`, data);
+    return response.data;
+  }
+
+  // CR Introduction
+  async getCRIntroduction(crId: number): Promise<any> {
+    const response = await this.client.get(`/customer-requirements/${crId}/introduction`);
+    return response.data;
+  }
+
+  async updateCRIntroduction(crId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/customer-requirements/${crId}/introduction`, data);
+    return response.data;
+  }
+
+  // CR Requirement
+  async getCRRequirement(crId: number): Promise<any> {
+    const response = await this.client.get(`/customer-requirements/${crId}/requirement`);
+    return response.data;
+  }
+
+  async updateCRRequirement(crId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/customer-requirements/${crId}/requirement`, data);
+    return response.data;
+  }
+
+  // CR Presentations
+  async getCRPresentations(crId: number): Promise<any[]> {
+    const response = await this.client.get(`/customer-requirements/${crId}/presentations`);
+    return response.data;
+  }
+
+  async createCRPresentation(crId: number, data: any): Promise<any> {
+    const response = await this.client.post(`/customer-requirements/${crId}/presentations`, data);
+    return response.data;
+  }
+
+  async updateCRPresentation(crId: number, presId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/customer-requirements/${crId}/presentations/${presId}`, data);
+    return response.data;
+  }
+
+  // CR Demos
+  async getCRDemos(crId: number): Promise<any[]> {
+    const response = await this.client.get(`/customer-requirements/${crId}/demos`);
+    return response.data;
+  }
+
+  async createCRDemo(crId: number, data: any): Promise<any> {
+    const response = await this.client.post(`/customer-requirements/${crId}/demos`, data);
+    return response.data;
+  }
+
+  async updateCRDemo(crId: number, demoId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/customer-requirements/${crId}/demos/${demoId}`, data);
+    return response.data;
+  }
+
+  // CR Proposals
+  async getCRProposals(crId: number): Promise<any[]> {
+    const response = await this.client.get(`/customer-requirements/${crId}/proposals`);
+    return response.data;
+  }
+
+  async createCRProposal(crId: number, data: any): Promise<any> {
+    const response = await this.client.post(`/customer-requirements/${crId}/proposals`, data);
+    return response.data;
+  }
+
+  async updateCRProposal(crId: number, proposalId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/customer-requirements/${crId}/proposals/${proposalId}`, data);
+    return response.data;
+  }
+
+  // CR Agreements
+  async getCRAgreements(crId: number): Promise<any[]> {
+    const response = await this.client.get(`/customer-requirements/${crId}/agreements`);
+    return response.data;
+  }
+
+  async createCRAgreement(crId: number, data: any): Promise<any> {
+    const response = await this.client.post(`/customer-requirements/${crId}/agreements`, data);
+    return response.data;
+  }
+
+  async updateCRAgreement(crId: number, agreementId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/customer-requirements/${crId}/agreements/${agreementId}`, data);
+    return response.data;
+  }
+
+  // CR Call Logs
+  async getCRCallLogs(crId: number): Promise<any[]> {
+    const response = await this.client.get(`/customer-requirements/${crId}/call-logs`);
+    return response.data;
+  }
+
+  async createCRCallLog(crId: number, data: any): Promise<any> {
+    const response = await this.client.post(`/customer-requirements/${crId}/call-logs`, data);
+    return response.data;
+  }
+
+  async updateCRCallLog(crId: number, logId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/customer-requirements/${crId}/call-logs/${logId}`, data);
+    return response.data;
+  }
+
+  // CR Documents
+  async getCRDocuments(crId: number, tabName?: string): Promise<any[]> {
+    const params = tabName ? { tab_name: tabName } : {};
+    const response = await this.client.get(`/customer-requirements/${crId}/documents`, { params });
+    return response.data;
+  }
+
+  async uploadCRDocument(crId: number, file: File, tabName: string, subTabName?: string, description?: string): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('tab_name', tabName);
+    if (subTabName) formData.append('sub_tab_name', subTabName);
+    if (description) formData.append('description', description);
+    const response = await this.client.post(`/customer-requirements/${crId}/documents`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async deleteCRDocument(crId: number, docId: number): Promise<void> {
+    await this.client.delete(`/customer-requirements/${crId}/documents/${docId}`);
+  }
+
+  // CR Activities
+  async getCRActivities(crId: number, tabName?: string): Promise<any[]> {
+    const params = tabName ? { tab_name: tabName } : {};
+    const response = await this.client.get(`/customer-requirements/${crId}/activities`, { params });
+    return response.data;
+  }
+
+  async createCRActivity(crId: number, data: any): Promise<any> {
+    const response = await this.client.post(`/customer-requirements/${crId}/activities`, data);
+    return response.data;
+  }
+
+  async updateCRActivity(crId: number, activityId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/customer-requirements/${crId}/activities/${activityId}`, data);
+    return response.data;
+  }
+
+  async deleteCRActivity(crId: number, activityId: number): Promise<void> {
+    await this.client.delete(`/customer-requirements/${crId}/activities/${activityId}`);
+  }
+
+  // CR Memos
+  async getCRMemos(crId: number, tabName?: string): Promise<any[]> {
+    const params = tabName ? { tab_name: tabName } : {};
+    const response = await this.client.get(`/customer-requirements/${crId}/memos`, { params });
+    return response.data;
+  }
+
+  async createCRMemo(crId: number, data: any): Promise<any> {
+    const response = await this.client.post(`/customer-requirements/${crId}/memos`, data);
+    return response.data;
+  }
+
+  async updateCRMemo(crId: number, memoId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/customer-requirements/${crId}/memos/${memoId}`, data);
+    return response.data;
+  }
+
+  async deleteCRMemo(crId: number, memoId: number): Promise<void> {
+    await this.client.delete(`/customer-requirements/${crId}/memos/${memoId}`);
   }
 }
 

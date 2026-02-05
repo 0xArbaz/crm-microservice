@@ -10,6 +10,10 @@ class LeadActivity(Base):
     id = Column(Integer, primary_key=True, index=True)
     lead_id = Column(Integer, ForeignKey("leads.id"), nullable=False, index=True)
 
+    # Tracking Fields - to track data for specific customers
+    company_id = Column(Integer, nullable=True, index=True)
+    pre_lead_id = Column(Integer, nullable=True, index=True)
+
     # Activity Details
     activity_type = Column(String(50), nullable=False)  # call, email, meeting, whatsapp, note, task, follow_up, other
     subject = Column(String(255), nullable=False)

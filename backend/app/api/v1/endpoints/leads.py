@@ -376,3 +376,80 @@ def delete_lead(
     db.commit()
 
     return {"message": "Lead deleted successfully"}
+
+
+@router.get("/by-company/{company_id}", response_model=LeadListResponse)
+def get_leads_by_company(
+    company_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    search: Optional[str] = None,
+    status: Optional[int] = None,
+    lead_status: Optional[str] = None,
+    source: Optional[LeadSource] = None,
+    priority: Optional[LeadPriority] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get all leads by company_id
+
+    This endpoint retrieves all leads that share the same company_id,
+    useful for tracking leads across the same customer/company.
+
+    **Parameters:**
+    - company_id: int (required) - The company ID to filter leads by
+    - page: int - Page number (default: 1)
+    - page_size: int - Items per page (default: 20, max: 100)
+    - search: str - Search in first_name, last_name, email, phone, company_name
+    - status: int - Filter by status (0 = active, 1 = discarded)
+    - lead_status: str - Filter by lead_status (new, contacted, qualified, etc.)
+    - source: LeadSource - Filter by lead source
+    - priority: LeadPriority - Filter by priority
+    """
+    if not check_permission(current_user.role, "leads", "read"):
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    query = db.query(Lead).filter(Lead.company_id == company_id)
+
+    # Apply filters
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                Lead.first_name.ilike(search_term),
+                Lead.last_name.ilike(search_term),
+                Lead.email.ilike(search_term),
+                Lead.phone.ilike(search_term),
+                Lead.company_name.ilike(search_term)
+            )
+        )
+
+    if status is not None:
+        query = query.filter(Lead.status == status)
+
+    if lead_status:
+        query = query.filter(Lead.lead_status == lead_status)
+
+    if source:
+        query = query.filter(Lead.source == source)
+
+    if priority:
+        query = query.filter(Lead.priority == priority)
+
+    # Get total count
+    total = query.count()
+
+    # Apply pagination
+    offset = (page - 1) * page_size
+    leads = query.order_by(Lead.created_at.desc()).offset(offset).limit(page_size).all()
+
+    total_pages = (total + page_size - 1) // page_size
+
+    return LeadListResponse(
+        items=leads,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages
+    )

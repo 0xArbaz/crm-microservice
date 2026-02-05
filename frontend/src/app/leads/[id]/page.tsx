@@ -102,8 +102,8 @@ export default function LeadDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge className={getStatusColor(lead.status)}>
-              {lead.status}
+            <Badge className={getStatusColor(lead.lead_status || (lead.status === 0 ? 'active' : 'inactive'))}>
+              {lead.lead_status || (lead.status === 0 ? 'Active' : 'Inactive')}
             </Badge>
             <Badge className={getPriorityColor(lead.priority)}>
               {lead.priority}

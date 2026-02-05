@@ -10,6 +10,10 @@ class LeadContact(Base):
     id = Column(Integer, primary_key=True, index=True)
     lead_id = Column(Integer, ForeignKey("leads.id"), nullable=False, index=True)
 
+    # Tracking Fields - to track data for specific customers
+    company_id = Column(Integer, nullable=True, index=True)
+    pre_lead_id = Column(Integer, nullable=True, index=True)
+
     # Contact Type
     contact_type = Column(String(50), default="primary")  # primary, billing, technical, decision_maker, etc.
 

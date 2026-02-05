@@ -207,20 +207,53 @@ export interface Activity {
   created_at: string;
 }
 
+// Lead Status History Types
+export interface LeadStatusHistory {
+  id: number;
+  lead_id: number;
+  old_status?: string;
+  new_status?: string;
+  remarks?: string;
+  status_date?: string;
+  created_by?: number;
+  changed_by?: number;
+  created_at: string;
+}
+
+// Memo Types
+export interface Memo {
+  id: number;
+  content?: string;
+  details?: string;
+  created_by?: number;
+  lead_id?: number;
+  pre_lead_id?: number;
+  created_at: string;
+  updated_at?: string;
+}
+
 // Sales Target Types
 export interface SalesTarget {
   id: number;
   name: string;
   description?: string;
-  target_type: 'revenue' | 'lead_count' | 'conversion' | 'customer_count';
-  period: 'monthly' | 'quarterly' | 'yearly';
+  target_type?: 'revenue' | 'lead_count' | 'conversion' | 'customer_count';
+  period?: 'monthly' | 'quarterly' | 'yearly';
   target_value: number;
-  achieved_value: number;
-  progress_percentage: number;
-  currency: string;
+  achieved_value?: number;
+  progress_percentage?: number;
+  currency?: string;
   start_date: string;
   end_date: string;
   user_id?: number;
+  // Extended fields
+  designation?: string;
+  reporting_to?: string;
+  region?: string;
+  frequency?: string;
+  stage?: string;
+  sales_type?: string;
+  remarks?: string;
 }
 
 // Webhook Types
@@ -244,6 +277,8 @@ export interface WebhookLog {
   entity_type?: string;
   entity_id?: number;
   created_at: string;
+  request_payload?: Record<string, unknown>;
+  response_payload?: Record<string, unknown>;
 }
 
 // Dashboard Types

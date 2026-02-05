@@ -11,6 +11,14 @@ class TargetPeriod(str, enum.Enum):
     YEARLY = "yearly"
 
 
+class TargetFrequency(str, enum.Enum):
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    QUARTERLY = "quarterly"
+    YEARLY = "yearly"
+
+
 class TargetType(str, enum.Enum):
     REVENUE = "revenue"
     LEAD_COUNT = "lead_count"
@@ -18,16 +26,30 @@ class TargetType(str, enum.Enum):
     CUSTOMER_COUNT = "customer_count"
 
 
+class SalesType(str, enum.Enum):
+    LEAD_GENERATED = "lead_generated"
+    EMAIL = "email"
+    LINKEDIN = "linkedin"
+    WHATSAPP = "whatsapp"
+    CALL = "call"
+    MEETING = "meeting"
+
+
 class SalesTarget(Base):
     __tablename__ = "sales_targets"
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # Target Details
-    name = Column(String(255), nullable=False)
-    description = Column(String(500), nullable=True)
-    target_type = Column(Enum(TargetType), default=TargetType.REVENUE)
-    period = Column(Enum(TargetPeriod), default=TargetPeriod.MONTHLY)
+    # User/Person Details
+    name = Column(String(255), nullable=False)  # Person name
+    designation = Column(String(100), nullable=True)
+    reporting_to = Column(String(255), nullable=True)
+    region = Column(String(100), nullable=True)
+
+    # Target Configuration
+    frequency = Column(String(50), default="monthly")  # daily, weekly, monthly, quarterly, yearly
+    stage = Column(String(100), nullable=True)
+    sales_type = Column(String(50), nullable=True)  # lead_generated, email, linkedin, whatsapp, call, meeting
 
     # Target Values
     target_value = Column(Numeric(15, 2), nullable=False)
@@ -37,6 +59,14 @@ class SalesTarget(Base):
     # Period
     start_date = Column(DateTime(timezone=True), nullable=False)
     end_date = Column(DateTime(timezone=True), nullable=False)
+
+    # Additional Info
+    remarks = Column(String(500), nullable=True)
+
+    # Legacy fields for backward compatibility
+    description = Column(String(500), nullable=True)
+    target_type = Column(Enum(TargetType), default=TargetType.REVENUE)
+    period = Column(Enum(TargetPeriod), default=TargetPeriod.MONTHLY)
 
     # Assignment (can be user-specific or team-wide)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)

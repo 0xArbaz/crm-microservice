@@ -312,3 +312,72 @@ def delete_pre_lead(
     db.commit()
 
     return {"message": "Pre-lead deleted successfully"}
+
+
+@router.get("/by-company/{company_id}", response_model=PreLeadListResponse)
+def get_pre_leads_by_company(
+    company_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    search: Optional[str] = None,
+    status: Optional[int] = None,
+    source: Optional[PreLeadSource] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get all pre-leads by company_id
+
+    This endpoint retrieves all pre-leads that share the same company_id,
+    useful for tracking pre-leads across the same customer/company.
+
+    **Parameters:**
+    - company_id: int (required) - The company ID to filter pre-leads by
+    - page: int - Page number (default: 1)
+    - page_size: int - Items per page (default: 20, max: 100)
+    - search: str - Search in first_name, last_name, email, phone, company_name
+    - status: int - Filter by status (0 = active, 1 = discarded)
+    - source: PreLeadSource - Filter by pre-lead source
+    """
+    if not check_permission(current_user.role, "pre_leads", "read"):
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    query = db.query(PreLead).filter(PreLead.company_id == company_id)
+
+    # Apply filters
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                PreLead.first_name.ilike(search_term),
+                PreLead.last_name.ilike(search_term),
+                PreLead.email.ilike(search_term),
+                PreLead.phone.ilike(search_term),
+                PreLead.company_name.ilike(search_term)
+            )
+        )
+
+    if status is not None:
+        query = query.filter(PreLead.status == status)
+        if status == 0:
+            query = query.filter(PreLead.is_converted == False)
+
+    if source:
+        query = query.filter(PreLead.source == source)
+
+    # Get total count
+    total = query.count()
+
+    # Apply pagination
+    offset = (page - 1) * page_size
+    pre_leads = query.order_by(PreLead.created_at.desc()).offset(offset).limit(page_size).all()
+
+    total_pages = (total + page_size - 1) // page_size
+
+    return PreLeadListResponse(
+        items=pre_leads,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages
+    )

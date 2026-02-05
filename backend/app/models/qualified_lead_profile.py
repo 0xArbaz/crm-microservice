@@ -11,6 +11,10 @@ class QualifiedLeadProfile(Base):
     pre_lead_id = Column(Integer, ForeignKey("pre_leads.id"), nullable=False, index=True)
     contact_id = Column(Integer, ForeignKey("pre_lead_contacts.id"), nullable=True)
 
+    # Tracking Fields - to track data for specific customers
+    company_id = Column(Integer, nullable=True, index=True)
+    lead_id = Column(Integer, nullable=True, index=True)
+
     # Basic Info (Auto-filled from pre-lead)
     company_name = Column(String(255), nullable=True)
     industry_id = Column(Integer, nullable=True)

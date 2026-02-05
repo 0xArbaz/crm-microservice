@@ -10,6 +10,10 @@ class LeadMemo(Base):
     id = Column(Integer, primary_key=True, index=True)
     lead_id = Column(Integer, ForeignKey("leads.id"), nullable=False, index=True)
 
+    # Tracking Fields - to track data for specific customers
+    company_id = Column(Integer, nullable=True, index=True)
+    pre_lead_id = Column(Integer, nullable=True, index=True)
+
     # Memo Details
     memo_type = Column(String(50), default="general")  # general, meeting_notes, call_notes, internal, important
     title = Column(String(255), nullable=False)

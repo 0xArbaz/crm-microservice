@@ -12,7 +12,8 @@ from app.api.v1.endpoints import (
     activities,
     sales_targets,
     webhooks,
-    marketing
+    marketing,
+    customer_requirements
 )
 
 api_router = APIRouter()
@@ -55,3 +56,6 @@ api_router.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"]
 
 # Marketing (Bulk Email, WhatsApp)
 api_router.include_router(marketing.router, prefix="/marketing", tags=["Marketing"])
+
+# Customer Requirements
+api_router.include_router(customer_requirements.router, prefix="/customer-requirements", tags=["Customer Requirements"])

@@ -18,6 +18,12 @@ from app.models.lead_memo import LeadMemo
 from app.models.lead_document import LeadDocument
 from app.models.lead_status_history import LeadStatusHistory
 from app.models.lead_qualified_profile import LeadQualifiedProfile
+from app.models.customer_requirement import (
+    CustomerRequirement, CRIntroduction, CRRequirement, CRPresentation,
+    CRDemo, CRProposal, CRAgreement, CRInitiation, CRPlanning,
+    CRConfiguration, CRTraining, CRUAT, CRDataMigration, CRGoLive,
+    CRSupport, CRCallLog, CRDocument, CRActivity, CRMemo, CRStatusHistory
+)
 
 __all__ = [
     "User",
@@ -44,4 +50,24 @@ __all__ = [
     "LeadDocument",
     "LeadStatusHistory",
     "LeadQualifiedProfile",
+    "CustomerRequirement",
+    "CRIntroduction",
+    "CRRequirement",
+    "CRPresentation",
+    "CRDemo",
+    "CRProposal",
+    "CRAgreement",
+    "CRInitiation",
+    "CRPlanning",
+    "CRConfiguration",
+    "CRTraining",
+    "CRUAT",
+    "CRDataMigration",
+    "CRGoLive",
+    "CRSupport",
+    "CRCallLog",
+    "CRDocument",
+    "CRActivity",
+    "CRMemo",
+    "CRStatusHistory",
 ]

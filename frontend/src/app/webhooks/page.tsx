@@ -13,17 +13,63 @@ import { formatDateTime } from '@/lib/utils';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Helper to generate cURL examples
-const generateCurlExample = (endpoint: string, payload: string, hasPathParam: boolean = false) => {
+const generateCurlExample = (endpoint: string, payload: string, hasPathParam: boolean = false, method: string = 'POST') => {
   const fullUrl = `${API_BASE_URL}${endpoint}`;
-  const displayUrl = hasPathParam ? fullUrl : fullUrl;
-  return `curl -X POST "${displayUrl}" \\
+
+  if (method === 'GET') {
+    return `curl -X GET "${fullUrl}?page=1&page_size=20" \\
+  -H "Authorization: Bearer your-jwt-token-here" \\
+  -H "Content-Type: application/json"`;
+  }
+
+  return `curl -X POST "${fullUrl}" \\
   -H "Content-Type: application/json" \\
   -H "X-Webhook-Signature: your-signature-here" \\
   -d '${payload.replace(/\n/g, '').replace(/\s+/g, ' ')}'`;
 };
 
 // Helper to generate Laravel examples
-const generateLaravelExample = (endpoint: string, payload: string, methodName: string, hasPathParam: boolean = false, paramName: string = '') => {
+const generateLaravelExample = (endpoint: string, payload: string, methodName: string, hasPathParam: boolean = false, paramName: string = '', method: string = 'POST') => {
+  if (method === 'GET') {
+    return `<?php
+// Laravel Service Method
+use Illuminate\\Support\\Facades\\Http;
+
+class CrmApiService
+{
+    protected string $baseUrl = '${API_BASE_URL}';
+    protected string $token = 'your-jwt-token';
+
+    public function ${methodName}(int $${paramName}, array $filters = [])
+    {
+        $queryParams = array_merge([
+            'page' => 1,
+            'page_size' => 20,
+        ], $filters);
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $this->token,
+            'Content-Type' => 'application/json',
+        ])->get($this->baseUrl . '${endpoint}', $queryParams);
+
+        return [
+            'success' => $response->successful(),
+            'status' => $response->status(),
+            'data' => $response->json(),
+        ];
+    }
+}
+
+// Usage in Controller:
+$crmService = new CrmApiService();
+$result = $crmService->${methodName}($${paramName}, [
+    'page' => 1,
+    'page_size' => 20,
+    'status' => 0,
+    'search' => 'john'
+]);`;
+  }
+
   const payloadObj = JSON.parse(payload);
   const dataFields = payloadObj.data || {};
 
@@ -89,31 +135,66 @@ const preLeadAPIs = [
     method: 'POST',
     endpoint: '/api/v1/webhooks/incoming/pre-lead/create',
     event: 'new_inquiry',
-    description: 'Creates a new pre-lead from an external inquiry',
+    description: 'Creates a new pre-lead from an external inquiry with all company details',
     laravelMethod: 'createPreLead',
     hasPathParam: false,
     paramName: '',
     fields: [
+      // Basic Information
       { name: 'first_name', type: 'string', required: true, description: 'First name or company name' },
       { name: 'last_name', type: 'string', required: false, description: 'Last name' },
       { name: 'email', type: 'string', required: false, description: 'Email address' },
       { name: 'phone', type: 'string', required: false, description: 'Phone number' },
+      { name: 'alternate_phone', type: 'string', required: false, description: 'Alternate phone number' },
+      // Company Information
       { name: 'company_name', type: 'string', required: false, description: 'Company name' },
+      { name: 'designation', type: 'string', required: false, description: 'Job designation/title' },
+      { name: 'website', type: 'string', required: false, description: 'Company website URL' },
+      // Lead Details
       { name: 'source', type: 'string', required: false, description: 'Source: website, referral, social_media, cold_call, walk_in, whatsapp, email, erp, other' },
+      { name: 'source_details', type: 'string', required: false, description: 'Additional source details' },
+      { name: 'status', type: 'integer', required: false, description: 'Status: 0 = active, 1 = discarded' },
+      { name: 'discard_reason', type: 'string', required: false, description: 'Reason for discarding the pre-lead' },
+      // Interest & Requirements
       { name: 'product_interest', type: 'string', required: false, description: 'Products/services interested in' },
       { name: 'requirements', type: 'string', required: false, description: 'Specific requirements' },
+      { name: 'budget_range', type: 'string', required: false, description: 'Budget range' },
+      // Location
       { name: 'city', type: 'string', required: false, description: 'City name' },
       { name: 'state', type: 'string', required: false, description: 'State name' },
       { name: 'country', type: 'string', required: false, description: 'Country (default: India)' },
+      // Address Details
       { name: 'address_line1', type: 'string', required: false, description: 'Address line 1' },
       { name: 'address_line2', type: 'string', required: false, description: 'Address line 2' },
       { name: 'zip_code', type: 'string', required: false, description: 'ZIP/Postal code' },
-      { name: 'lead_status', type: 'string', required: false, description: 'Initial status' },
+      { name: 'city_id', type: 'integer', required: false, description: 'City ID' },
+      { name: 'state_id', type: 'integer', required: false, description: 'State ID' },
+      { name: 'country_id', type: 'integer', required: false, description: 'Country ID' },
+      // Contact Details
+      { name: 'phone_no', type: 'string', required: false, description: 'Office phone number' },
+      { name: 'fax', type: 'string', required: false, description: 'Fax number' },
+      { name: 'nof_representative', type: 'string', required: false, description: 'Name of representative' },
+      { name: 'memo', type: 'string', required: false, description: 'Memo text' },
+      // Business Details
+      { name: 'group_id', type: 'integer', required: false, description: 'Group ID' },
+      { name: 'lead_status', type: 'string', required: false, description: 'Lead status' },
       { name: 'industry_id', type: 'integer', required: false, description: 'Industry ID' },
       { name: 'region_id', type: 'integer', required: false, description: 'Region ID' },
       { name: 'office_timings', type: 'string', required: false, description: 'Office timings' },
       { name: 'timezone', type: 'string', required: false, description: 'Timezone' },
+      { name: 'lead_source', type: 'string', required: false, description: 'Lead source' },
+      { name: 'sales_rep', type: 'integer', required: false, description: 'Sales representative user ID' },
+      { name: 'lead_since', type: 'string', required: false, description: 'Lead since date (YYYY-MM-DD)' },
+      { name: 'lead_score', type: 'string', required: false, description: 'Lead score' },
+      // Notes
       { name: 'notes', type: 'string', required: false, description: 'Additional notes' },
+      { name: 'remarks', type: 'string', required: false, description: 'Remarks' },
+      // Assignment
+      { name: 'assigned_to', type: 'integer', required: false, description: 'Assigned user ID' },
+      // System Fields
+      { name: 'company_id', type: 'integer', required: false, description: 'Company ID' },
+      { name: 'createdby', type: 'integer', required: false, description: 'Created by user ID' },
+      { name: 'updatedby', type: 'integer', required: false, description: 'Updated by user ID' },
     ],
     example: `{
   "event": "new_inquiry",
@@ -123,22 +204,46 @@ const preLeadAPIs = [
     "last_name": "Doe",
     "email": "john.doe@example.com",
     "phone": "+1234567890",
-    "company_name": "ABC Corp",
+    "alternate_phone": "+1234567800",
+    "company_name": "ABC Corporation Ltd.",
+    "designation": "Chief Executive Officer",
+    "website": "https://www.abccorp.com",
     "source": "website",
-    "product_interest": "CRM Software",
-    "requirements": "Need enterprise solution with 50 users",
+    "source_details": "Contact form submission",
+    "status": 0,
+    "discard_reason": null,
+    "product_interest": "Enterprise CRM Suite",
+    "requirements": "Need full CRM implementation with ERP integration",
+    "budget_range": "$50,000 - $100,000",
     "city": "New York",
-    "state": "NY",
+    "state": "New York",
     "country": "USA",
-    "address_line1": "123 Business Street",
-    "address_line2": "Suite 100",
+    "address_line1": "123 Business Avenue",
+    "address_line2": "Floor 15, Suite 1501",
     "zip_code": "10001",
+    "city_id": 1,
+    "state_id": 33,
+    "country_id": 1,
+    "phone_no": "+1-212-555-0100",
+    "fax": "+1-212-555-0101",
+    "nof_representative": "Michael Johnson",
+    "memo": "Key decision maker, prefers email communication",
+    "group_id": 5,
     "lead_status": "new",
-    "industry_id": 1,
-    "region_id": 2,
-    "office_timings": "9:00 AM - 6:00 PM",
+    "industry_id": 10,
+    "region_id": 3,
+    "office_timings": "9:00 AM - 6:00 PM EST",
     "timezone": "America/New_York",
-    "notes": "Interested in demo next week"
+    "lead_source": "Website Form",
+    "sales_rep": 8,
+    "lead_since": "2024-01-15",
+    "lead_score": "B+",
+    "notes": "Interested in demo next week",
+    "remarks": "Initial inquiry from website",
+    "assigned_to": 5,
+    "company_id": 1,
+    "createdby": 1,
+    "updatedby": 1
   }
 }`,
     response: `{
@@ -153,19 +258,66 @@ const preLeadAPIs = [
     method: 'POST',
     endpoint: '/api/v1/webhooks/incoming/pre-lead/{pre_lead_id}/update',
     event: 'pre_lead_update',
-    description: 'Updates an existing pre-lead',
+    description: 'Updates an existing pre-lead with company details and all fields',
     laravelMethod: 'updatePreLead',
     hasPathParam: true,
     paramName: 'preLeadId',
     fields: [
+      // Basic Information
       { name: 'first_name', type: 'string', required: false, description: 'First name' },
       { name: 'last_name', type: 'string', required: false, description: 'Last name' },
       { name: 'email', type: 'string', required: false, description: 'Email address' },
       { name: 'phone', type: 'string', required: false, description: 'Phone number' },
+      { name: 'alternate_phone', type: 'string', required: false, description: 'Alternate phone number' },
+      // Company Information
       { name: 'company_name', type: 'string', required: false, description: 'Company name' },
+      { name: 'designation', type: 'string', required: false, description: 'Job designation/title' },
+      { name: 'website', type: 'string', required: false, description: 'Company website URL' },
+      // Lead Details
+      { name: 'source', type: 'string', required: false, description: 'Source: website, referral, social_media, cold_call, walk_in, whatsapp, email, erp, other' },
+      { name: 'source_details', type: 'string', required: false, description: 'Additional source details' },
+      { name: 'status', type: 'integer', required: false, description: 'Status: 0 = active, 1 = discarded' },
+      { name: 'discard_reason', type: 'string', required: false, description: 'Reason for discarding the pre-lead' },
+      // Interest & Requirements
+      { name: 'product_interest', type: 'string', required: false, description: 'Products/services interested in' },
+      { name: 'requirements', type: 'string', required: false, description: 'Specific requirements' },
+      { name: 'budget_range', type: 'string', required: false, description: 'Budget range' },
+      // Location
+      { name: 'city', type: 'string', required: false, description: 'City name' },
+      { name: 'state', type: 'string', required: false, description: 'State name' },
+      { name: 'country', type: 'string', required: false, description: 'Country name' },
+      // Address Details
+      { name: 'address_line1', type: 'string', required: false, description: 'Address line 1' },
+      { name: 'address_line2', type: 'string', required: false, description: 'Address line 2' },
+      { name: 'zip_code', type: 'string', required: false, description: 'ZIP/Postal code' },
+      { name: 'city_id', type: 'integer', required: false, description: 'City ID' },
+      { name: 'state_id', type: 'integer', required: false, description: 'State ID' },
+      { name: 'country_id', type: 'integer', required: false, description: 'Country ID' },
+      // Contact Details
+      { name: 'phone_no', type: 'string', required: false, description: 'Office phone number' },
+      { name: 'fax', type: 'string', required: false, description: 'Fax number' },
+      { name: 'nof_representative', type: 'string', required: false, description: 'Name of representative' },
+      { name: 'memo', type: 'string', required: false, description: 'Memo text' },
+      // Business Details
+      { name: 'group_id', type: 'integer', required: false, description: 'Group ID' },
       { name: 'lead_status', type: 'string', required: false, description: 'Lead status' },
-      { name: 'notes', type: 'string', required: false, description: 'Notes' },
+      { name: 'industry_id', type: 'integer', required: false, description: 'Industry ID' },
+      { name: 'region_id', type: 'integer', required: false, description: 'Region ID' },
+      { name: 'office_timings', type: 'string', required: false, description: 'Office timings' },
+      { name: 'timezone', type: 'string', required: false, description: 'Timezone' },
+      { name: 'lead_source', type: 'string', required: false, description: 'Lead source' },
+      { name: 'sales_rep', type: 'integer', required: false, description: 'Sales representative user ID' },
+      { name: 'lead_since', type: 'string', required: false, description: 'Lead since date (YYYY-MM-DD)' },
+      { name: 'lead_score', type: 'string', required: false, description: 'Lead score' },
+      // Notes
+      { name: 'notes', type: 'string', required: false, description: 'Additional notes' },
       { name: 'remarks', type: 'string', required: false, description: 'Remarks' },
+      // Assignment
+      { name: 'assigned_to', type: 'integer', required: false, description: 'Assigned user ID' },
+      // System Fields
+      { name: 'company_id', type: 'integer', required: false, description: 'Company ID' },
+      { name: 'createdby', type: 'integer', required: false, description: 'Created by user ID' },
+      { name: 'updatedby', type: 'integer', required: false, description: 'Updated by user ID' },
     ],
     example: `{
   "event": "pre_lead_update",
@@ -175,10 +327,46 @@ const preLeadAPIs = [
     "last_name": "Doe Updated",
     "email": "john.updated@example.com",
     "phone": "+1234567899",
-    "company_name": "ABC Corp Updated",
-    "lead_status": "contacted",
-    "notes": "Follow up scheduled for next Monday",
-    "remarks": "Client showed high interest in premium package"
+    "alternate_phone": "+1234567800",
+    "company_name": "ABC Corporation Ltd.",
+    "designation": "Chief Executive Officer",
+    "website": "https://www.abccorp.com",
+    "source": "referral",
+    "source_details": "Referred by XYZ Company",
+    "status": 0,
+    "discard_reason": null,
+    "product_interest": "Enterprise CRM Suite",
+    "requirements": "Need full CRM implementation with ERP integration",
+    "budget_range": "$50,000 - $100,000",
+    "city": "New York",
+    "state": "New York",
+    "country": "USA",
+    "address_line1": "123 Business Avenue",
+    "address_line2": "Floor 15, Suite 1501",
+    "zip_code": "10001",
+    "city_id": 1,
+    "state_id": 33,
+    "country_id": 1,
+    "phone_no": "+1-212-555-0100",
+    "fax": "+1-212-555-0101",
+    "nof_representative": "Michael Johnson",
+    "memo": "Key decision maker, prefers email communication",
+    "group_id": 5,
+    "lead_status": "qualified",
+    "industry_id": 10,
+    "region_id": 3,
+    "office_timings": "9:00 AM - 6:00 PM EST",
+    "timezone": "America/New_York",
+    "lead_source": "Partner Referral",
+    "sales_rep": 8,
+    "lead_since": "2024-01-01",
+    "lead_score": "A+",
+    "notes": "High priority prospect with confirmed budget",
+    "remarks": "Schedule demo for next week",
+    "assigned_to": 5,
+    "company_id": 1,
+    "createdby": 1,
+    "updatedby": 2
   }
 }`,
     response: `{
@@ -219,32 +407,69 @@ const preLeadAPIs = [
     method: 'POST',
     endpoint: '/api/v1/webhooks/incoming/pre-lead/{pre_lead_id}/contact/add',
     event: 'pre_lead_contact_add',
-    description: 'Adds a new contact person to a pre-lead',
+    description: 'Adds a new contact person to a pre-lead with all contact details',
     laravelMethod: 'addPreLeadContact',
     hasPathParam: true,
     paramName: 'preLeadId',
     fields: [
+      // Tracking Fields
+      { name: 'company_id', type: 'integer', required: false, description: 'Company ID to track data for specific customers' },
+      { name: 'lead_id', type: 'integer', required: false, description: 'Lead ID to track data for specific leads' },
+      // Contact Type
+      { name: 'contact_type', type: 'string', required: false, description: 'Type: primary, billing, technical, decision_maker' },
+      // Basic Information
+      { name: 'title', type: 'string', required: false, description: 'Title: Mr., Mrs., Ms., Dr.' },
       { name: 'first_name', type: 'string', required: true, description: 'Contact first name' },
       { name: 'last_name', type: 'string', required: false, description: 'Contact last name' },
-      { name: 'email', type: 'string', required: false, description: 'Contact email' },
-      { name: 'phone', type: 'string', required: false, description: 'Contact phone' },
-      { name: 'designation', type: 'string', required: false, description: 'Job title' },
-      { name: 'department', type: 'string', required: false, description: 'Department' },
-      { name: 'is_primary', type: 'boolean', required: false, description: 'Is primary contact' },
-      { name: 'contact_type', type: 'string', required: false, description: 'Type: primary, billing, technical, decision_maker' },
+      { name: 'designation', type: 'string', required: false, description: 'Job title/designation' },
+      // Contact Details
+      { name: 'work_email', type: 'string', required: false, description: 'Work email address' },
+      { name: 'personal_email', type: 'string', required: false, description: 'Personal email address' },
+      { name: 'work_phone', type: 'string', required: false, description: 'Work phone number' },
+      { name: 'ext', type: 'string', required: false, description: 'Phone extension' },
+      { name: 'fax', type: 'string', required: false, description: 'Fax number' },
+      { name: 'cell_phone', type: 'string', required: false, description: 'Cell/mobile phone number' },
+      { name: 'home_phone', type: 'string', required: false, description: 'Home phone number' },
+      // Social Media Links
+      { name: 'linkedin_url', type: 'string', required: false, description: 'LinkedIn profile URL' },
+      { name: 'facebook_url', type: 'string', required: false, description: 'Facebook profile URL' },
+      { name: 'twitter_url', type: 'string', required: false, description: 'Twitter profile URL' },
+      // Profile Image
+      { name: 'image', type: 'string', required: false, description: 'Profile image URL' },
+      // Status
+      { name: 'status', type: 'string', required: false, description: 'Status: active, inactive' },
+      // Notes
+      { name: 'notes', type: 'string', required: false, description: 'Additional notes' },
+      // System Fields
+      { name: 'created_by', type: 'integer', required: false, description: 'Created by user ID' },
+      { name: 'updated_by', type: 'integer', required: false, description: 'Updated by user ID' },
     ],
     example: `{
   "event": "pre_lead_contact_add",
   "source": "crm",
   "data": {
+    "company_id": 1,
+    "lead_id": 456,
+    "contact_type": "decision_maker",
+    "title": "Mr.",
     "first_name": "Jane",
     "last_name": "Smith",
-    "email": "jane@abccorp.com",
-    "phone": "+1234567891",
     "designation": "Procurement Manager",
-    "department": "Operations",
-    "is_primary": true,
-    "contact_type": "decision_maker"
+    "work_email": "jane.smith@abccorp.com",
+    "personal_email": "jane.smith@gmail.com",
+    "work_phone": "+1-212-555-0102",
+    "ext": "205",
+    "fax": "+1-212-555-0103",
+    "cell_phone": "+1-212-555-0104",
+    "home_phone": "+1-212-555-0105",
+    "linkedin_url": "https://linkedin.com/in/janesmith",
+    "facebook_url": "https://facebook.com/janesmith",
+    "twitter_url": "https://twitter.com/janesmith",
+    "image": "https://example.com/images/jane-smith.jpg",
+    "status": "active",
+    "notes": "Primary decision maker for procurement",
+    "created_by": 1,
+    "updated_by": 1
   }
 }`,
     response: `{
@@ -259,28 +484,87 @@ const preLeadAPIs = [
     method: 'POST',
     endpoint: '/api/v1/webhooks/incoming/pre-lead/{pre_lead_id}/memo/add',
     event: 'pre_lead_memo_add',
-    description: 'Adds a memo/note to a pre-lead',
+    description: 'Adds a memo/note to a pre-lead with all database fields',
     laravelMethod: 'addPreLeadMemo',
     hasPathParam: true,
     paramName: 'preLeadId',
     fields: [
-      { name: 'title', type: 'string', required: true, description: 'Memo title' },
-      { name: 'content', type: 'string', required: true, description: 'Memo content' },
-      { name: 'memo_type', type: 'string', required: false, description: 'Type: general, meeting_notes, call_notes, internal, important' },
+      // Tracking Fields
+      { name: 'company_id', type: 'integer', required: false, description: 'Company ID to track data for specific customers' },
+      { name: 'lead_id', type: 'integer', required: false, description: 'Lead ID to track data for specific leads' },
+      // Memo Details
+      { name: 'details', type: 'string', required: true, description: 'Memo content/details (rich text supported)' },
+      // System Fields
+      { name: 'created_by', type: 'integer', required: false, description: 'Created by user ID' },
+      { name: 'updated_by', type: 'integer', required: false, description: 'Updated by user ID' },
     ],
     example: `{
   "event": "pre_lead_memo_add",
   "source": "crm",
   "data": {
-    "title": "Initial Call Summary",
-    "content": "Discussed requirements. Client needs enterprise solution.",
-    "memo_type": "call_notes"
+    "company_id": 1,
+    "lead_id": 456,
+    "details": "<p><strong>Initial Call Summary</strong></p><p>Discussed requirements with John Doe on 2024-01-15.</p><ul><li>Client needs enterprise CRM solution</li><li>Budget confirmed: $50,000 - $100,000</li><li>Timeline: Q2 2024 implementation</li><li>Decision maker: CEO</li></ul><p>Next steps: Schedule product demo for next week.</p>",
+    "created_by": 5,
+    "updated_by": 5
   }
 }`,
     response: `{
   "status": "success",
   "message": "Memo added successfully",
   "data": { "memo_id": 789, "pre_lead_id": 123 }
+}`
+  },
+  {
+    id: 'pre-lead-document',
+    title: 'Add Document to Pre-Lead',
+    method: 'POST',
+    endpoint: '/api/v1/webhooks/incoming/pre-lead/{pre_lead_id}/document/add',
+    event: 'pre_lead_document_add',
+    description: 'Adds a document/file to a pre-lead with all database fields including tracking fields',
+    laravelMethod: 'addPreLeadDocument',
+    hasPathParam: true,
+    paramName: 'preLeadId',
+    fields: [
+      // Tracking Fields
+      { name: 'company_id', type: 'integer', required: false, description: 'Company ID to track data for specific customers' },
+      // File Details
+      { name: 'name', type: 'string', required: true, description: 'Stored filename (system generated or custom)' },
+      { name: 'original_name', type: 'string', required: true, description: 'Original filename as uploaded by user' },
+      { name: 'file_path', type: 'string', required: true, description: 'Full file path or URL where file is stored' },
+      { name: 'file_type', type: 'string', required: false, description: 'MIME type or file extension (e.g., application/pdf, image/png, application/msword)' },
+      { name: 'size', type: 'integer', required: false, description: 'File size in bytes' },
+      // Metadata
+      { name: 'notes', type: 'string', required: false, description: 'Notes or description about the document' },
+      // System Fields
+      { name: 'uploaded_by', type: 'integer', required: false, description: 'User ID who uploaded the document' },
+    ],
+    example: `{
+  "event": "pre_lead_document_add",
+  "source": "erp",
+  "data": {
+    "company_id": 1,
+    "name": "inquiry_brochure_abc_corp.pdf",
+    "original_name": "ABC Corporation - Product Inquiry Brochure.pdf",
+    "file_path": "/uploads/pre_leads/123/documents/inquiry_brochure_abc_corp.pdf",
+    "file_type": "application/pdf",
+    "size": 524288,
+    "notes": "Initial inquiry brochure sent to prospect. Contains product overview and pricing.",
+    "uploaded_by": 5
+  }
+}`,
+    response: `{
+  "status": "success",
+  "message": "Document added to pre-lead successfully",
+  "data": {
+    "document_id": 501,
+    "pre_lead_id": 123,
+    "name": "inquiry_brochure_abc_corp.pdf",
+    "original_name": "ABC Corporation - Product Inquiry Brochure.pdf",
+    "file_path": "/uploads/pre_leads/123/documents/inquiry_brochure_abc_corp.pdf",
+    "file_type": "application/pdf",
+    "size": 524288
+  }
 }`
   },
   {
@@ -314,35 +598,204 @@ const preLeadAPIs = [
 }`
   },
   {
+    id: 'pre-lead-company-profile',
+    title: 'Update Pre-Lead Company Profile',
+    method: 'POST',
+    endpoint: '/api/v1/webhooks/incoming/pre-lead/{pre_lead_id}/company-profile/update',
+    event: 'pre_lead_company_profile_update',
+    description: 'Updates or creates the company profile (qualified lead profile) for a pre-lead',
+    laravelMethod: 'updatePreLeadCompanyProfile',
+    hasPathParam: true,
+    paramName: 'preLeadId',
+    fields: [
+      // Tracking Fields
+      { name: 'company_id', type: 'integer', required: false, description: 'Company ID to track data for specific customers' },
+      { name: 'lead_id', type: 'integer', required: false, description: 'Lead ID to track data for specific leads' },
+      // Contact Selection
+      { name: 'contact_id', type: 'integer', required: false, description: 'Pre-lead contact ID to link' },
+      // Basic Info
+      { name: 'company_name', type: 'string', required: false, description: 'Company name' },
+      { name: 'industry_id', type: 'integer', required: false, description: 'Industry ID' },
+      // Contact Info
+      { name: 'best_time_call', type: 'string', required: false, description: 'Best time to call' },
+      { name: 'best_time_call_timezone', type: 'integer', required: false, description: 'Timezone ID for best call time' },
+      { name: 'mode', type: 'string', required: false, description: 'Preferred contact mode: Email, Phone, Visit' },
+      // Contact Details (auto-filled when contact selected)
+      { name: 'contact_name', type: 'string', required: false, description: 'Contact person name' },
+      { name: 'designation', type: 'string', required: false, description: 'Contact designation' },
+      { name: 'phone', type: 'string', required: false, description: 'Contact phone number' },
+      { name: 'email', type: 'string', required: false, description: 'Contact email address' },
+      // Additional Information
+      { name: 'need_type', type: 'integer', required: false, description: 'Need type (dropdown ID)' },
+      { name: 'current_software', type: 'string', required: false, description: 'Current software being used' },
+      { name: 'need_summary', type: 'string', required: false, description: 'Summary of needs/requirements' },
+      { name: 'budget', type: 'integer', required: false, description: 'Budget range (dropdown ID)' },
+      { name: 'decision_maker', type: 'integer', required: false, description: 'Decision maker contact ID' },
+      { name: 'time_frame', type: 'integer', required: false, description: 'Time frame (dropdown ID)' },
+      { name: 'qualified_by', type: 'integer', required: false, description: 'Qualified by user ID' },
+      // Rich Text Fields
+      { name: 'company_profile', type: 'string', required: false, description: 'Company profile description (rich text)' },
+      { name: 'summary_of_discussion', type: 'string', required: false, description: 'Summary of discussion (rich text)' },
+      { name: 'conclusion', type: 'string', required: false, description: 'Conclusion notes (rich text)' },
+      // Status
+      { name: 'status', type: 'string', required: false, description: 'Status: draft, submitted' },
+      // System Fields
+      { name: 'created_by', type: 'integer', required: false, description: 'Created by user ID' },
+      { name: 'updated_by', type: 'integer', required: false, description: 'Updated by user ID' },
+    ],
+    example: `{
+  "event": "pre_lead_company_profile_update",
+  "source": "crm",
+  "data": {
+    "company_id": 1,
+    "lead_id": 456,
+    "contact_id": 456,
+    "company_name": "ABC Corporation Ltd.",
+    "industry_id": 10,
+    "best_time_call": "10:00 AM - 12:00 PM",
+    "best_time_call_timezone": 1,
+    "mode": "Phone",
+    "contact_name": "John Doe",
+    "designation": "Chief Executive Officer",
+    "phone": "+1-212-555-0100",
+    "email": "john.doe@abccorp.com",
+    "need_type": 1,
+    "current_software": "SAP ERP",
+    "need_summary": "Looking to upgrade their CRM system with better integration capabilities",
+    "budget": 3,
+    "decision_maker": 456,
+    "time_frame": 2,
+    "qualified_by": 5,
+    "company_profile": "<p>ABC Corporation is a leading manufacturer with operations in 5 countries. Founded in 1995, they have grown to become a market leader in industrial equipment.</p>",
+    "summary_of_discussion": "<p>Discussed current pain points with existing CRM. Main concerns are integration with ERP and mobile accessibility for field sales team.</p>",
+    "conclusion": "<p>Strong prospect with confirmed budget. Recommended for demo scheduling within next 2 weeks.</p>",
+    "status": "submitted",
+    "created_by": 1,
+    "updated_by": 5
+  }
+}`,
+    response: `{
+  "status": "success",
+  "message": "Company profile updated successfully",
+  "data": { "pre_lead_id": 123, "profile_id": 789 }
+}`
+  },
+  {
     id: 'pre-lead-convert',
     title: 'Convert Pre-Lead to Lead',
     method: 'POST',
     endpoint: '/api/v1/webhooks/incoming/pre-lead/{pre_lead_id}/convert',
     event: 'pre_lead_convert',
-    description: 'Converts a qualified pre-lead into a lead',
+    description: 'Converts a qualified pre-lead into a lead with tracking fields',
     laravelMethod: 'convertPreLeadToLead',
     hasPathParam: true,
     paramName: 'preLeadId',
     fields: [
+      // Tracking Fields
+      { name: 'company_id', type: 'integer', required: false, description: 'Company ID to track data for specific customers' },
+      { name: 'lead_id', type: 'integer', required: false, description: 'Lead ID to link with existing lead' },
+      // Conversion Details
       { name: 'priority', type: 'string', required: false, description: 'Priority: low, medium, high, critical' },
       { name: 'assigned_to', type: 'integer', required: false, description: 'User ID to assign' },
       { name: 'expected_value', type: 'number', required: false, description: 'Expected deal value' },
       { name: 'notes', type: 'string', required: false, description: 'Additional notes' },
+      // Conversion Tracking
+      { name: 'is_converted', type: 'boolean', required: false, description: 'Mark as converted (default: true)' },
+      { name: 'converted_at', type: 'string', required: false, description: 'Conversion timestamp (ISO 8601 format)' },
+      { name: 'converted_by', type: 'integer', required: false, description: 'User ID who performed the conversion' },
     ],
     example: `{
   "event": "pre_lead_convert",
   "source": "crm",
   "data": {
+    "company_id": 1,
+    "lead_id": 456,
     "priority": "high",
     "assigned_to": 5,
     "expected_value": 50000.00,
-    "notes": "High value prospect"
+    "notes": "High value prospect - qualified and ready for conversion",
+    "is_converted": true,
+    "converted_at": "2024-01-15T10:30:00Z",
+    "converted_by": 5
   }
 }`,
     response: `{
   "status": "success",
   "message": "Pre-lead converted to lead successfully",
-  "data": { "pre_lead_id": 123, "lead_id": 456 }
+  "data": {
+    "pre_lead_id": 123,
+    "lead_id": 456,
+    "company_id": 1,
+    "is_converted": true,
+    "converted_at": "2024-01-15T10:30:00Z"
+  }
+}`
+  },
+  {
+    id: 'pre-lead-get-by-company',
+    title: 'Get All Pre-Leads by Company',
+    method: 'GET',
+    endpoint: '/api/v1/pre-leads/by-company/{company_id}',
+    event: 'get_pre_leads_by_company',
+    description: 'Retrieves all pre-leads that share the same company_id. Useful for tracking pre-leads across the same customer/company with pagination and filtering.',
+    laravelMethod: 'getPreLeadsByCompany',
+    hasPathParam: true,
+    paramName: 'companyId',
+    fields: [
+      // Path Parameter
+      { name: 'company_id', type: 'integer', required: true, description: 'Company ID to filter pre-leads by (path parameter)' },
+      // Query Parameters
+      { name: 'page', type: 'integer', required: false, description: 'Page number (default: 1)' },
+      { name: 'page_size', type: 'integer', required: false, description: 'Items per page (default: 20, max: 100)' },
+      { name: 'search', type: 'string', required: false, description: 'Search in first_name, last_name, email, phone, company_name' },
+      { name: 'status', type: 'integer', required: false, description: 'Filter by status: 0 = active, 1 = discarded' },
+      { name: 'source', type: 'string', required: false, description: 'Filter by source: website, referral, social_media, cold_call, walk_in, whatsapp, email, erp, other' },
+    ],
+    example: `// GET Request - No body required
+// URL: /api/v1/pre-leads/by-company/1?page=1&page_size=20&status=0
+
+// Query Parameters:
+{
+  "company_id": 1,
+  "page": 1,
+  "page_size": 20,
+  "search": "john",
+  "status": 0,
+  "source": "website"
+}`,
+    response: `{
+  "items": [
+    {
+      "id": 123,
+      "first_name": "John",
+      "last_name": "Doe",
+      "email": "john.doe@example.com",
+      "phone": "+1234567890",
+      "company_name": "ABC Corporation",
+      "company_id": 1,
+      "source": "website",
+      "status": 0,
+      "is_converted": false,
+      "created_at": "2024-01-15T10:30:00Z"
+    },
+    {
+      "id": 124,
+      "first_name": "Jane",
+      "last_name": "Smith",
+      "email": "jane.smith@example.com",
+      "phone": "+1234567891",
+      "company_name": "ABC Corporation",
+      "company_id": 1,
+      "source": "referral",
+      "status": 0,
+      "is_converted": false,
+      "created_at": "2024-01-16T09:00:00Z"
+    }
+  ],
+  "total": 25,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 2
 }`
   },
 ];
@@ -354,26 +807,80 @@ const leadAPIs = [
     method: 'POST',
     endpoint: '/api/v1/webhooks/incoming/lead/create',
     event: 'new_lead',
-    description: 'Creates a new lead directly',
+    description: 'Creates a new lead directly with all company details fields',
     laravelMethod: 'createLead',
     hasPathParam: false,
     paramName: '',
     fields: [
+      // Basic Information
       { name: 'first_name', type: 'string', required: true, description: 'First name' },
       { name: 'last_name', type: 'string', required: false, description: 'Last name' },
       { name: 'email', type: 'string', required: false, description: 'Email address' },
       { name: 'phone', type: 'string', required: false, description: 'Phone number' },
+      { name: 'alternate_phone', type: 'string', required: false, description: 'Alternate phone number' },
+      // Company Information
       { name: 'company_name', type: 'string', required: false, description: 'Company name' },
-      { name: 'source', type: 'string', required: false, description: 'Source: website, referral, social_media, cold_call, walk_in, whatsapp, email, erp, direct, other' },
+      { name: 'company_code', type: 'string', required: false, description: 'Company code' },
+      { name: 'designation', type: 'string', required: false, description: 'Job designation/title' },
+      { name: 'company_size', type: 'string', required: false, description: 'Company size' },
+      { name: 'industry', type: 'string', required: false, description: 'Industry name' },
+      { name: 'website', type: 'string', required: false, description: 'Company website URL' },
+      // Lead Details
+      { name: 'source', type: 'string', required: false, description: 'Source: pre_lead, direct, website, referral, social_media, cold_call, walk_in, whatsapp, email, erp, other' },
+      { name: 'source_details', type: 'string', required: false, description: 'Additional source details' },
+      { name: 'status', type: 'integer', required: false, description: 'Status: 0 = active, 1 = discarded' },
+      { name: 'lead_status', type: 'string', required: false, description: 'Workflow status: new, contacted, qualified, proposal_sent, negotiation, won, lost' },
       { name: 'priority', type: 'string', required: false, description: 'Priority: low, medium, high, critical' },
-      { name: 'product_interest', type: 'string', required: false, description: 'Products interested in' },
-      { name: 'requirements', type: 'string', required: false, description: 'Requirements' },
+      // Pipeline Stage
+      { name: 'pipeline_stage', type: 'integer', required: false, description: 'Pipeline stage (1-6)' },
+      // Financial
       { name: 'expected_value', type: 'number', required: false, description: 'Expected deal value' },
-      { name: 'city', type: 'string', required: false, description: 'City' },
-      { name: 'state', type: 'string', required: false, description: 'State' },
-      { name: 'country', type: 'string', required: false, description: 'Country' },
-      { name: 'assigned_to', type: 'integer', required: false, description: 'User ID to assign' },
-      { name: 'notes', type: 'string', required: false, description: 'Notes' },
+      { name: 'actual_value', type: 'number', required: false, description: 'Actual deal value' },
+      { name: 'currency', type: 'string', required: false, description: 'Currency code (default: INR)' },
+      // Products/Services
+      { name: 'product_interest', type: 'string', required: false, description: 'Products/services interested in' },
+      { name: 'requirements', type: 'string', required: false, description: 'Specific requirements' },
+      // Timeline
+      { name: 'expected_close_date', type: 'string', required: false, description: 'Expected close date (ISO 8601)' },
+      { name: 'last_contacted', type: 'string', required: false, description: 'Last contacted date (ISO 8601)' },
+      { name: 'next_follow_up', type: 'string', required: false, description: 'Next follow-up date (ISO 8601)' },
+      // Location
+      { name: 'address', type: 'string', required: false, description: 'Full address' },
+      { name: 'address_line1', type: 'string', required: false, description: 'Address line 1' },
+      { name: 'address_line2', type: 'string', required: false, description: 'Address line 2' },
+      { name: 'city', type: 'string', required: false, description: 'City name' },
+      { name: 'city_id', type: 'integer', required: false, description: 'City ID' },
+      { name: 'state', type: 'string', required: false, description: 'State name' },
+      { name: 'state_id', type: 'integer', required: false, description: 'State ID' },
+      { name: 'country', type: 'string', required: false, description: 'Country name' },
+      { name: 'country_id', type: 'integer', required: false, description: 'Country ID' },
+      { name: 'pincode', type: 'string', required: false, description: 'Pincode' },
+      { name: 'zip_code', type: 'string', required: false, description: 'ZIP/Postal code' },
+      // Contact Fields
+      { name: 'phone_no', type: 'string', required: false, description: 'Office phone number' },
+      { name: 'fax', type: 'string', required: false, description: 'Fax number' },
+      { name: 'nof_representative', type: 'string', required: false, description: 'Name of representative' },
+      // Business Fields
+      { name: 'memo', type: 'string', required: false, description: 'Memo text' },
+      { name: 'group_id', type: 'integer', required: false, description: 'Group ID' },
+      { name: 'industry_id', type: 'integer', required: false, description: 'Industry ID' },
+      { name: 'region_id', type: 'integer', required: false, description: 'Region ID' },
+      { name: 'office_timings', type: 'string', required: false, description: 'Office timings' },
+      { name: 'timezone', type: 'string', required: false, description: 'Timezone' },
+      { name: 'lead_source', type: 'string', required: false, description: 'Lead source' },
+      { name: 'lead_score', type: 'integer', required: false, description: 'Lead score' },
+      { name: 'sales_rep', type: 'string', required: false, description: 'Sales representative' },
+      { name: 'lead_since', type: 'string', required: false, description: 'Lead since date (ISO 8601)' },
+      { name: 'remarks', type: 'string', required: false, description: 'Remarks' },
+      // Notes
+      { name: 'notes', type: 'string', required: false, description: 'Additional notes' },
+      // Assignment
+      { name: 'assigned_to', type: 'integer', required: false, description: 'Assigned user ID' },
+      { name: 'team_id', type: 'integer', required: false, description: 'Team ID' },
+      // System Tracking
+      { name: 'company_id', type: 'integer', required: false, description: 'Company ID' },
+      { name: 'createdby', type: 'integer', required: false, description: 'Created by user ID' },
+      { name: 'updatedby', type: 'integer', required: false, description: 'Updated by user ID' },
     ],
     example: `{
   "event": "new_lead",
@@ -383,17 +890,58 @@ const leadAPIs = [
     "last_name": "Johnson",
     "email": "robert@example.com",
     "phone": "+1234567893",
-    "company_name": "XYZ Industries",
+    "alternate_phone": "+1234567894",
+    "company_name": "XYZ Industries Inc.",
+    "company_code": "XYZ-001",
+    "designation": "Chief Technology Officer",
+    "company_size": "500-1000",
+    "industry": "Manufacturing",
+    "website": "https://www.xyzindustries.com",
     "source": "referral",
+    "source_details": "Referred by ABC Corp",
+    "status": 0,
+    "lead_status": "new",
     "priority": "high",
-    "product_interest": "Enterprise Suite",
-    "requirements": "Full CRM implementation with custom integrations",
+    "pipeline_stage": 1,
     "expected_value": 100000.00,
-    "city": "Los Angeles",
-    "state": "CA",
+    "actual_value": null,
+    "currency": "USD",
+    "product_interest": "Enterprise CRM Suite",
+    "requirements": "Full CRM implementation with ERP integration",
+    "expected_close_date": "2024-03-15T00:00:00Z",
+    "last_contacted": null,
+    "next_follow_up": "2024-01-20T10:00:00Z",
+    "address": "123 Industrial Park, Building A",
+    "address_line1": "123 Industrial Park",
+    "address_line2": "Building A, Floor 5",
+    "city": "Chicago",
+    "city_id": 25,
+    "state": "Illinois",
+    "state_id": 14,
     "country": "USA",
+    "country_id": 1,
+    "pincode": "60601",
+    "zip_code": "60601",
+    "phone_no": "+1-312-555-0100",
+    "fax": "+1-312-555-0101",
+    "nof_representative": "Michael Brown",
+    "memo": "New enterprise prospect",
+    "group_id": 3,
+    "industry_id": 15,
+    "region_id": 5,
+    "office_timings": "8:00 AM - 5:00 PM CST",
+    "timezone": "America/Chicago",
+    "lead_source": "Partner Referral",
+    "lead_score": 75,
+    "sales_rep": "John Smith",
+    "lead_since": "2024-01-15T00:00:00Z",
+    "remarks": "High potential enterprise client",
+    "notes": "Referred by existing client ABC Corp",
     "assigned_to": 5,
-    "notes": "Referred by existing client ABC Corp"
+    "team_id": 2,
+    "company_id": 1,
+    "createdby": 1,
+    "updatedby": 1
   }
 }`,
     response: `{
@@ -408,21 +956,81 @@ const leadAPIs = [
     method: 'POST',
     endpoint: '/api/v1/webhooks/incoming/lead/{lead_id}/update',
     event: 'lead_update',
-    description: 'Updates an existing lead',
+    description: 'Updates an existing lead with all company details fields',
     laravelMethod: 'updateLead',
     hasPathParam: true,
     paramName: 'leadId',
     fields: [
+      // Basic Information
       { name: 'first_name', type: 'string', required: false, description: 'First name' },
       { name: 'last_name', type: 'string', required: false, description: 'Last name' },
-      { name: 'email', type: 'string', required: false, description: 'Email' },
-      { name: 'phone', type: 'string', required: false, description: 'Phone' },
+      { name: 'email', type: 'string', required: false, description: 'Email address' },
+      { name: 'phone', type: 'string', required: false, description: 'Phone number' },
+      { name: 'alternate_phone', type: 'string', required: false, description: 'Alternate phone number' },
+      // Company Information
       { name: 'company_name', type: 'string', required: false, description: 'Company name' },
-      { name: 'designation', type: 'string', required: false, description: 'Designation' },
-      { name: 'expected_value', type: 'number', required: false, description: 'Expected value' },
-      { name: 'lead_status', type: 'string', required: false, description: 'Lead status' },
-      { name: 'priority', type: 'string', required: false, description: 'Priority' },
-      { name: 'notes', type: 'string', required: false, description: 'Notes' },
+      { name: 'company_code', type: 'string', required: false, description: 'Company code' },
+      { name: 'designation', type: 'string', required: false, description: 'Job designation/title' },
+      { name: 'company_size', type: 'string', required: false, description: 'Company size' },
+      { name: 'industry', type: 'string', required: false, description: 'Industry name' },
+      { name: 'website', type: 'string', required: false, description: 'Company website URL' },
+      // Lead Details
+      { name: 'source', type: 'string', required: false, description: 'Source: pre_lead, direct, website, referral, social_media, cold_call, walk_in, whatsapp, email, erp, other' },
+      { name: 'source_details', type: 'string', required: false, description: 'Additional source details' },
+      { name: 'status', type: 'integer', required: false, description: 'Status: 0 = active, 1 = discarded' },
+      { name: 'lead_status', type: 'string', required: false, description: 'Workflow status: new, contacted, qualified, proposal_sent, negotiation, won, lost' },
+      { name: 'priority', type: 'string', required: false, description: 'Priority: low, medium, high, critical' },
+      // Pipeline Stage
+      { name: 'pipeline_stage', type: 'integer', required: false, description: 'Pipeline stage (1-6)' },
+      // Financial
+      { name: 'expected_value', type: 'number', required: false, description: 'Expected deal value' },
+      { name: 'actual_value', type: 'number', required: false, description: 'Actual deal value' },
+      { name: 'currency', type: 'string', required: false, description: 'Currency code (default: INR)' },
+      // Products/Services
+      { name: 'product_interest', type: 'string', required: false, description: 'Products/services interested in' },
+      { name: 'requirements', type: 'string', required: false, description: 'Specific requirements' },
+      // Timeline
+      { name: 'expected_close_date', type: 'string', required: false, description: 'Expected close date (ISO 8601)' },
+      { name: 'last_contacted', type: 'string', required: false, description: 'Last contacted date (ISO 8601)' },
+      { name: 'next_follow_up', type: 'string', required: false, description: 'Next follow-up date (ISO 8601)' },
+      // Location
+      { name: 'address', type: 'string', required: false, description: 'Full address' },
+      { name: 'address_line1', type: 'string', required: false, description: 'Address line 1' },
+      { name: 'address_line2', type: 'string', required: false, description: 'Address line 2' },
+      { name: 'city', type: 'string', required: false, description: 'City name' },
+      { name: 'city_id', type: 'integer', required: false, description: 'City ID' },
+      { name: 'state', type: 'string', required: false, description: 'State name' },
+      { name: 'state_id', type: 'integer', required: false, description: 'State ID' },
+      { name: 'country', type: 'string', required: false, description: 'Country name' },
+      { name: 'country_id', type: 'integer', required: false, description: 'Country ID' },
+      { name: 'pincode', type: 'string', required: false, description: 'Pincode' },
+      { name: 'zip_code', type: 'string', required: false, description: 'ZIP/Postal code' },
+      // Contact Fields
+      { name: 'phone_no', type: 'string', required: false, description: 'Office phone number' },
+      { name: 'fax', type: 'string', required: false, description: 'Fax number' },
+      { name: 'nof_representative', type: 'string', required: false, description: 'Name of representative' },
+      // Business Fields
+      { name: 'memo', type: 'string', required: false, description: 'Memo text' },
+      { name: 'group_id', type: 'integer', required: false, description: 'Group ID' },
+      { name: 'industry_id', type: 'integer', required: false, description: 'Industry ID' },
+      { name: 'region_id', type: 'integer', required: false, description: 'Region ID' },
+      { name: 'office_timings', type: 'string', required: false, description: 'Office timings' },
+      { name: 'timezone', type: 'string', required: false, description: 'Timezone' },
+      { name: 'lead_source', type: 'string', required: false, description: 'Lead source' },
+      { name: 'lead_score', type: 'integer', required: false, description: 'Lead score' },
+      { name: 'sales_rep', type: 'string', required: false, description: 'Sales representative' },
+      { name: 'lead_since', type: 'string', required: false, description: 'Lead since date (ISO 8601)' },
+      { name: 'remarks', type: 'string', required: false, description: 'Remarks' },
+      // Notes
+      { name: 'notes', type: 'string', required: false, description: 'Additional notes' },
+      { name: 'loss_reason', type: 'string', required: false, description: 'Reason for loss' },
+      // Assignment
+      { name: 'assigned_to', type: 'integer', required: false, description: 'Assigned user ID' },
+      { name: 'team_id', type: 'integer', required: false, description: 'Team ID' },
+      // System Tracking
+      { name: 'company_id', type: 'integer', required: false, description: 'Company ID' },
+      { name: 'createdby', type: 'integer', required: false, description: 'Created by user ID' },
+      { name: 'updatedby', type: 'integer', required: false, description: 'Updated by user ID' },
     ],
     example: `{
   "event": "lead_update",
@@ -432,12 +1040,59 @@ const leadAPIs = [
     "last_name": "Johnson Jr.",
     "email": "robert.johnson@xyzindustries.com",
     "phone": "+1234567894",
+    "alternate_phone": "+1234567895",
     "company_name": "XYZ Industries Inc.",
+    "company_code": "XYZ-001",
     "designation": "Chief Technology Officer",
-    "expected_value": 150000.00,
+    "company_size": "500-1000",
+    "industry": "Manufacturing",
+    "website": "https://www.xyzindustries.com",
+    "source": "referral",
+    "source_details": "Referred by ABC Corp",
+    "status": 0,
     "lead_status": "proposal_sent",
     "priority": "critical",
-    "notes": "Decision expected by end of month"
+    "pipeline_stage": 4,
+    "expected_value": 150000.00,
+    "actual_value": 145000.00,
+    "currency": "USD",
+    "product_interest": "Enterprise CRM Suite",
+    "requirements": "Full CRM implementation with ERP integration",
+    "expected_close_date": "2024-03-15T00:00:00Z",
+    "last_contacted": "2024-01-10T14:30:00Z",
+    "next_follow_up": "2024-01-20T10:00:00Z",
+    "address": "123 Industrial Park, Building A",
+    "address_line1": "123 Industrial Park",
+    "address_line2": "Building A, Floor 5",
+    "city": "Chicago",
+    "city_id": 25,
+    "state": "Illinois",
+    "state_id": 14,
+    "country": "USA",
+    "country_id": 1,
+    "pincode": "60601",
+    "zip_code": "60601",
+    "phone_no": "+1-312-555-0100",
+    "fax": "+1-312-555-0101",
+    "nof_representative": "Michael Brown",
+    "memo": "Key strategic account",
+    "group_id": 3,
+    "industry_id": 15,
+    "region_id": 5,
+    "office_timings": "8:00 AM - 5:00 PM CST",
+    "timezone": "America/Chicago",
+    "lead_source": "Partner Referral",
+    "lead_score": 85,
+    "sales_rep": "John Smith",
+    "lead_since": "2024-01-01T00:00:00Z",
+    "remarks": "High potential enterprise client",
+    "notes": "Decision expected by end of month",
+    "loss_reason": null,
+    "assigned_to": 5,
+    "team_id": 2,
+    "company_id": 1,
+    "createdby": 1,
+    "updatedby": 5
   }
 }`,
     response: `{
@@ -480,32 +1135,77 @@ const leadAPIs = [
     method: 'POST',
     endpoint: '/api/v1/webhooks/incoming/lead/{lead_id}/contact/add',
     event: 'lead_contact_add',
-    description: 'Adds a new contact person to a lead',
+    description: 'Adds a new contact person to a lead with all contact details',
     laravelMethod: 'addLeadContact',
     hasPathParam: true,
     paramName: 'leadId',
     fields: [
+      // Tracking Fields
+      { name: 'company_id', type: 'integer', required: false, description: 'Company ID to track data for specific customers' },
+      { name: 'pre_lead_id', type: 'integer', required: false, description: 'Pre-lead ID to track origin data' },
+      // Contact Type
+      { name: 'contact_type', type: 'string', required: false, description: 'Type: primary, billing, technical, decision_maker' },
+      // Basic Information
+      { name: 'title', type: 'string', required: false, description: 'Title: Mr., Mrs., Ms., Dr.' },
       { name: 'first_name', type: 'string', required: true, description: 'Contact first name' },
       { name: 'last_name', type: 'string', required: false, description: 'Contact last name' },
-      { name: 'email', type: 'string', required: false, description: 'Contact email' },
-      { name: 'phone', type: 'string', required: false, description: 'Contact phone' },
-      { name: 'designation', type: 'string', required: false, description: 'Job title' },
+      { name: 'designation', type: 'string', required: false, description: 'Job title/designation' },
       { name: 'department', type: 'string', required: false, description: 'Department' },
       { name: 'is_primary', type: 'boolean', required: false, description: 'Is primary contact' },
-      { name: 'contact_type', type: 'string', required: false, description: 'Type: primary, billing, technical, decision_maker' },
+      // Contact Details
+      { name: 'email', type: 'string', required: false, description: 'Primary email address' },
+      { name: 'work_email', type: 'string', required: false, description: 'Work email address' },
+      { name: 'personal_email', type: 'string', required: false, description: 'Personal email address' },
+      { name: 'phone', type: 'string', required: false, description: 'Primary phone number' },
+      { name: 'work_phone', type: 'string', required: false, description: 'Work phone number' },
+      { name: 'ext', type: 'string', required: false, description: 'Phone extension' },
+      { name: 'fax', type: 'string', required: false, description: 'Fax number' },
+      { name: 'cell_phone', type: 'string', required: false, description: 'Cell/mobile phone number' },
+      { name: 'home_phone', type: 'string', required: false, description: 'Home phone number' },
+      // Social Media Links
+      { name: 'linkedin_url', type: 'string', required: false, description: 'LinkedIn profile URL' },
+      { name: 'facebook_url', type: 'string', required: false, description: 'Facebook profile URL' },
+      { name: 'twitter_url', type: 'string', required: false, description: 'Twitter profile URL' },
+      // Profile Image
+      { name: 'image', type: 'string', required: false, description: 'Profile image URL' },
+      // Status
+      { name: 'status', type: 'string', required: false, description: 'Status: active, inactive' },
+      // Notes
+      { name: 'notes', type: 'string', required: false, description: 'Additional notes' },
+      // System Fields
+      { name: 'created_by', type: 'integer', required: false, description: 'Created by user ID' },
+      { name: 'updated_by', type: 'integer', required: false, description: 'Updated by user ID' },
     ],
     example: `{
   "event": "lead_contact_add",
   "source": "crm",
   "data": {
+    "company_id": 1,
+    "pre_lead_id": 123,
+    "contact_type": "decision_maker",
+    "title": "Ms.",
     "first_name": "Sarah",
     "last_name": "Williams",
-    "email": "sarah@xyz.com",
-    "phone": "+1234567895",
-    "designation": "CTO",
+    "designation": "Chief Technology Officer",
     "department": "Technology",
-    "is_primary": false,
-    "contact_type": "technical"
+    "is_primary": true,
+    "email": "sarah.williams@xyzindustries.com",
+    "work_email": "sarah.williams@xyzindustries.com",
+    "personal_email": "sarah.williams@gmail.com",
+    "phone": "+1-312-555-0200",
+    "work_phone": "+1-312-555-0201",
+    "ext": "301",
+    "fax": "+1-312-555-0202",
+    "cell_phone": "+1-312-555-0203",
+    "home_phone": "+1-312-555-0204",
+    "linkedin_url": "https://linkedin.com/in/sarahwilliams",
+    "facebook_url": "https://facebook.com/sarahwilliams",
+    "twitter_url": "https://twitter.com/sarahwilliams",
+    "image": "https://example.com/images/sarah-williams.jpg",
+    "status": "active",
+    "notes": "Key decision maker for technology purchases",
+    "created_by": 5,
+    "updated_by": 5
   }
 }`,
     response: `{
@@ -520,30 +1220,50 @@ const leadAPIs = [
     method: 'POST',
     endpoint: '/api/v1/webhooks/incoming/lead/{lead_id}/activity/add',
     event: 'lead_activity_add',
-    description: 'Logs an activity (call, email, meeting, etc.) for a lead',
+    description: 'Logs an activity (call, email, meeting, etc.) for a lead with all details',
     laravelMethod: 'addLeadActivity',
     hasPathParam: true,
     paramName: 'leadId',
     fields: [
+      // Tracking Fields
+      { name: 'company_id', type: 'integer', required: false, description: 'Company ID to track data for specific customers' },
+      { name: 'pre_lead_id', type: 'integer', required: false, description: 'Pre-lead ID to track origin data' },
+      // Activity Details
       { name: 'activity_type', type: 'string', required: true, description: 'Type: call, email, meeting, whatsapp, note, task, follow_up, other' },
       { name: 'subject', type: 'string', required: true, description: 'Activity subject/title' },
       { name: 'description', type: 'string', required: false, description: 'Activity description' },
-      { name: 'activity_date', type: 'string', required: false, description: 'Activity date (ISO format)' },
-      { name: 'due_date', type: 'string', required: false, description: 'Due date (ISO format)' },
-      { name: 'outcome', type: 'string', required: false, description: 'Activity outcome' },
+      { name: 'outcome', type: 'string', required: false, description: 'Activity outcome/result' },
+      // Dates
+      { name: 'activity_date', type: 'string', required: true, description: 'Activity date (YYYY-MM-DD)' },
+      { name: 'due_date', type: 'string', required: false, description: 'Due date (YYYY-MM-DD)' },
+      // Status
       { name: 'is_completed', type: 'boolean', required: false, description: 'Is activity completed' },
+      { name: 'completed_at', type: 'string', required: false, description: 'Completion timestamp (ISO 8601)' },
+      // Related Contact
+      { name: 'contact_id', type: 'integer', required: false, description: 'Related contact ID' },
+      // System Fields
+      { name: 'created_by', type: 'integer', required: false, description: 'Created by user ID' },
+      { name: 'updated_by', type: 'integer', required: false, description: 'Updated by user ID' },
+      { name: 'performed_by', type: 'integer', required: false, description: 'Performed by user ID' },
     ],
     example: `{
   "event": "lead_activity_add",
   "source": "crm",
   "data": {
+    "company_id": 1,
+    "pre_lead_id": 123,
     "activity_type": "meeting",
-    "subject": "Product Demo",
-    "description": "Full product demonstration with technical team. Covered all modules including CRM, Sales, and Reporting.",
-    "activity_date": "2024-01-20T14:00:00Z",
-    "due_date": "2024-01-20T16:00:00Z",
-    "outcome": "Positive feedback - client impressed with reporting capabilities",
-    "is_completed": true
+    "subject": "Product Demo - Enterprise CRM Suite",
+    "description": "Full product demonstration with technical team. Covered all modules including CRM, Sales, and Reporting. Attendees: John Doe (CEO), Sarah Williams (CTO), Michael Brown (IT Manager).",
+    "outcome": "Positive feedback - client impressed with reporting capabilities. Requested proposal with pricing for 100 users.",
+    "activity_date": "2024-01-20",
+    "due_date": "2024-01-20",
+    "is_completed": true,
+    "completed_at": "2024-01-20T16:30:00Z",
+    "contact_id": 101,
+    "created_by": 5,
+    "updated_by": 5,
+    "performed_by": 5
   }
 }`,
     response: `{
@@ -558,42 +1278,62 @@ const leadAPIs = [
     method: 'POST',
     endpoint: '/api/v1/webhooks/incoming/lead/{lead_id}/qualified-profile/update',
     event: 'lead_qualified_profile_update',
-    description: 'Updates or creates the qualified lead profile',
+    description: 'Updates or creates the qualified lead profile with all database fields',
     laravelMethod: 'updateLeadQualifiedProfile',
     hasPathParam: true,
     paramName: 'leadId',
     fields: [
+      // Tracking Fields
+      { name: 'company_id', type: 'integer', required: false, description: 'Company ID to track data for specific customers' },
+      { name: 'pre_lead_id', type: 'integer', required: false, description: 'Pre-lead ID to track origin data' },
+      // Profile Type
       { name: 'profile_type', type: 'string', required: false, description: 'Type: basic, detailed, enterprise' },
+      // Company Information
       { name: 'company_name', type: 'string', required: false, description: 'Company name' },
       { name: 'company_type', type: 'string', required: false, description: 'Company type' },
-      { name: 'annual_revenue', type: 'string', required: false, description: 'Annual revenue' },
-      { name: 'employee_count', type: 'string', required: false, description: 'Employee count' },
-      { name: 'decision_maker', type: 'string', required: false, description: 'Decision maker' },
-      { name: 'budget', type: 'string', required: false, description: 'Budget' },
+      { name: 'industry_id', type: 'integer', required: false, description: 'Industry ID' },
+      { name: 'annual_revenue', type: 'string', required: false, description: 'Annual revenue range' },
+      { name: 'employee_count', type: 'string', required: false, description: 'Employee count range' },
+      // Decision Making
+      { name: 'decision_maker', type: 'string', required: false, description: 'Decision maker name/role' },
+      { name: 'decision_process', type: 'string', required: false, description: 'Decision process details' },
+      { name: 'budget', type: 'string', required: false, description: 'Budget amount/range' },
       { name: 'timeline', type: 'string', required: false, description: 'Decision timeline' },
-      { name: 'competitors', type: 'string', required: false, description: 'Competitor info' },
-      { name: 'current_solution', type: 'string', required: false, description: 'Current solution' },
+      // Competitive Information
+      { name: 'competitors', type: 'string', required: false, description: 'Competitor information' },
+      { name: 'current_solution', type: 'string', required: false, description: 'Current solution being used' },
+      // Pain Points & Requirements
       { name: 'pain_points', type: 'string', required: false, description: 'Pain points' },
       { name: 'requirements', type: 'string', required: false, description: 'Requirements' },
-      { name: 'notes', type: 'string', required: false, description: 'Notes' },
+      // Notes
+      { name: 'notes', type: 'string', required: false, description: 'Additional notes' },
+      // System Fields
+      { name: 'created_by', type: 'integer', required: false, description: 'Created by user ID' },
+      { name: 'updated_by', type: 'integer', required: false, description: 'Updated by user ID' },
     ],
     example: `{
   "event": "lead_qualified_profile_update",
   "source": "crm",
   "data": {
+    "company_id": 1,
+    "pre_lead_id": 123,
     "profile_type": "detailed",
-    "company_name": "XYZ Industries",
+    "company_name": "XYZ Industries Inc.",
     "company_type": "Manufacturing",
+    "industry_id": 15,
     "annual_revenue": "$10M-50M",
     "employee_count": "100-500",
     "decision_maker": "CEO - Robert Johnson",
+    "decision_process": "Committee decision involving CEO, CTO, and CFO. Final approval from board required for purchases over $100K.",
     "budget": "$150,000",
     "timeline": "Q2 2024",
-    "competitors": "Salesforce, HubSpot - currently evaluating both",
-    "current_solution": "Spreadsheets and manual tracking",
-    "pain_points": "Manual processes, no real-time visibility, difficult reporting",
-    "requirements": "Cloud-based, mobile access, custom reporting, API integration",
-    "notes": "Strong candidate - has budget approval and urgent timeline"
+    "competitors": "Salesforce, HubSpot - currently evaluating both. Price sensitivity noted.",
+    "current_solution": "Spreadsheets and manual tracking. No integrated CRM system.",
+    "pain_points": "Manual processes, no real-time visibility, difficult reporting, data silos between departments",
+    "requirements": "Cloud-based, mobile access, custom reporting, API integration with existing ERP",
+    "notes": "Strong candidate - has budget approval and urgent timeline. Key decision maker is supportive.",
+    "created_by": 5,
+    "updated_by": 5
   }
 }`,
     response: `{
@@ -608,22 +1348,33 @@ const leadAPIs = [
     method: 'POST',
     endpoint: '/api/v1/webhooks/incoming/lead/{lead_id}/memo/add',
     event: 'lead_memo_add',
-    description: 'Adds a memo/note to a lead',
+    description: 'Adds a memo/note to a lead with all database fields',
     laravelMethod: 'addLeadMemo',
     hasPathParam: true,
     paramName: 'leadId',
     fields: [
-      { name: 'title', type: 'string', required: true, description: 'Memo title' },
-      { name: 'content', type: 'string', required: true, description: 'Memo content' },
+      // Tracking Fields
+      { name: 'company_id', type: 'integer', required: false, description: 'Company ID to track data for specific customers' },
+      { name: 'pre_lead_id', type: 'integer', required: false, description: 'Pre-lead ID to track origin data' },
+      // Memo Details
       { name: 'memo_type', type: 'string', required: false, description: 'Type: general, meeting_notes, call_notes, internal, important' },
+      { name: 'title', type: 'string', required: true, description: 'Memo title' },
+      { name: 'content', type: 'string', required: true, description: 'Memo content (rich text supported)' },
+      // System Fields
+      { name: 'created_by', type: 'integer', required: false, description: 'Created by user ID' },
+      { name: 'updated_by', type: 'integer', required: false, description: 'Updated by user ID' },
     ],
     example: `{
   "event": "lead_memo_add",
   "source": "crm",
   "data": {
-    "title": "Negotiation Update",
-    "content": "Client requested 10% discount. Approved by manager.",
-    "memo_type": "general"
+    "company_id": 1,
+    "pre_lead_id": 123,
+    "memo_type": "meeting_notes",
+    "title": "Product Demo Meeting Notes - January 20, 2024",
+    "content": "<p><strong>Attendees:</strong></p><ul><li>John Doe (CEO) - XYZ Industries</li><li>Sarah Williams (CTO) - XYZ Industries</li><li>Michael Brown (Sales Rep) - Our Company</li></ul><p><strong>Discussion Points:</strong></p><ol><li>Presented full CRM suite capabilities</li><li>Demonstrated reporting and analytics module</li><li>Showed integration options with existing ERP</li></ol><p><strong>Client Feedback:</strong></p><ul><li>Impressed with reporting capabilities</li><li>Requested custom dashboard options</li><li>Asked about mobile app availability</li></ul><p><strong>Next Steps:</strong></p><ul><li>Send detailed proposal by January 25</li><li>Schedule technical deep-dive with IT team</li><li>Prepare ROI analysis document</li></ul>",
+    "created_by": 5,
+    "updated_by": 5
   }
 }`,
     response: `{
@@ -694,6 +1445,216 @@ const leadAPIs = [
   "data": { "lead_id": 789, "customer_id": 505, "customer_code": "CUST-XYZ-001" }
 }`
   },
+  {
+    id: 'lead-document-add',
+    title: 'Add Document to Lead',
+    method: 'POST',
+    endpoint: '/api/v1/webhooks/incoming/lead/{lead_id}/document/add',
+    event: 'lead_document_add',
+    description: 'Adds a document/file to a lead with all database fields including tracking fields',
+    laravelMethod: 'addLeadDocument',
+    hasPathParam: true,
+    paramName: 'leadId',
+    fields: [
+      // Tracking Fields
+      { name: 'company_id', type: 'integer', required: false, description: 'Company ID to track data for specific customers' },
+      { name: 'pre_lead_id', type: 'integer', required: false, description: 'Pre-lead ID to track origin data' },
+      // File Details
+      { name: 'name', type: 'string', required: true, description: 'Stored filename (system generated or custom)' },
+      { name: 'original_name', type: 'string', required: true, description: 'Original filename as uploaded by user' },
+      { name: 'file_path', type: 'string', required: true, description: 'Full file path or URL where file is stored' },
+      { name: 'file_type', type: 'string', required: false, description: 'MIME type or file extension (e.g., application/pdf, image/png, application/msword)' },
+      { name: 'size', type: 'integer', required: false, description: 'File size in bytes' },
+      // Metadata
+      { name: 'notes', type: 'string', required: false, description: 'Notes or description about the document' },
+      // System Fields
+      { name: 'uploaded_by', type: 'integer', required: false, description: 'User ID who uploaded the document' },
+    ],
+    example: `{
+  "event": "lead_document_add",
+  "source": "erp",
+  "data": {
+    "company_id": 1,
+    "pre_lead_id": 123,
+    "name": "contract_xyz_industries_2024_signed.pdf",
+    "original_name": "XYZ Industries - Contract Agreement Signed.pdf",
+    "file_path": "/uploads/leads/789/documents/contract_xyz_industries_2024_signed.pdf",
+    "file_type": "application/pdf",
+    "size": 1048576,
+    "notes": "Signed contract agreement - 3 year enterprise license with premium support package.",
+    "uploaded_by": 5
+  }
+}`,
+    response: `{
+  "status": "success",
+  "message": "Document added successfully",
+  "data": {
+    "document_id": 606,
+    "lead_id": 789,
+    "name": "contract_xyz_industries_2024_signed.pdf",
+    "original_name": "XYZ Industries - Contract Agreement Signed.pdf",
+    "file_path": "/uploads/leads/789/documents/contract_xyz_industries_2024_signed.pdf",
+    "file_type": "application/pdf",
+    "size": 1048576
+  }
+}`
+  },
+  {
+    id: 'lead-document-update',
+    title: 'Update Lead Document',
+    method: 'POST',
+    endpoint: '/api/v1/webhooks/incoming/lead/{lead_id}/document/{document_id}/update',
+    event: 'lead_document_update',
+    description: 'Updates an existing document attached to a lead with all updatable fields',
+    laravelMethod: 'updateLeadDocument',
+    hasPathParam: true,
+    paramName: 'leadId',
+    fields: [
+      // Tracking Fields
+      { name: 'company_id', type: 'integer', required: false, description: 'Company ID to track data for specific customers' },
+      { name: 'pre_lead_id', type: 'integer', required: false, description: 'Pre-lead ID to track origin data' },
+      // File Details (all optional for update)
+      { name: 'name', type: 'string', required: false, description: 'Stored filename' },
+      { name: 'original_name', type: 'string', required: false, description: 'Original filename' },
+      { name: 'file_path', type: 'string', required: false, description: 'File path or URL where file is stored' },
+      { name: 'file_type', type: 'string', required: false, description: 'MIME type or file extension' },
+      { name: 'size', type: 'integer', required: false, description: 'File size in bytes' },
+      // Metadata
+      { name: 'notes', type: 'string', required: false, description: 'Notes or description about the document' },
+      // System Fields
+      { name: 'uploaded_by', type: 'integer', required: false, description: 'User ID who uploaded the document' },
+    ],
+    example: `{
+  "event": "lead_document_update",
+  "source": "erp",
+  "data": {
+    "notes": "Updated contract - Version 2 with revised payment terms. Approved by legal.",
+    "file_type": "application/pdf",
+    "size": 2097152
+  }
+}`,
+    response: `{
+  "status": "success",
+  "message": "Document updated successfully",
+  "data": {
+    "document_id": 606,
+    "lead_id": 789,
+    "name": "contract_xyz_industries_2024_signed.pdf",
+    "original_name": "XYZ Industries - Contract Agreement Signed.pdf",
+    "file_path": "/uploads/leads/789/documents/contract_xyz_industries_2024_signed.pdf",
+    "file_type": "application/pdf",
+    "size": 2097152,
+    "notes": "Updated contract - Version 2 with revised payment terms. Approved by legal."
+  }
+}`
+  },
+  {
+    id: 'lead-document-delete',
+    title: 'Delete Lead Document',
+    method: 'POST',
+    endpoint: '/api/v1/webhooks/incoming/lead/{lead_id}/document/{document_id}/delete',
+    event: 'lead_document_delete',
+    description: 'Deletes a document from a lead',
+    laravelMethod: 'deleteLeadDocument',
+    hasPathParam: true,
+    paramName: 'leadId',
+    fields: [
+      { name: 'reason', type: 'string', required: false, description: 'Reason for deleting the document' },
+    ],
+    example: `{
+  "event": "lead_document_delete",
+  "source": "erp",
+  "data": {
+    "reason": "Duplicate document - superseded by newer version"
+  }
+}`,
+    response: `{
+  "status": "success",
+  "message": "Document deleted successfully",
+  "data": {
+    "document_id": 606,
+    "name": "contract_xyz_industries_2024_old.pdf",
+    "original_name": "XYZ Industries - Contract Agreement Old.pdf"
+  }
+}`
+  },
+  {
+    id: 'lead-get-by-company',
+    title: 'Get All Leads by Company',
+    method: 'GET',
+    endpoint: '/api/v1/leads/by-company/{company_id}',
+    event: 'get_leads_by_company',
+    description: 'Retrieves all leads that share the same company_id. Useful for tracking leads across the same customer/company with pagination and filtering.',
+    laravelMethod: 'getLeadsByCompany',
+    hasPathParam: true,
+    paramName: 'companyId',
+    fields: [
+      // Path Parameter
+      { name: 'company_id', type: 'integer', required: true, description: 'Company ID to filter leads by (path parameter)' },
+      // Query Parameters
+      { name: 'page', type: 'integer', required: false, description: 'Page number (default: 1)' },
+      { name: 'page_size', type: 'integer', required: false, description: 'Items per page (default: 20, max: 100)' },
+      { name: 'search', type: 'string', required: false, description: 'Search in first_name, last_name, email, phone, company_name' },
+      { name: 'status', type: 'integer', required: false, description: 'Filter by status: 0 = active, 1 = discarded' },
+      { name: 'lead_status', type: 'string', required: false, description: 'Filter by lead_status: new, contacted, qualified, proposal_sent, negotiation, won, lost' },
+      { name: 'source', type: 'string', required: false, description: 'Filter by source: pre_lead, direct, website, referral, social_media, cold_call, walk_in, whatsapp, email, erp, other' },
+      { name: 'priority', type: 'string', required: false, description: 'Filter by priority: low, medium, high, critical' },
+    ],
+    example: `// GET Request - No body required
+// URL: /api/v1/leads/by-company/1?page=1&page_size=20&status=0&lead_status=qualified
+
+// Query Parameters:
+{
+  "company_id": 1,
+  "page": 1,
+  "page_size": 20,
+  "search": "john",
+  "status": 0,
+  "lead_status": "qualified",
+  "source": "website",
+  "priority": "high"
+}`,
+    response: `{
+  "items": [
+    {
+      "id": 789,
+      "first_name": "John",
+      "last_name": "Doe",
+      "email": "john.doe@example.com",
+      "phone": "+1234567890",
+      "company_name": "ABC Corporation",
+      "company_id": 1,
+      "source": "pre_lead",
+      "priority": "high",
+      "lead_status": "qualified",
+      "status": 0,
+      "expected_value": 50000.00,
+      "is_converted": false,
+      "created_at": "2024-01-15T10:30:00Z"
+    },
+    {
+      "id": 790,
+      "first_name": "Jane",
+      "last_name": "Smith",
+      "email": "jane.smith@example.com",
+      "phone": "+1234567891",
+      "company_name": "ABC Corporation",
+      "company_id": 1,
+      "source": "referral",
+      "priority": "medium",
+      "lead_status": "negotiation",
+      "status": 0,
+      "expected_value": 75000.00,
+      "is_converted": false,
+      "created_at": "2024-01-16T09:00:00Z"
+    }
+  ],
+  "total": 15,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 1
+}`
+  },
 ];
 
 interface APIDocCardProps {
@@ -712,8 +1673,8 @@ function APIDocCard({ api, isExpanded, onToggle }: APIDocCardProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const curlExample = generateCurlExample(api.endpoint, api.example, api.hasPathParam);
-  const laravelExample = generateLaravelExample(api.endpoint, api.example, api.laravelMethod, api.hasPathParam, api.paramName);
+  const curlExample = generateCurlExample(api.endpoint, api.example, api.hasPathParam, api.method);
+  const laravelExample = generateLaravelExample(api.endpoint, api.example, api.laravelMethod, api.hasPathParam, api.paramName, api.method);
 
   const getCodeContent = () => {
     switch (codeTab) {
@@ -733,7 +1694,11 @@ function APIDocCard({ api, isExpanded, onToggle }: APIDocCardProps) {
         className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <span className="px-2 py-1 text-xs font-bold rounded bg-green-100 text-green-700">
+          <span className={`px-2 py-1 text-xs font-bold rounded ${
+            api.method === 'GET'
+              ? 'bg-blue-100 text-blue-700'
+              : 'bg-green-100 text-green-700'
+          }`}>
             {api.method}
           </span>
           <span className="font-medium text-gray-900">{api.title}</span>
@@ -1175,13 +2140,13 @@ class CrmWebhookService
         ]);
     }
 
-    public function addPreLeadMemo(int $preLeadId, string $title, string $content, ?string $memoType = 'general'): array
+    public function addPreLeadMemo(int $preLeadId, array $memo): array
     {
         return $this->sendRequest("/api/v1/webhooks/incoming/pre-lead/{$preLeadId}/memo/add", [
             'event' => 'pre_lead_memo_add',
             'source' => 'laravel',
             'timestamp' => now()->toIso8601String(),
-            'data' => ['title' => $title, 'content' => $content, 'memo_type' => $memoType],
+            'data' => $memo,
         ]);
     }
 
@@ -1192,6 +2157,16 @@ class CrmWebhookService
             'source' => 'laravel',
             'timestamp' => now()->toIso8601String(),
             'data' => ['lead_status' => $status, 'remarks' => $remarks],
+        ]);
+    }
+
+    public function updatePreLeadCompanyProfile(int $preLeadId, array $profile): array
+    {
+        return $this->sendRequest("/api/v1/webhooks/incoming/pre-lead/{$preLeadId}/company-profile/update", [
+            'event' => 'pre_lead_company_profile_update',
+            'source' => 'laravel',
+            'timestamp' => now()->toIso8601String(),
+            'data' => $profile,
         ]);
     }
 
@@ -1267,13 +2242,13 @@ class CrmWebhookService
         ]);
     }
 
-    public function addLeadMemo(int $leadId, string $title, string $content, ?string $memoType = 'general'): array
+    public function addLeadMemo(int $leadId, array $memo): array
     {
         return $this->sendRequest("/api/v1/webhooks/incoming/lead/{$leadId}/memo/add", [
             'event' => 'lead_memo_add',
             'source' => 'laravel',
             'timestamp' => now()->toIso8601String(),
-            'data' => ['title' => $title, 'content' => $content, 'memo_type' => $memoType],
+            'data' => $memo,
         ]);
     }
 
@@ -1296,6 +2271,16 @@ class CrmWebhookService
             'data' => $customerData,
         ]);
     }
+
+    public function uploadLeadDocument(int $leadId, array $document): array
+    {
+        return $this->sendRequest("/api/v1/webhooks/incoming/lead/{$leadId}/document/upload", [
+            'event' => 'lead_document_upload',
+            'source' => 'laravel',
+            'timestamp' => now()->toIso8601String(),
+            'data' => $document,
+        ]);
+    }
 }
 
 // ==================== USAGE EXAMPLES ====================
@@ -1305,109 +2290,380 @@ $crmService = app(CrmWebhookService::class);
 
 // ========== PRE-LEAD EXAMPLES ==========
 
-// Create a pre-lead with all fields
+// Create a pre-lead with all database fields
 $result = $crmService->createPreLead([
+    // Basic Information
     'first_name' => 'John',
     'last_name' => 'Doe',
     'email' => 'john@example.com',
     'phone' => '+1234567890',
-    'company_name' => 'ABC Corp',
+    'alternate_phone' => '+1234567800',
+    // Company Information
+    'company_name' => 'ABC Corporation Ltd.',
+    'designation' => 'Chief Executive Officer',
+    'website' => 'https://www.abccorp.com',
+    // Lead Details
     'source' => 'website',
-    'product_interest' => 'CRM Software',
-    'requirements' => 'Need enterprise solution with 50 users',
+    'source_details' => 'Contact form submission',
+    'status' => 0,
+    'discard_reason' => null,
+    // Interest & Requirements
+    'product_interest' => 'Enterprise CRM Suite',
+    'requirements' => 'Need full CRM implementation with ERP integration',
+    'budget_range' => '$50,000 - $100,000',
+    // Location
     'city' => 'New York',
-    'state' => 'NY',
+    'state' => 'New York',
     'country' => 'USA',
-    'address_line1' => '123 Business Street',
-    'address_line2' => 'Suite 100',
+    // Address Details
+    'address_line1' => '123 Business Avenue',
+    'address_line2' => 'Floor 15, Suite 1501',
     'zip_code' => '10001',
+    'city_id' => 1,
+    'state_id' => 33,
+    'country_id' => 1,
+    // Contact Details
+    'phone_no' => '+1-212-555-0100',
+    'fax' => '+1-212-555-0101',
+    'nof_representative' => 'Michael Johnson',
+    'memo' => 'Key decision maker, prefers email communication',
+    // Business Details
+    'group_id' => 5,
     'lead_status' => 'new',
-    'industry_id' => 1,
-    'region_id' => 2,
-    'office_timings' => '9:00 AM - 6:00 PM',
+    'industry_id' => 10,
+    'region_id' => 3,
+    'office_timings' => '9:00 AM - 6:00 PM EST',
     'timezone' => 'America/New_York',
+    'lead_source' => 'Website Form',
+    'sales_rep' => 8,
+    'lead_since' => '2024-01-15',
+    'lead_score' => 'B+',
+    // Notes
     'notes' => 'Interested in demo next week',
+    'remarks' => 'Initial inquiry from website',
+    // Assignment
+    'assigned_to' => 5,
+    // System Fields
+    'company_id' => 1,
+    'createdby' => 1,
+    'updatedby' => 1,
 ]);
 
-// Update pre-lead with all fields
+// Update pre-lead with all company details fields
 $crmService->updatePreLead(123, [
+    // Basic Information
     'first_name' => 'John',
     'last_name' => 'Doe Updated',
     'email' => 'john.updated@example.com',
     'phone' => '+1234567899',
-    'company_name' => 'ABC Corp Updated',
-    'lead_status' => 'contacted',
-    'notes' => 'Follow up scheduled for next Monday',
-    'remarks' => 'Client showed high interest in premium package',
+    'alternate_phone' => '+1234567800',
+    // Company Information
+    'company_name' => 'ABC Corporation Ltd.',
+    'designation' => 'Chief Executive Officer',
+    'website' => 'https://www.abccorp.com',
+    // Lead Details
+    'source' => 'referral',
+    'source_details' => 'Referred by XYZ Company',
+    'status' => 0,
+    'discard_reason' => null,
+    // Interest & Requirements
+    'product_interest' => 'Enterprise CRM Suite',
+    'requirements' => 'Need full CRM implementation with ERP integration',
+    'budget_range' => '$50,000 - $100,000',
+    // Location
+    'city' => 'New York',
+    'state' => 'New York',
+    'country' => 'USA',
+    // Address Details
+    'address_line1' => '123 Business Avenue',
+    'address_line2' => 'Floor 15, Suite 1501',
+    'zip_code' => '10001',
+    'city_id' => 1,
+    'state_id' => 33,
+    'country_id' => 1,
+    // Contact Details
+    'phone_no' => '+1-212-555-0100',
+    'fax' => '+1-212-555-0101',
+    'nof_representative' => 'Michael Johnson',
+    'memo' => 'Key decision maker, prefers email communication',
+    // Business Details
+    'group_id' => 5,
+    'lead_status' => 'qualified',
+    'industry_id' => 10,
+    'region_id' => 3,
+    'office_timings' => '9:00 AM - 6:00 PM EST',
+    'timezone' => 'America/New_York',
+    'lead_source' => 'Partner Referral',
+    'sales_rep' => 8,
+    'lead_since' => '2024-01-01',
+    'lead_score' => 'A+',
+    // Notes
+    'notes' => 'High priority prospect with confirmed budget',
+    'remarks' => 'Schedule demo for next week',
+    // Assignment
+    'assigned_to' => 5,
+    // System Fields
+    'company_id' => 1,
+    'createdby' => 1,
+    'updatedby' => 2,
 ]);
 
 // Discard pre-lead
 $crmService->discardPreLead(123, 'Not interested - budget constraints');
 
-// Add contact to pre-lead with all fields
+// Add contact to pre-lead with all database fields
 $crmService->addPreLeadContact(123, [
+    // Tracking Fields
+    'company_id' => 1,
+    'lead_id' => 456,
+    // Contact Type
+    'contact_type' => 'decision_maker',
+    // Basic Information
+    'title' => 'Mr.',
     'first_name' => 'Jane',
     'last_name' => 'Smith',
-    'email' => 'jane@abccorp.com',
-    'phone' => '+1234567891',
     'designation' => 'Procurement Manager',
-    'department' => 'Operations',
-    'is_primary' => true,
-    'contact_type' => 'decision_maker',
+    // Contact Details
+    'work_email' => 'jane.smith@abccorp.com',
+    'personal_email' => 'jane.smith@gmail.com',
+    'work_phone' => '+1-212-555-0102',
+    'ext' => '205',
+    'fax' => '+1-212-555-0103',
+    'cell_phone' => '+1-212-555-0104',
+    'home_phone' => '+1-212-555-0105',
+    // Social Media Links
+    'linkedin_url' => 'https://linkedin.com/in/janesmith',
+    'facebook_url' => 'https://facebook.com/janesmith',
+    'twitter_url' => 'https://twitter.com/janesmith',
+    // Profile Image
+    'image' => 'https://example.com/images/jane-smith.jpg',
+    // Status
+    'status' => 'active',
+    // Notes
+    'notes' => 'Primary decision maker for procurement',
+    // System Fields
+    'created_by' => 1,
+    'updated_by' => 1,
 ]);
 
-// Add memo to pre-lead
-$crmService->addPreLeadMemo(123, 'Initial Call Summary',
-    'Discussed requirements. Client needs enterprise solution.',
-    'call_notes'
-);
+// Add memo to pre-lead with all database fields
+$crmService->addPreLeadMemo(123, [
+    // Tracking Fields
+    'company_id' => 1,
+    'lead_id' => 456,
+    // Memo Details
+    'details' => '<p><strong>Initial Call Summary</strong></p><p>Discussed requirements with John Doe on 2024-01-15.</p><ul><li>Client needs enterprise CRM solution</li><li>Budget confirmed: $50,000 - $100,000</li><li>Timeline: Q2 2024 implementation</li><li>Decision maker: CEO</li></ul><p>Next steps: Schedule product demo for next week.</p>',
+    // System Fields
+    'created_by' => 5,
+    'updated_by' => 5,
+]);
 
 // Update pre-lead status
 $crmService->updatePreLeadStatus(123, 'qualified',
     'Qualified after initial assessment - budget confirmed'
 );
 
-// Convert pre-lead to lead with all fields
+// Update pre-lead company profile with all database fields
+$crmService->updatePreLeadCompanyProfile(123, [
+    // Tracking Fields
+    'company_id' => 1,
+    'lead_id' => 456,
+    // Contact Selection
+    'contact_id' => 456,
+    // Basic Info
+    'company_name' => 'ABC Corporation Ltd.',
+    'industry_id' => 10,
+    // Contact Info
+    'best_time_call' => '10:00 AM - 12:00 PM',
+    'best_time_call_timezone' => 1,
+    'mode' => 'Phone',
+    // Contact Details
+    'contact_name' => 'John Doe',
+    'designation' => 'Chief Executive Officer',
+    'phone' => '+1-212-555-0100',
+    'email' => 'john.doe@abccorp.com',
+    // Additional Information
+    'need_type' => 1,
+    'current_software' => 'SAP ERP',
+    'need_summary' => 'Looking to upgrade their CRM system with better integration capabilities',
+    'budget' => 3,
+    'decision_maker' => 456,
+    'time_frame' => 2,
+    'qualified_by' => 5,
+    // Rich Text Fields
+    'company_profile' => '<p>ABC Corporation is a leading manufacturer with operations in 5 countries.</p>',
+    'summary_of_discussion' => '<p>Discussed current pain points with existing CRM.</p>',
+    'conclusion' => '<p>Strong prospect with confirmed budget. Recommended for demo.</p>',
+    // Status
+    'status' => 'submitted',
+    // System Fields
+    'created_by' => 1,
+    'updated_by' => 5,
+]);
+
+// Convert pre-lead to lead with all fields including tracking
 $crmService->convertPreLeadToLead(123, [
+    // Tracking Fields
+    'company_id' => 1,
+    'lead_id' => 456,
+    // Conversion Details
     'priority' => 'high',
     'assigned_to' => 5,
     'expected_value' => 50000.00,
-    'notes' => 'High value prospect',
+    'notes' => 'High value prospect - qualified and ready for conversion',
+    // Conversion Tracking
+    'is_converted' => true,
+    'converted_at' => '2024-01-15T10:30:00Z',
+    'converted_by' => 5,
 ]);
 
 // ========== LEAD EXAMPLES ==========
 
-// Create lead with all fields
+// Create lead with all company details database fields
 $crmService->createLead([
+    // Basic Information
     'first_name' => 'Robert',
     'last_name' => 'Johnson',
     'email' => 'robert@example.com',
     'phone' => '+1234567893',
-    'company_name' => 'XYZ Industries',
+    'alternate_phone' => '+1234567894',
+    // Company Information
+    'company_name' => 'XYZ Industries Inc.',
+    'company_code' => 'XYZ-001',
+    'designation' => 'Chief Technology Officer',
+    'company_size' => '500-1000',
+    'industry' => 'Manufacturing',
+    'website' => 'https://www.xyzindustries.com',
+    // Lead Details
     'source' => 'referral',
+    'source_details' => 'Referred by ABC Corp',
+    'status' => 0,
+    'lead_status' => 'new',
     'priority' => 'high',
-    'product_interest' => 'Enterprise Suite',
-    'requirements' => 'Full CRM implementation with custom integrations',
+    // Pipeline Stage
+    'pipeline_stage' => 1,
+    // Financial
     'expected_value' => 100000.00,
-    'city' => 'Los Angeles',
-    'state' => 'CA',
+    'actual_value' => null,
+    'currency' => 'USD',
+    // Products/Services
+    'product_interest' => 'Enterprise CRM Suite',
+    'requirements' => 'Full CRM implementation with ERP integration',
+    // Timeline
+    'expected_close_date' => '2024-03-15T00:00:00Z',
+    'last_contacted' => null,
+    'next_follow_up' => '2024-01-20T10:00:00Z',
+    // Location
+    'address' => '123 Industrial Park, Building A',
+    'address_line1' => '123 Industrial Park',
+    'address_line2' => 'Building A, Floor 5',
+    'city' => 'Chicago',
+    'city_id' => 25,
+    'state' => 'Illinois',
+    'state_id' => 14,
     'country' => 'USA',
-    'assigned_to' => 5,
+    'country_id' => 1,
+    'pincode' => '60601',
+    'zip_code' => '60601',
+    // Contact Fields
+    'phone_no' => '+1-312-555-0100',
+    'fax' => '+1-312-555-0101',
+    'nof_representative' => 'Michael Brown',
+    // Business Fields
+    'memo' => 'New enterprise prospect',
+    'group_id' => 3,
+    'industry_id' => 15,
+    'region_id' => 5,
+    'office_timings' => '8:00 AM - 5:00 PM CST',
+    'timezone' => 'America/Chicago',
+    'lead_source' => 'Partner Referral',
+    'lead_score' => 75,
+    'sales_rep' => 'John Smith',
+    'lead_since' => '2024-01-15T00:00:00Z',
+    'remarks' => 'High potential enterprise client',
+    // Notes
     'notes' => 'Referred by existing client ABC Corp',
+    // Assignment
+    'assigned_to' => 5,
+    'team_id' => 2,
+    // System Tracking
+    'company_id' => 1,
+    'createdby' => 1,
+    'updatedby' => 1,
 ]);
 
-// Update lead with all fields
+// Update lead with all company details database fields
 $crmService->updateLead(789, [
+    // Basic Information
     'first_name' => 'Robert',
     'last_name' => 'Johnson Jr.',
     'email' => 'robert.johnson@xyzindustries.com',
     'phone' => '+1234567894',
+    'alternate_phone' => '+1234567895',
+    // Company Information
     'company_name' => 'XYZ Industries Inc.',
+    'company_code' => 'XYZ-001',
     'designation' => 'Chief Technology Officer',
-    'expected_value' => 150000.00,
+    'company_size' => '500-1000',
+    'industry' => 'Manufacturing',
+    'website' => 'https://www.xyzindustries.com',
+    // Lead Details
+    'source' => 'referral',
+    'source_details' => 'Referred by ABC Corp',
+    'status' => 0,
     'lead_status' => 'proposal_sent',
     'priority' => 'critical',
+    // Pipeline Stage
+    'pipeline_stage' => 4,
+    // Financial
+    'expected_value' => 150000.00,
+    'actual_value' => 145000.00,
+    'currency' => 'USD',
+    // Products/Services
+    'product_interest' => 'Enterprise CRM Suite',
+    'requirements' => 'Full CRM implementation with ERP integration',
+    // Timeline
+    'expected_close_date' => '2024-03-15T00:00:00Z',
+    'last_contacted' => '2024-01-10T14:30:00Z',
+    'next_follow_up' => '2024-01-20T10:00:00Z',
+    // Location
+    'address' => '123 Industrial Park, Building A',
+    'address_line1' => '123 Industrial Park',
+    'address_line2' => 'Building A, Floor 5',
+    'city' => 'Chicago',
+    'city_id' => 25,
+    'state' => 'Illinois',
+    'state_id' => 14,
+    'country' => 'USA',
+    'country_id' => 1,
+    'pincode' => '60601',
+    'zip_code' => '60601',
+    // Contact Fields
+    'phone_no' => '+1-312-555-0100',
+    'fax' => '+1-312-555-0101',
+    'nof_representative' => 'Michael Brown',
+    // Business Fields
+    'memo' => 'Key strategic account',
+    'group_id' => 3,
+    'industry_id' => 15,
+    'region_id' => 5,
+    'office_timings' => '8:00 AM - 5:00 PM CST',
+    'timezone' => 'America/Chicago',
+    'lead_source' => 'Partner Referral',
+    'lead_score' => 85,
+    'sales_rep' => 'John Smith',
+    'lead_since' => '2024-01-01T00:00:00Z',
+    'remarks' => 'High potential enterprise client',
+    // Notes
     'notes' => 'Decision expected by end of month',
+    'loss_reason' => null,
+    // Assignment
+    'assigned_to' => 5,
+    'team_id' => 2,
+    // System Tracking
+    'company_id' => 1,
+    'createdby' => 1,
+    'updatedby' => 5,
 ]);
 
 // Discard lead
@@ -1416,51 +2672,113 @@ $crmService->discardLead(789,
     'Price too high compared to competitor offering'
 );
 
-// Add contact to lead with all fields
+// Add contact to lead with all database fields
 $crmService->addLeadContact(789, [
+    // Tracking Fields
+    'company_id' => 1,
+    'pre_lead_id' => 123,
+    // Contact Type
+    'contact_type' => 'decision_maker',
+    // Basic Information
+    'title' => 'Ms.',
     'first_name' => 'Sarah',
     'last_name' => 'Williams',
-    'email' => 'sarah@xyz.com',
-    'phone' => '+1234567895',
-    'designation' => 'CTO',
+    'designation' => 'Chief Technology Officer',
     'department' => 'Technology',
-    'is_primary' => false,
-    'contact_type' => 'technical',
+    'is_primary' => true,
+    // Contact Details
+    'email' => 'sarah.williams@xyzindustries.com',
+    'work_email' => 'sarah.williams@xyzindustries.com',
+    'personal_email' => 'sarah.williams@gmail.com',
+    'phone' => '+1-312-555-0200',
+    'work_phone' => '+1-312-555-0201',
+    'ext' => '301',
+    'fax' => '+1-312-555-0202',
+    'cell_phone' => '+1-312-555-0203',
+    'home_phone' => '+1-312-555-0204',
+    // Social Media Links
+    'linkedin_url' => 'https://linkedin.com/in/sarahwilliams',
+    'facebook_url' => 'https://facebook.com/sarahwilliams',
+    'twitter_url' => 'https://twitter.com/sarahwilliams',
+    // Profile Image
+    'image' => 'https://example.com/images/sarah-williams.jpg',
+    // Status
+    'status' => 'active',
+    // Notes
+    'notes' => 'Key decision maker for technology purchases',
+    // System Fields
+    'created_by' => 5,
+    'updated_by' => 5,
 ]);
 
-// Add activity to lead with all fields
+// Add activity to lead with all database fields
 $crmService->addLeadActivity(789, [
+    // Tracking Fields
+    'company_id' => 1,
+    'pre_lead_id' => 123,
+    // Activity Details
     'activity_type' => 'meeting',
-    'subject' => 'Product Demo',
-    'description' => 'Full product demonstration with technical team',
-    'activity_date' => '2024-01-20T14:00:00Z',
-    'due_date' => '2024-01-20T16:00:00Z',
-    'outcome' => 'Positive feedback - client impressed',
+    'subject' => 'Product Demo - Enterprise CRM Suite',
+    'description' => 'Full product demonstration with technical team. Covered all modules including CRM, Sales, and Reporting. Attendees: John Doe (CEO), Sarah Williams (CTO), Michael Brown (IT Manager).',
+    'outcome' => 'Positive feedback - client impressed with reporting capabilities. Requested proposal with pricing for 100 users.',
+    // Dates
+    'activity_date' => '2024-01-20',
+    'due_date' => '2024-01-20',
+    // Status
     'is_completed' => true,
+    'completed_at' => '2024-01-20T16:30:00Z',
+    // Related Contact
+    'contact_id' => 101,
+    // System Fields
+    'created_by' => 5,
+    'updated_by' => 5,
+    'performed_by' => 5,
 ]);
 
-// Update qualified profile with all fields
+// Update qualified profile with all database fields
 $crmService->updateLeadQualifiedProfile(789, [
+    // Tracking Fields
+    'company_id' => 1,
+    'pre_lead_id' => 123,
+    // Profile Type
     'profile_type' => 'detailed',
-    'company_name' => 'XYZ Industries',
+    // Company Information
+    'company_name' => 'XYZ Industries Inc.',
     'company_type' => 'Manufacturing',
+    'industry_id' => 15,
     'annual_revenue' => '$10M-50M',
     'employee_count' => '100-500',
+    // Decision Making
     'decision_maker' => 'CEO - Robert Johnson',
+    'decision_process' => 'Committee decision involving CEO, CTO, and CFO',
     'budget' => '$150,000',
     'timeline' => 'Q2 2024',
-    'competitors' => 'Salesforce, HubSpot - currently evaluating',
+    // Competitive Information
+    'competitors' => 'Salesforce, HubSpot - currently evaluating both',
     'current_solution' => 'Spreadsheets and manual tracking',
-    'pain_points' => 'Manual processes, no real-time visibility',
-    'requirements' => 'Cloud-based, mobile access, custom reporting',
-    'notes' => 'Strong candidate - has budget approval',
+    // Pain Points & Requirements
+    'pain_points' => 'Manual processes, no real-time visibility, difficult reporting',
+    'requirements' => 'Cloud-based, mobile access, custom reporting, API integration',
+    // Notes
+    'notes' => 'Strong candidate - has budget approval and urgent timeline',
+    // System Fields
+    'created_by' => 5,
+    'updated_by' => 5,
 ]);
 
-// Add memo to lead
-$crmService->addLeadMemo(789, 'Negotiation Update',
-    'Client requested 10% discount. Approved by manager.',
-    'general'
-);
+// Add memo to lead with all database fields
+$crmService->addLeadMemo(789, [
+    // Tracking Fields
+    'company_id' => 1,
+    'pre_lead_id' => 123,
+    // Memo Details
+    'memo_type' => 'meeting_notes',
+    'title' => 'Product Demo Meeting Notes - January 20, 2024',
+    'content' => '<p><strong>Attendees:</strong></p><ul><li>John Doe (CEO) - XYZ Industries</li><li>Sarah Williams (CTO) - XYZ Industries</li></ul><p><strong>Discussion Points:</strong></p><ol><li>Presented full CRM suite capabilities</li><li>Demonstrated reporting and analytics module</li></ol><p><strong>Next Steps:</strong></p><ul><li>Send detailed proposal by January 25</li><li>Schedule technical deep-dive with IT team</li></ul>',
+    // System Fields
+    'created_by' => 5,
+    'updated_by' => 5,
+]);
 
 // Update lead status
 $crmService->updateLeadStatus(789, 'negotiation',
@@ -1473,6 +2791,23 @@ $crmService->convertLeadToCustomer(789, [
     'credit_limit' => 100000.00,
     'payment_terms' => 'Net 30',
     'notes' => 'VIP customer - premium support package included',
+]);
+
+// Upload document to lead with all database fields
+$crmService->uploadLeadDocument(789, [
+    // Tracking Fields
+    'company_id' => 1,
+    'pre_lead_id' => 123,
+    // File Details
+    'name' => 'proposal_xyz_industries_2024_v2.pdf',
+    'original_name' => 'XYZ Industries - Sales Proposal Final.pdf',
+    'file_path' => '/uploads/leads/789/documents/proposal_xyz_industries_2024_v2.pdf',
+    'file_type' => 'application/pdf',
+    'size' => 2548576,
+    // Metadata
+    'notes' => 'Final sales proposal with revised pricing - includes 15% discount as requested. Approved by sales manager.',
+    // System Fields
+    'uploaded_by' => 5,
 ]);`}
                 </pre>
               </div>
