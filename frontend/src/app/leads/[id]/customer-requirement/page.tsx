@@ -100,6 +100,8 @@ export default function CustomerRequirementPage() {
   const [showProposalModal, setShowProposalModal] = useState(false);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [showCallLogModal, setShowCallLogModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailModalData, setEmailModalData] = useState<any>({ tab: '', contactEmail: '', templateId: null });
   const [editingItem, setEditingItem] = useState<any>(null);
 
   // Form states
@@ -237,6 +239,12 @@ export default function CustomerRequirementPage() {
     }
   };
 
+  // Open email modal handler
+  const handleOpenEmailModal = (tab: string, contactEmail: string = '', templateId: number | null = null) => {
+    setEmailModalData({ tab, contactEmail, templateId });
+    setShowEmailModal(true);
+  };
+
   // Styles
   const inputClass = "w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500";
   const labelClass = "text-xs font-medium text-gray-700 mb-1";
@@ -317,6 +325,7 @@ export default function CustomerRequirementPage() {
               crId={cr?.id}
               leadId={leadId}
               customerData={formData}
+              onOpenEmailModal={handleOpenEmailModal}
             />
           )}
 
@@ -331,6 +340,7 @@ export default function CustomerRequirementPage() {
               labelClass={labelClass}
               crId={cr?.id}
               leadId={leadId}
+              onOpenEmailModal={handleOpenEmailModal}
             />
           )}
 
@@ -343,6 +353,7 @@ export default function CustomerRequirementPage() {
               leadId={leadId}
               presentations={presentations}
               refreshData={fetchData}
+              onOpenEmailModal={handleOpenEmailModal}
             />
           )}
 
@@ -355,6 +366,7 @@ export default function CustomerRequirementPage() {
               leadId={leadId}
               demos={demos}
               refreshData={fetchData}
+              onOpenEmailModal={handleOpenEmailModal}
             />
           )}
 
@@ -365,6 +377,7 @@ export default function CustomerRequirementPage() {
               crId={cr?.id}
               leadId={leadId}
               refreshData={fetchData}
+              onOpenEmailModal={handleOpenEmailModal}
             />
           )}
 
@@ -375,6 +388,7 @@ export default function CustomerRequirementPage() {
               crId={cr?.id}
               leadId={leadId}
               refreshData={fetchData}
+              onOpenEmailModal={handleOpenEmailModal}
             />
           )}
 
@@ -397,6 +411,7 @@ export default function CustomerRequirementPage() {
               crId={cr?.id}
               leadId={leadId}
               refreshData={fetchData}
+              onOpenEmailModal={handleOpenEmailModal}
             />
           )}
 
@@ -407,6 +422,7 @@ export default function CustomerRequirementPage() {
               crId={cr?.id}
               leadId={leadId}
               refreshData={fetchData}
+              onOpenEmailModal={handleOpenEmailModal}
             />
           )}
 
@@ -417,6 +433,7 @@ export default function CustomerRequirementPage() {
               crId={cr?.id}
               leadId={leadId}
               refreshData={fetchData}
+              onOpenEmailModal={handleOpenEmailModal}
             />
           )}
 
@@ -427,6 +444,7 @@ export default function CustomerRequirementPage() {
               crId={cr?.id}
               leadId={leadId}
               refreshData={fetchData}
+              onOpenEmailModal={handleOpenEmailModal}
             />
           )}
 
@@ -437,6 +455,7 @@ export default function CustomerRequirementPage() {
               crId={cr?.id}
               leadId={leadId}
               refreshData={fetchData}
+              onOpenEmailModal={handleOpenEmailModal}
             />
           )}
 
@@ -447,6 +466,7 @@ export default function CustomerRequirementPage() {
               crId={cr?.id}
               leadId={leadId}
               refreshData={fetchData}
+              onOpenEmailModal={handleOpenEmailModal}
             />
           )}
 
@@ -457,6 +477,7 @@ export default function CustomerRequirementPage() {
               crId={cr?.id}
               leadId={leadId}
               refreshData={fetchData}
+              onOpenEmailModal={handleOpenEmailModal}
             />
           )}
 
@@ -467,6 +488,7 @@ export default function CustomerRequirementPage() {
               crId={cr?.id}
               leadId={leadId}
               refreshData={fetchData}
+              onOpenEmailModal={handleOpenEmailModal}
             />
           )}
 
@@ -524,6 +546,20 @@ export default function CustomerRequirementPage() {
           crId={cr.id}
           editingItem={editingItem}
           refreshData={fetchData}
+        />
+      )}
+
+      {/* Email Modal */}
+      {showEmailModal && cr?.id && (
+        <EmailModal
+          isOpen={showEmailModal}
+          onClose={() => setShowEmailModal(false)}
+          crId={cr.id}
+          leadId={leadId}
+          tab={emailModalData.tab}
+          contactEmail={emailModalData.contactEmail}
+          templateId={emailModalData.templateId}
+          companyName={formData?.company_name || cr?.company_name || ''}
         />
       )}
     </MainLayout>
@@ -894,7 +930,7 @@ function CustomerDetailsForm({ formData, setFormData, onSave, saving, inputClass
 }
 
 // ============== Introduction Form ==============
-function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClass, crId, leadId, customerData }: any) {
+function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClass, crId, leadId, customerData, onOpenEmailModal }: any) {
   const [introSubTab, setIntroSubTab] = useState('activity');
   const [activitySubTab, setActivitySubTab] = useState('all');
   const [emailsSent, setEmailsSent] = useState<any[]>([]);
@@ -1259,7 +1295,10 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                   <option key={template.id} value={template.email_format}>{template.email_format}</option>
                 ))}
               </select>
-              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+              <button
+                onClick={() => onOpenEmailModal && onOpenEmailModal('Introduction', introFormData.contact_email, introEmailTemplates.find((t: any) => t.email_format === introFormData.email_format_type)?.id)}
+                className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
+              >
                 <Mail className="w-4 h-4" />
               </button>
             </div>
@@ -2097,7 +2136,7 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
 }
 
 // ============== Requirement Form ==============
-function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass, crId, leadId }: any) {
+function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass, crId, leadId, onOpenEmailModal }: any) {
   const [reqSubTab, setReqSubTab] = useState('pre-demo-business-questionnaire');
   const [emailsSent, setEmailsSent] = useState<any[]>([]);
   const [reqDocs, setReqDocs] = useState<any[]>([]);
@@ -2322,7 +2361,10 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
                   <option key={template.id} value={template.email_format}>{template.email_format}</option>
                 ))}
               </select>
-              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+              <button
+                onClick={() => onOpenEmailModal && onOpenEmailModal('Requirement', '', reqEmailTemplates.find((t: any) => t.email_format === data?.email_format)?.id)}
+                className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
+              >
                 <Mail className="w-4 h-4" />
               </button>
             </div>
@@ -3586,7 +3628,7 @@ const PRESENTATION_MODULES: Record<string, string[]> = {
 };
 
 // ============== Presentation Form ==============
-function PresentationForm({ data, setData, crId, leadId, presentations, refreshData }: any) {
+function PresentationForm({ data, setData, crId, leadId, presentations, refreshData, onOpenEmailModal }: any) {
   const [presSubTab, setPresSubTab] = useState('presentation');
   const [emailsSent, setEmailsSent] = useState<any[]>([]);
   const [presDocs, setPresDocs] = useState<any[]>([]);
@@ -3921,7 +3963,10 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
                   <option key={template.id} value={template.email_format}>{template.email_format}</option>
                 ))}
               </select>
-              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+              <button
+                onClick={() => onOpenEmailModal && onOpenEmailModal('Presentation', '', presEmailTemplates.find((t: any) => t.email_format === data?.pres_email_format)?.id)}
+                className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
+              >
                 <Mail className="w-4 h-4" />
               </button>
             </div>
@@ -5044,7 +5089,7 @@ const DEMO_MODULES: Record<string, string[]> = {
 };
 
 // ============== Demo Form ==============
-function DemoForm({ data, setData, crId, leadId, demos, refreshData }: any) {
+function DemoForm({ data, setData, crId, leadId, demos, refreshData, onOpenEmailModal }: any) {
   const [demoSubTab, setDemoSubTab] = useState('demo-video');
   const [demoContacts, setDemoContacts] = useState<any[]>([]);
   const [demoDocs, setDemoDocs] = useState<any[]>([]);
@@ -5355,7 +5400,10 @@ function DemoForm({ data, setData, crId, leadId, demos, refreshData }: any) {
                   <option key={template.id} value={template.email_format}>{template.email_format}</option>
                 ))}
               </select>
-              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+              <button
+                onClick={() => onOpenEmailModal && onOpenEmailModal('Demo', demoFormData.contact_email, demoEmailTemplates.find((t: any) => t.email_format === demoFormData.email_format_type)?.id)}
+                className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
+              >
                 <Mail className="w-4 h-4" />
               </button>
             </div>
@@ -6652,7 +6700,7 @@ const PROPOSAL_MODULES: Record<string, string[]> = {
   'Setup': ['Role Mgmt', 'Bank Master', 'Accounting', 'Configuration', 'Company Setup', 'User Mgmt', 'Option Master', 'Variant Master', 'Auto Scheduler', 'Form Management']
 };
 
-function ProposalForm({ data, crId, leadId, refreshData }: any) {
+function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
   const [proposalSubTab, setProposalSubTab] = useState('details');
   const proposalSubTabs = ['Details', 'Process Flow', 'Proposal', 'Proposal Date', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -7135,7 +7183,10 @@ function ProposalForm({ data, crId, leadId, refreshData }: any) {
                   <option key={template.id} value={template.email_format}>{template.email_format}</option>
                 ))}
               </select>
-              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+              <button
+                onClick={() => onOpenEmailModal && onOpenEmailModal('Proposal', proposalFormData.contact_email, proposalEmailTemplates.find((t: any) => t.email_format === proposalFormData.email_format_type)?.id)}
+                className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
+              >
                 <Mail className="w-4 h-4" />
               </button>
             </div>
@@ -8185,7 +8236,7 @@ function ProposalForm({ data, crId, leadId, refreshData }: any) {
 }
 
 // ============== Agreement Form ==============
-function AgreementForm({ data, crId, leadId, refreshData }: any) {
+function AgreementForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
   const [agreementSubTab, setAgreementSubTab] = useState('details');
   const agreementSubTabs = ['Details', 'Agreement', 'Agreement Date', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -8657,7 +8708,10 @@ function AgreementForm({ data, crId, leadId, refreshData }: any) {
                   <option key={template.id} value={template.email_format}>{template.email_format}</option>
                 ))}
               </select>
-              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+              <button
+                onClick={() => onOpenEmailModal && onOpenEmailModal('Agreement', agreementFormData.contact_email, agreementEmailTemplates.find((t: any) => t.email_format === agreementFormData.email_format_type)?.id)}
+                className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
+              >
                 <Mail className="w-4 h-4" />
               </button>
             </div>
@@ -9273,7 +9327,7 @@ function AgreementForm({ data, crId, leadId, refreshData }: any) {
 }
 
 // ============== Initiation Form ==============
-function InitiationForm({ data, crId, leadId, refreshData }: any) {
+function InitiationForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
   const [initiationSubTab, setInitiationSubTab] = useState('details');
   const initiationSubTabs = ['Details', 'Contacts', 'Communication', 'Notes', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -9620,7 +9674,10 @@ function InitiationForm({ data, crId, leadId, refreshData }: any) {
                   <option key={template.id} value={template.email_format}>{template.email_format}</option>
                 ))}
               </select>
-              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+              <button
+                onClick={() => onOpenEmailModal && onOpenEmailModal('Initiation', initiationFormData.contact_email, initiationEmailTemplates.find((t: any) => t.email_format === initiationFormData.email_format_type)?.id)}
+                className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
+              >
                 <Mail className="w-4 h-4" />
               </button>
             </div>
@@ -11123,7 +11180,7 @@ function MemosSection({ memos, onAdd, onEdit, onDelete }: any) {
 }
 
 // ============== Planning Form ==============
-function PlanningForm({ data, crId, leadId, refreshData }: any) {
+function PlanningForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
   const [planningSubTab, setPlanningSubTab] = useState('details');
   const planningSubTabs = ['Details', 'Configuration', 'Data Migration', 'Training', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -11416,7 +11473,10 @@ function PlanningForm({ data, crId, leadId, refreshData }: any) {
                   <option key={template.id} value={template.email_format}>{template.email_format}</option>
                 ))}
               </select>
-              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+              <button
+                onClick={() => onOpenEmailModal && onOpenEmailModal('Planning', planningFormData.contact_email, planningEmailTemplates.find((t: any) => t.email_format === planningFormData.email_format_type)?.id)}
+                className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
+              >
                 <Mail className="w-4 h-4" />
               </button>
             </div>
@@ -13010,7 +13070,7 @@ function PlanningForm({ data, crId, leadId, refreshData }: any) {
 }
 
 // ============== Configuration Form ==============
-function ConfigurationForm({ data, crId, leadId, refreshData }: any) {
+function ConfigurationForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
   const [configSubTab, setConfigSubTab] = useState('details');
   const configSubTabs = ['Details', 'Summary', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -13287,7 +13347,10 @@ function ConfigurationForm({ data, crId, leadId, refreshData }: any) {
                   <option key={template.id} value={template.email_format}>{template.email_format}</option>
                 ))}
               </select>
-              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+              <button
+                onClick={() => onOpenEmailModal && onOpenEmailModal('Configuration', configFormData.contact_email, configEmailTemplates.find((t: any) => t.email_format === configFormData.email_format_type)?.id)}
+                className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
+              >
                 <Mail className="w-4 h-4" />
               </button>
             </div>
@@ -14026,7 +14089,7 @@ function ConfigurationForm({ data, crId, leadId, refreshData }: any) {
 }
 
 // ============== Training Form ==============
-function TrainingForm({ data, crId, leadId, refreshData }: any) {
+function TrainingForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
   const [trainingSubTab, setTrainingSubTab] = useState('details');
   const trainingSubTabs = ['Details', 'Mapping', 'Schedule', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -14246,7 +14309,10 @@ function TrainingForm({ data, crId, leadId, refreshData }: any) {
                   <option key={template.id} value={template.email_format}>{template.email_format}</option>
                 ))}
               </select>
-              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+              <button
+                onClick={() => onOpenEmailModal && onOpenEmailModal('Training', trainingFormData.contact_email, trainingEmailTemplates.find((t: any) => t.email_format === trainingFormData.email_format_type)?.id)}
+                className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
+              >
                 <Mail className="w-4 h-4" />
               </button>
             </div>
@@ -15090,7 +15156,7 @@ function TrainingForm({ data, crId, leadId, refreshData }: any) {
 }
 
 // ============== UAT Form ==============
-function UATForm({ data, crId, leadId, refreshData }: any) {
+function UATForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
   const [uatSubTab, setUatSubTab] = useState('details');
   const uatSubTabs = ['Details', 'Result', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -15300,7 +15366,10 @@ function UATForm({ data, crId, leadId, refreshData }: any) {
                   <option key={template.id} value={template.email_format}>{template.email_format}</option>
                 ))}
               </select>
-              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+              <button
+                onClick={() => onOpenEmailModal && onOpenEmailModal('UAT', uatFormData.contact_email, uatEmailTemplates.find((t: any) => t.email_format === uatFormData.email_format_type)?.id)}
+                className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
+              >
                 <Mail className="w-4 h-4" />
               </button>
             </div>
@@ -15886,7 +15955,7 @@ function UATForm({ data, crId, leadId, refreshData }: any) {
 }
 
 // ============== Data Migration Form ==============
-function DataMigrationForm({ data, crId, leadId, refreshData }: any) {
+function DataMigrationForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
   const [dmSubTab, setDmSubTab] = useState('details');
   const dmSubTabs = ['Details', 'Summary', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -16136,7 +16205,10 @@ function DataMigrationForm({ data, crId, leadId, refreshData }: any) {
                   <option key={template.id} value={template.email_format}>{template.email_format}</option>
                 ))}
               </select>
-              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+              <button
+                onClick={() => onOpenEmailModal && onOpenEmailModal('Data Migration', dmFormData.contact_email, dmEmailTemplates.find((t: any) => t.email_format === dmFormData.email_format_type)?.id)}
+                className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
+              >
                 <Mail className="w-4 h-4" />
               </button>
             </div>
@@ -16815,7 +16887,7 @@ function DataMigrationForm({ data, crId, leadId, refreshData }: any) {
 }
 
 // ============== Go Live Form ==============
-function GoLiveForm({ data, crId, leadId, refreshData }: any) {
+function GoLiveForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
   const [glSubTab, setGlSubTab] = useState('details');
   const glSubTabs = ['Details', 'Activity', 'Summary', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -17102,7 +17174,10 @@ function GoLiveForm({ data, crId, leadId, refreshData }: any) {
                   <option key={template.id} value={template.email_format}>{template.email_format}</option>
                 ))}
               </select>
-              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+              <button
+                onClick={() => onOpenEmailModal && onOpenEmailModal('Go Live', glFormData.contact_email, glEmailTemplates.find((t: any) => t.email_format === glFormData.email_format_type)?.id)}
+                className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
+              >
                 <Mail className="w-4 h-4" />
               </button>
             </div>
@@ -17898,7 +17973,7 @@ function GoLiveForm({ data, crId, leadId, refreshData }: any) {
 }
 
 // ============== Support Form ==============
-function SupportForm({ data, crId, leadId, refreshData }: any) {
+function SupportForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
   const [supportSubTab, setSupportSubTab] = useState('ticket');
   const supportSubTabs = ['Ticket', 'Summary', 'Feedback', 'Memo', 'Workflow & Audit Trail'];
 
@@ -18165,7 +18240,10 @@ function SupportForm({ data, crId, leadId, refreshData }: any) {
                   <option key={template.id} value={template.email_format}>{template.email_format}</option>
                 ))}
               </select>
-              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+              <button
+                onClick={() => onOpenEmailModal && onOpenEmailModal('Support', supportFormData.contact_email, supportEmailTemplates.find((t: any) => t.email_format === supportFormData.email_format_type)?.id)}
+                className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
+              >
                 <Mail className="w-4 h-4" />
               </button>
             </div>
@@ -19429,6 +19507,358 @@ function CallLogModal({ isOpen, onClose, crId, editingItem, refreshData }: any) 
         <div className="flex justify-end gap-2 p-3 border-t">
           <button onClick={onClose} className="px-4 py-1.5 text-sm text-gray-600 bg-gray-100 rounded hover:bg-gray-200">Cancel</button>
           <button onClick={handleSave} disabled={saving} className="px-4 py-1.5 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============== Email Modal ==============
+function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, templateId, companyName }: any) {
+  const [formData, setFormData] = useState({
+    to: contactEmail || '',
+    cc: '',
+    bcc: '',
+    subject: '',
+    body: '',
+  });
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [sending, setSending] = useState(false);
+  const [loadingTemplate, setLoadingTemplate] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const editorRef = React.useRef<HTMLDivElement>(null);
+
+  // Load templates for the tab
+  useEffect(() => {
+    if (tab) {
+      api.getCRIEmailTemplates(tab).then(setTemplates).catch(() => setTemplates([]));
+    }
+  }, [tab]);
+
+  // Update to field when contactEmail prop changes
+  useEffect(() => {
+    if (contactEmail) {
+      setFormData(prev => ({ ...prev, to: contactEmail }));
+    }
+  }, [contactEmail]);
+
+  // Load template content when templateId changes or when selected from dropdown
+  useEffect(() => {
+    if (templateId && templates.length > 0) {
+      const template = templates.find((t: any) => t.id === templateId);
+      if (template) {
+        loadTemplateContent(template);
+      }
+    }
+  }, [templateId, templates]);
+
+  const loadTemplateContent = async (template: any) => {
+    setLoadingTemplate(true);
+    try {
+      setSelectedTemplate(template);
+      setFormData(prev => ({
+        ...prev,
+        subject: template.subject || '',
+        body: template.email_template || '',
+      }));
+    } catch (err) {
+      console.error('Failed to load template:', err);
+    } finally {
+      setLoadingTemplate(false);
+    }
+  };
+
+  const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const templateIdVal = parseInt(e.target.value);
+    if (templateIdVal) {
+      const template = templates.find((t: any) => t.id === templateIdVal);
+      if (template) {
+        loadTemplateContent(template);
+      }
+    } else {
+      setSelectedTemplate(null);
+      setFormData(prev => ({ ...prev, subject: '', body: '' }));
+    }
+  };
+
+  const handleChooseFile = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleSend = async () => {
+    if (!formData.to) {
+      alert('Please enter recipient email address');
+      return;
+    }
+    if (!formData.subject) {
+      alert('Please enter subject');
+      return;
+    }
+    setSending(true);
+    try {
+      // For now, we'll simulate sending - in production, this would call an API
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      alert('Email sent successfully!');
+      onClose();
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'Failed to send email');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Format buttons for toolbar
+  const formatText = (command: string, value?: string) => {
+    editorRef.current?.focus();
+    document.execCommand(command, false, value);
+  };
+
+  if (!isOpen) return null;
+
+  const tabTitle = tab ? tab.charAt(0).toUpperCase() + tab.slice(1).replace(/-/g, ' ') : 'Lead Request';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="bg-white shadow-2xl w-[950px] max-h-[90vh] overflow-hidden flex flex-col border border-gray-400">
+        {/* Header - Dark background like screenshot */}
+        <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white">
+          <h3 className="font-semibold text-sm tracking-wide">EMAIL: {tabTitle.toUpperCase()} :</h3>
+          <button onClick={onClose} className="text-white hover:text-gray-200 text-xl font-bold px-2">
+            &times;
+          </button>
+        </div>
+
+        {/* Form Fields - Matching screenshot layout */}
+        <div className="px-6 py-4 space-y-2 bg-white">
+          {/* To */}
+          <div className="flex items-center">
+            <label className="text-sm font-medium text-blue-600 w-20">To</label>
+            <input
+              type="text"
+              value={formData.to}
+              onChange={(e) => setFormData({ ...formData, to: e.target.value })}
+              className="flex-1 h-7 px-2 text-sm border border-gray-300 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          {/* Cc */}
+          <div className="flex items-center">
+            <label className="text-sm font-medium text-blue-600 w-20">Cc</label>
+            <input
+              type="text"
+              value={formData.cc}
+              onChange={(e) => setFormData({ ...formData, cc: e.target.value })}
+              className="flex-1 h-7 px-2 text-sm border border-gray-300 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          {/* Bcc */}
+          <div className="flex items-center">
+            <label className="text-sm font-medium text-blue-600 w-20">Bcc</label>
+            <input
+              type="text"
+              value={formData.bcc}
+              onChange={(e) => setFormData({ ...formData, bcc: e.target.value })}
+              className="flex-1 h-7 px-2 text-sm border border-gray-300 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          {/* Subject */}
+          <div className="flex items-center">
+            <label className="text-sm font-medium text-blue-600 w-20">Subject</label>
+            <input
+              type="text"
+              value={formData.subject}
+              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+              className="flex-1 h-7 px-2 text-sm border border-gray-300 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          {/* Upload File row with Send button */}
+          <div className="flex items-center">
+            <label className="text-sm font-medium text-blue-600 w-20">Upload File</label>
+            <input
+              type="text"
+              value={selectedFile?.name || ''}
+              readOnly
+              className="flex-1 h-7 px-2 text-sm border border-gray-300 bg-white"
+            />
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <button
+              onClick={handleChooseFile}
+              className="ml-2 h-7 px-3 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 flex items-center gap-1"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+              Choose File
+            </button>
+            <button
+              onClick={handleSend}
+              disabled={sending}
+              className="ml-auto h-7 px-5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+            >
+              {sending ? 'Sending...' : 'Send'}
+            </button>
+          </div>
+        </div>
+
+        {/* Toolbar - Gray background matching screenshot */}
+        <div className="flex items-center gap-0.5 px-3 py-1.5 bg-gray-100 border-t border-b border-gray-300">
+          {/* Edit/Pen icon */}
+          <button onClick={() => {}} className="p-1.5 hover:bg-gray-200 rounded" title="Edit">
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </button>
+          <div className="w-px h-5 bg-gray-300 mx-1" />
+          {/* Bold */}
+          <button onClick={() => formatText('bold')} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded font-bold text-sm" title="Bold">
+            B
+          </button>
+          {/* Italic */}
+          <button onClick={() => formatText('italic')} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded italic text-sm" title="Italic">
+            I
+          </button>
+          {/* Underline */}
+          <button onClick={() => formatText('underline')} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded underline text-sm" title="Underline">
+            U
+          </button>
+          {/* Strikethrough */}
+          <button onClick={() => formatText('strikeThrough')} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded line-through text-sm" title="Strikethrough">
+            S
+          </button>
+          <div className="w-px h-5 bg-gray-300 mx-1" />
+          {/* Font Family */}
+          <select
+            onChange={(e) => formatText('fontName', e.target.value)}
+            defaultValue="Helvetica"
+            className="h-6 px-1 text-xs border border-gray-300 rounded bg-white"
+          >
+            <option value="Helvetica">Helvetica</option>
+            <option value="Arial">Arial</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Courier New">Courier New</option>
+          </select>
+          {/* Font Size */}
+          <select
+            onChange={(e) => formatText('fontSize', e.target.value)}
+            defaultValue="3"
+            className="h-6 px-1 text-xs border border-gray-300 rounded bg-white w-12"
+          >
+            <option value="1">8</option>
+            <option value="2">10</option>
+            <option value="3">14</option>
+            <option value="4">16</option>
+            <option value="5">18</option>
+            <option value="6">24</option>
+            <option value="7">36</option>
+          </select>
+          <div className="w-px h-5 bg-gray-300 mx-1" />
+          {/* Text Color */}
+          <button onClick={() => {}} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded text-sm font-bold text-red-500" title="Text Color">
+            A<span className="text-xs">&#9660;</span>
+          </button>
+          <div className="w-px h-5 bg-gray-300 mx-1" />
+          {/* Bullet List */}
+          <button onClick={() => formatText('insertUnorderedList')} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded" title="Bullet List">
+            <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M4 6h2v2H4V6zm0 5h2v2H4v-2zm0 5h2v2H4v-2zm4-10h12v2H8V6zm0 5h12v2H8v-2zm0 5h12v2H8v-2z"/>
+            </svg>
+          </button>
+          {/* Numbered List */}
+          <button onClick={() => formatText('insertOrderedList')} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded" title="Numbered List">
+            <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M2 6h2v1H3v1h1v1H2V8h1V7H2V6zm0 5h2v1h1v1H2v-1h1v-1H2v-1zm2 4H2v1h2v1H2v1h3v-1H3v-1h2v-2H4zm4-9h12v2H8V6zm0 5h12v2H8v-2zm0 5h12v2H8v-2z"/>
+            </svg>
+          </button>
+          {/* Indent */}
+          <button onClick={() => formatText('indent')} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded" title="Increase Indent">
+            <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M3 21h18v-2H3v2zM3 8v8l4-4-4-4zm8 9h10v-2H11v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"/>
+            </svg>
+          </button>
+          {/* Outdent */}
+          <button onClick={() => formatText('outdent')} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded" title="Decrease Indent">
+            <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M11 17h10v-2H11v2zm-8-5l4 4V8l-4 4zm0 9h18v-2H3v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"/>
+            </svg>
+          </button>
+          <div className="w-px h-5 bg-gray-300 mx-1" />
+          {/* Table */}
+          <button onClick={() => {}} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded" title="Insert Table">
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </button>
+          {/* Link */}
+          <button onClick={() => {}} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded" title="Insert Link">
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+          </button>
+          {/* Image */}
+          <button onClick={() => {}} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded" title="Insert Image">
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </button>
+          {/* Horizontal Rule */}
+          <button onClick={() => formatText('insertHorizontalRule')} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded" title="Horizontal Line">
+            <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M4 11h16v2H4z"/>
+            </svg>
+          </button>
+          {/* Expand */}
+          <button onClick={() => {}} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded" title="Expand">
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            </svg>
+          </button>
+          {/* Code */}
+          <button onClick={() => {}} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded" title="View Source">
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+          </button>
+          {/* Help */}
+          <button onClick={() => {}} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded" title="Help">
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Email Body - Rich Text Editor */}
+        <div className="flex-1 overflow-auto bg-white">
+          {loadingTemplate ? (
+            <div className="flex items-center justify-center h-full min-h-[350px]">
+              <span className="text-gray-500">Loading template...</span>
+            </div>
+          ) : (
+            <div
+              ref={editorRef}
+              contentEditable
+              className="min-h-[350px] p-4 focus:outline-none text-sm"
+              dangerouslySetInnerHTML={{ __html: formData.body }}
+              onBlur={(e) => setFormData({ ...formData, body: e.currentTarget.innerHTML })}
+              style={{ lineHeight: '1.6' }}
+            />
+          )}
         </div>
       </div>
     </div>
