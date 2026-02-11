@@ -28,6 +28,9 @@ from app.schemas.lead_entities import (
     LeadQualifiedProfileCreate, LeadQualifiedProfileUpdate, LeadQualifiedProfileResponse,
     LeadFullResponse
 )
+from app.schemas.cri_email_template import (
+    CRIEmailTemplateCreate, CRIEmailTemplateUpdate, CRIEmailTemplateResponse
+)
 
 __all__ = [
     # User
@@ -65,4 +68,6 @@ __all__ = [
     "WebhookLogResponse", "IncomingWebhookPayload",
     # Dashboard
     "DashboardStats", "FunnelData", "RecentActivity",
+    # CRI Email Template
+    "CRIEmailTemplateCreate", "CRIEmailTemplateUpdate", "CRIEmailTemplateResponse",
 ]

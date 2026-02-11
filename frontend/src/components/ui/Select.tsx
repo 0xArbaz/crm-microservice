@@ -21,10 +21,11 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           className={cn(
-            'w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white',
+            'w-full max-w-full min-w-0 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white truncate',
             error ? 'border-red-500' : 'border-gray-300',
             className
           )}
+          style={{ textOverflow: 'ellipsis' }}
           {...props}
         >
           {options.map((option) => (

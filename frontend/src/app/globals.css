@@ -36,3 +36,139 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #a1a1a1;
 }
+
+/* ============================================
+   Global Select/Dropdown Fixes
+   Prevents dropdowns from expanding when
+   option text is longer than container width
+   ============================================ */
+
+/* Base layer: Apply to all select elements globally */
+@layer base {
+  select {
+    max-width: 100%;
+    min-width: 0;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+  }
+
+  select option {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 8px 12px;
+  }
+}
+
+/* Ensure select respects flex container constraints */
+.flex select,
+.flex-1 select,
+.grid select,
+[class*="flex"] select {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  flex-shrink: 1;
+}
+
+/* Fix for flex-1 class directly on select */
+select.flex-1,
+select[class*="flex-1"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  width: 100%;
+}
+
+/* Fix for selects in flex containers with gap */
+.flex > select,
+.flex-1 > select,
+[class*="gap"] select {
+  min-width: 0;
+  flex: 1 1 0%;
+  max-width: 100%;
+}
+
+/* Tailwind utility class for fixed-width selects */
+@layer components {
+  .select-fixed {
+    @apply max-w-full overflow-hidden;
+    min-width: 0 !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Dropdown container that prevents expansion */
+  .dropdown-container {
+    @apply relative w-full max-w-full;
+    min-width: 0;
+  }
+
+  .dropdown-container select {
+    @apply w-full max-w-full;
+    min-width: 0;
+    text-overflow: ellipsis;
+  }
+
+  /* Common select patterns in the project */
+  .form-select {
+    @apply w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50;
+    @apply focus:outline-none focus:ring-1 focus:ring-blue-500;
+    min-width: 0;
+    max-width: 100%;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Fix for flex containers with selects */
+@layer utilities {
+  .flex-select-fix {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .truncate-select {
+    @apply truncate;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* Utility to prevent flex items from growing */
+  .flex-no-grow {
+    flex-grow: 0;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+}
+
+/* Specific fix for h-8 selects (commonly used in forms) */
+select[class*="h-8"],
+select[class*="h-9"],
+select[class*="h-10"] {
+  min-width: 0;
+  max-width: 100%;
+  text-overflow: ellipsis;
+}
+
+/* Fix for selects with rounded corners */
+select[class*="rounded"] {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Responsive containers */
+@media (max-width: 768px) {
+  select {
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+}

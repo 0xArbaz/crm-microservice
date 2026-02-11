@@ -26,6 +26,7 @@ from app.models.customer_requirement import (
 )
 from app.models.option_master import Option, OptionDropdown
 from app.models.location import Country, State, City
+from app.models.cri_email_template import CRIEmailTemplate
 
 __all__ = [
     "User",
@@ -77,4 +78,5 @@ __all__ = [
     "Country",
     "State",
     "City",
+    "CRIEmailTemplate",
 ]

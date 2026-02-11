@@ -93,6 +93,7 @@ export default function CustomerRequirementPage() {
   const [agreements, setAgreements] = useState<any[]>([]);
   const [callLogs, setCallLogs] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
+  const [documentsRefreshTrigger, setDocumentsRefreshTrigger] = useState(0);
 
   // Modal states
   const [showDemoModal, setShowDemoModal] = useState(false);
@@ -142,6 +143,18 @@ export default function CustomerRequirementPage() {
       fetchData();
     }
   }, [leadId, fetchData]);
+
+  // Load documents when Upload File tab is active
+  useEffect(() => {
+    if (cr?.id && activeTab === 'upload-file') {
+      api.getCRDocuments(cr.id, 'upload-file').then(setDocuments).catch(() => setDocuments([]));
+    }
+  }, [cr?.id, activeTab, documentsRefreshTrigger]);
+
+  // Function to reload documents
+  const reloadDocuments = useCallback(() => {
+    setDocumentsRefreshTrigger(prev => prev + 1);
+  }, []);
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
@@ -302,6 +315,8 @@ export default function CustomerRequirementPage() {
               inputClass={inputClass}
               labelClass={labelClass}
               crId={cr?.id}
+              leadId={leadId}
+              customerData={formData}
             />
           )}
 
@@ -462,7 +477,7 @@ export default function CustomerRequirementPage() {
               onUpload={handleFileUpload}
               onDelete={handleDeleteDocument}
               crId={cr?.id}
-              refreshData={fetchData}
+              refreshData={reloadDocuments}
             />
           )}
         </div>
@@ -879,11 +894,16 @@ function CustomerDetailsForm({ formData, setFormData, onSave, saving, inputClass
 }
 
 // ============== Introduction Form ==============
-function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClass, crId, onDocumentUpload }: any) {
+function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClass, crId, leadId, customerData }: any) {
   const [introSubTab, setIntroSubTab] = useState('activity');
   const [activitySubTab, setActivitySubTab] = useState('all');
   const [emailsSent, setEmailsSent] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
+  const [introContacts, setIntroContacts] = useState<any[]>([]);
+  const [introEmailTemplates, setIntroEmailTemplates] = useState<any[]>([]);
+  const [introFormData, setIntroFormData] = useState({
+    company_name: '', contact_name: '', email_format_type: '', branch_office: '', contact_email: ''
+  });
   const [activities, setActivities] = useState<any[]>([]);
   const [followUpActivities, setFollowUpActivities] = useState<any[]>([]);
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
@@ -920,6 +940,29 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
       api.getCRDocuments(crId, 'introduction').then(setDocuments).catch(() => setDocuments([]));
     }
   }, [crId]);
+
+  // Load contacts from lead
+  useEffect(() => {
+    if (leadId) {
+      api.getLeadContactsForEdit(leadId).then(setIntroContacts).catch(() => setIntroContacts([]));
+    }
+  }, [leadId]);
+
+  // Load email templates for Introduction tab
+  useEffect(() => {
+    api.getCRIEmailTemplates('Introduction').then(setIntroEmailTemplates).catch(() => setIntroEmailTemplates([]));
+  }, []);
+
+  // Initialize form data from customerData (lead data)
+  useEffect(() => {
+    if (customerData) {
+      setIntroFormData(prev => ({
+        ...prev,
+        company_name: customerData.company_name || '',
+        branch_office: customerData.branch_office || ''
+      }));
+    }
+  }, [customerData]);
 
   // Load follow-up activities when sub-tab changes
   useEffect(() => {
@@ -1196,27 +1239,30 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
         <div className="space-y-1">
           <div className={rowClass}>
             <label className={fieldLabelClass}>Company Name</label>
-            <input type="text" value={data?.company_name || ''} onChange={(e) => setData({ ...data, company_name: e.target.value })} className={fieldInputClass} />
+            <input type="text" value={introFormData.company_name} onChange={(e) => setIntroFormData({ ...introFormData, company_name: e.target.value })} className={fieldInputClass} />
           </div>
           <div className={rowClass}>
             <label className={fieldLabelClass}>Contact Name</label>
-            <select value={data?.contact_id || ''} onChange={(e) => setData({ ...data, contact_id: e.target.value })} className={fieldSelectClass}>
+            <select value={introFormData.contact_name} onChange={(e) => { const cid = e.target.value; const selectedContact = introContacts.find((c: any) => c.id?.toString() === cid); setIntroFormData({ ...introFormData, contact_name: cid, contact_email: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || '' }); }} className={fieldSelectClass}>
               <option value="">Select Contact Name</option>
-              <option value="1">Contact 1</option>
-              <option value="2">Contact 2</option>
+              {introContacts.map((contact: any) => (
+                <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
+              ))}
             </select>
           </div>
           <div className={rowClass}>
             <label className={fieldLabelClass}>Email Format / Type</label>
-            <select value={data?.email_format || ''} onChange={(e) => setData({ ...data, email_format: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-blue-50">
-              <option value="">Introductory Email to Customer (Oil and Gas)</option>
-              <option value="intro">Introductory Email</option>
-              <option value="followup">Follow-up Email</option>
-              <option value="proposal">Proposal Email</option>
-            </select>
-            <button className="h-8 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1">
-              <Mail className="w-4 h-4" />
-            </button>
+            <div className="flex-1 flex">
+              <select value={introFormData.email_format_type} onChange={(e) => setIntroFormData({ ...introFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Select Email Format</option>
+                {introEmailTemplates.map((template: any) => (
+                  <option key={template.id} value={template.email_format}>{template.email_format}</option>
+                ))}
+              </select>
+              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+                <Mail className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Email Sent To Table */}
@@ -1254,11 +1300,11 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
         <div className="space-y-1">
           <div className={rowClass}>
             <label className={fieldLabelClass}>Branch Office</label>
-            <input type="text" value={data?.branch_office || ''} onChange={(e) => setData({ ...data, branch_office: e.target.value })} className={fieldInputClass} placeholder="Branch Office" />
+            <input type="text" value={introFormData.branch_office} onChange={(e) => setIntroFormData({ ...introFormData, branch_office: e.target.value })} className={fieldInputClass} placeholder="Branch Office" />
           </div>
           <div className={rowClass}>
             <label className={fieldLabelClass}>Contact Email</label>
-            <input type="email" value={data?.contact_email || ''} onChange={(e) => setData({ ...data, contact_email: e.target.value })} className={fieldInputClass} />
+            <input type="email" value={introFormData.contact_email} readOnly className={`${fieldInputClass} bg-gray-100`} />
           </div>
           <div className={rowClass}>
             <label className={fieldLabelClass}>Document</label>
@@ -2055,6 +2101,7 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
   const [reqSubTab, setReqSubTab] = useState('pre-demo-business-questionnaire');
   const [emailsSent, setEmailsSent] = useState<any[]>([]);
   const [reqDocs, setReqDocs] = useState<any[]>([]);
+  const [reqEmailTemplates, setReqEmailTemplates] = useState<any[]>([]);
   const [reqSelectedFile, setReqSelectedFile] = useState<File | null>(null);
   const [reqUploading, setReqUploading] = useState(false);
   const reqFileInputRef = React.useRef<HTMLInputElement>(null);
@@ -2113,6 +2160,11 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
       api.getCRDocuments(crId, 'requirement').then(setReqDocs).catch(() => setReqDocs([]));
     }
   }, [crId]);
+
+  // Load email templates for Requirement tab
+  useEffect(() => {
+    api.getCRIEmailTemplates('Requirement').then(setReqEmailTemplates).catch(() => setReqEmailTemplates([]));
+  }, []);
 
   // Load sub-tab data
   useEffect(() => {
@@ -2263,15 +2315,17 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
           </div>
           <div className={rowClass}>
             <label className={fieldLabelClass}>Email Format / Type</label>
-            <select value={data?.email_format || ''} onChange={(e) => setData({ ...data, email_format: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-blue-50">
-              <option value="">Email to Customer for Due Diligence Form</option>
-              <option value="due_diligence">Email to Customer for Due Diligence Form</option>
-              <option value="requirement">Requirement Gathering Email</option>
-              <option value="followup">Follow-up Email</option>
-            </select>
-            <button className="h-8 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1">
-              <Mail className="w-4 h-4" />
-            </button>
+            <div className="flex-1 flex">
+              <select value={data?.email_format || ''} onChange={(e) => setData({ ...data, email_format: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Select Email Format</option>
+                {reqEmailTemplates.map((template: any) => (
+                  <option key={template.id} value={template.email_format}>{template.email_format}</option>
+                ))}
+              </select>
+              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+                <Mail className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Email Sent To Table */}
@@ -3317,7 +3371,7 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
                       setReqFollowUpForm({
                         ...reqFollowUpForm,
                         contact_id: contactId,
-                        sent_to: selectedContact?.email || ''
+                        sent_to: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || ''
                       });
                     }}
                     className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -3536,6 +3590,7 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
   const [presSubTab, setPresSubTab] = useState('presentation');
   const [emailsSent, setEmailsSent] = useState<any[]>([]);
   const [presDocs, setPresDocs] = useState<any[]>([]);
+  const [presEmailTemplates, setPresEmailTemplates] = useState<any[]>([]);
   const [presSelectedFile, setPresSelectedFile] = useState<File | null>(null);
   const [presUploading, setPresUploading] = useState(false);
   const presFileInputRef = React.useRef<HTMLInputElement>(null);
@@ -3653,6 +3708,11 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
       api.getCRDocuments(crId, 'presentation').then(setPresDocs).catch(() => setPresDocs([]));
     }
   }, [crId]);
+
+  // Load email templates for Presentation tab
+  useEffect(() => {
+    api.getCRIEmailTemplates('Presentation').then(setPresEmailTemplates).catch(() => setPresEmailTemplates([]));
+  }, []);
 
   // Load sub-tab data
   useEffect(() => {
@@ -3854,15 +3914,17 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
           </div>
           <div className={rowClass}>
             <label className={fieldLabelClass}>Email Format / Type</label>
-            <select value={data?.pres_email_format || ''} onChange={(e) => setData({ ...data, pres_email_format: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-blue-50">
-              <option value="">Email with Product Details and Fix Time for Demo</option>
-              <option value="product-demo">Email with Product Details and Fix Time for Demo</option>
-              <option value="presentation">Presentation Email</option>
-              <option value="followup">Follow-up Email</option>
-            </select>
-            <button className="h-8 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1">
-              <Mail className="w-4 h-4" />
-            </button>
+            <div className="flex-1 flex">
+              <select value={data?.pres_email_format || ''} onChange={(e) => setData({ ...data, pres_email_format: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Select Email Format</option>
+                {presEmailTemplates.map((template: any) => (
+                  <option key={template.id} value={template.email_format}>{template.email_format}</option>
+                ))}
+              </select>
+              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+                <Mail className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           {/* Email Sent To Table */}
           <div className="mt-3 border rounded overflow-hidden">
@@ -4795,7 +4857,7 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
                       setPresFollowUpForm({
                         ...presFollowUpForm,
                         contact_id: contactId,
-                        sent_to: selectedContact?.email || ''
+                        sent_to: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || ''
                       });
                     }}
                     className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -4987,6 +5049,7 @@ function DemoForm({ data, setData, crId, leadId, demos, refreshData }: any) {
   const [demoContacts, setDemoContacts] = useState<any[]>([]);
   const [demoDocs, setDemoDocs] = useState<any[]>([]);
   const [demoEmailsSent, setDemoEmailsSent] = useState<any[]>([]);
+  const [demoEmailTemplates, setDemoEmailTemplates] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
 
   // Form state
@@ -5109,6 +5172,11 @@ function DemoForm({ data, setData, crId, leadId, demos, refreshData }: any) {
       api.getLeadContactsForEdit(leadId).then(setDemoContacts).catch(() => setDemoContacts([]));
     }
   }, [leadId]);
+
+  // Load email templates for Demo tab
+  useEffect(() => {
+    api.getCRIEmailTemplates('Demo').then(setDemoEmailTemplates).catch(() => setDemoEmailTemplates([]));
+  }, []);
 
   // Load documents
   useEffect(() => {
@@ -5271,20 +5339,25 @@ function DemoForm({ data, setData, crId, leadId, demos, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-32 text-xs font-medium text-blue-600">Contact Name</label>
-            <select value={demoFormData.contact_name} onChange={(e) => setDemoFormData({ ...demoFormData, contact_name: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            <select value={demoFormData.contact_name} onChange={(e) => { const cid = e.target.value; const selectedContact = demoContacts.find((c: any) => c.id?.toString() === cid); setDemoFormData({ ...demoFormData, contact_name: cid, contact_email: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || '' }); }} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
               <option value="">Select Contact Name</option>
               {demoContacts.map((contact: any) => (
-                <option key={contact.id} value={`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
+                <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
               ))}
             </select>
           </div>
           <div className="flex items-center">
             <label className="w-32 text-xs font-medium text-blue-600">Email Format / Type</label>
-            <div className="flex-1 flex gap-2">
-              <select value={demoFormData.email_format_type} onChange={(e) => setDemoFormData({ ...demoFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                <option value="Email Demo Details to Customer">Email Demo Details to Customer</option>
+            <div className="flex-1 flex">
+              <select value={demoFormData.email_format_type} onChange={(e) => setDemoFormData({ ...demoFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Select Email Format</option>
+                {demoEmailTemplates.map((template: any) => (
+                  <option key={template.id} value={template.email_format}>{template.email_format}</option>
+                ))}
               </select>
-              <button className="h-8 w-8 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50"><Mail className="w-4 h-4" /></button>
+              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+                <Mail className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
@@ -6440,7 +6513,7 @@ function DemoForm({ data, setData, crId, leadId, demos, refreshData }: any) {
               <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                 <div>
                   <label className="text-xs font-medium text-blue-600 block mb-1">Contact</label>
-                  <select value={demoFollowUpForm.contact_id} onChange={(e) => { const contactId = e.target.value; const selectedContact = demoContacts.find((c: any) => c.id?.toString() === contactId); setDemoFollowUpForm({ ...demoFollowUpForm, contact_id: contactId, sent_to: selectedContact?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                  <select value={demoFollowUpForm.contact_id} onChange={(e) => { const contactId = e.target.value; const selectedContact = demoContacts.find((c: any) => c.id?.toString() === contactId); setDemoFollowUpForm({ ...demoFollowUpForm, contact_id: contactId, sent_to: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
                     <option value="">Select Contact</option>
                     {demoContacts.map((contact: any) => (<option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>))}
                   </select>
@@ -6588,6 +6661,7 @@ function ProposalForm({ data, crId, leadId, refreshData }: any) {
     company_name: '', contact_name: '', email_format_type: '', branch_office: '', contact_email: ''
   });
   const [proposalContacts, setProposalContacts] = useState<any[]>([]);
+  const [proposalEmailTemplates, setProposalEmailTemplates] = useState<any[]>([]);
   const [proposalDocs, setProposalDocs] = useState<any[]>([]);
   const [proposalFile, setProposalFile] = useState<File | null>(null);
   const [proposalUploading, setProposalUploading] = useState(false);
@@ -6807,6 +6881,11 @@ function ProposalForm({ data, crId, leadId, refreshData }: any) {
       api.getLeadContactsForEdit(leadId).then(setProposalContacts).catch(() => setProposalContacts([]));
     }
   }, [leadId]);
+
+  // Load email templates for Proposal tab
+  useEffect(() => {
+    api.getCRIEmailTemplates('Proposal').then(setProposalEmailTemplates).catch(() => setProposalEmailTemplates([]));
+  }, []);
 
   // Load follow-ups
   useEffect(() => {
@@ -7040,7 +7119,7 @@ function ProposalForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-32 text-xs font-medium text-blue-600">Contact Name</label>
-            <select value={proposalFormData.contact_name} onChange={(e) => setProposalFormData({ ...proposalFormData, contact_name: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            <select value={proposalFormData.contact_name} onChange={(e) => { const cid = e.target.value; const selectedContact = proposalContacts.find((c: any) => c.id?.toString() === cid); setProposalFormData({ ...proposalFormData, contact_name: cid, contact_email: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || '' }); }} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
               <option value="">Select Contact Name</option>
               {proposalContacts.map((contact: any) => (
                 <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
@@ -7049,14 +7128,17 @@ function ProposalForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-32 text-xs font-medium text-blue-600">Email Format / Type</label>
-            <select value={proposalFormData.email_format_type} onChange={(e) => setProposalFormData({ ...proposalFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
-              <option value="Email Proposal, Fix Time for Discussion">Email Proposal, Fix Time for Discussion</option>
-              <option value="Email Proposal Only">Email Proposal Only</option>
-              <option value="Follow-up Email">Follow-up Email</option>
-            </select>
-            <button className="ml-2 w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700">
-              <Mail className="w-4 h-4" />
-            </button>
+            <div className="flex-1 flex">
+              <select value={proposalFormData.email_format_type} onChange={(e) => setProposalFormData({ ...proposalFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Select Email Format</option>
+                {proposalEmailTemplates.map((template: any) => (
+                  <option key={template.id} value={template.email_format}>{template.email_format}</option>
+                ))}
+              </select>
+              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+                <Mail className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -8112,6 +8194,7 @@ function AgreementForm({ data, crId, leadId, refreshData }: any) {
     company_name: '', contact_name: '', email_format_type: '', branch_office: '', contact_email: ''
   });
   const [agreementContacts, setAgreementContacts] = useState<any[]>([]);
+  const [agreementEmailTemplates, setAgreementEmailTemplates] = useState<any[]>([]);
   const [agreementDocs, setAgreementDocs] = useState<any[]>([]);
   const [agreementFile, setAgreementFile] = useState<File | null>(null);
   const [agreementUploading, setAgreementUploading] = useState(false);
@@ -8355,6 +8438,11 @@ function AgreementForm({ data, crId, leadId, refreshData }: any) {
     }
   }, [leadId]);
 
+  // Load email templates for Agreement tab
+  useEffect(() => {
+    api.getCRIEmailTemplates('agreement').then(setAgreementEmailTemplates).catch(() => setAgreementEmailTemplates([]));
+  }, []);
+
   // Load documents
   useEffect(() => {
     if (crId) {
@@ -8553,7 +8641,7 @@ function AgreementForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-32 text-xs font-medium text-blue-600">Contact Name</label>
-            <select value={agreementFormData.contact_name} onChange={(e) => setAgreementFormData({ ...agreementFormData, contact_name: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            <select value={agreementFormData.contact_name} onChange={(e) => { const cid = e.target.value; const selectedContact = agreementContacts.find((c: any) => c.id?.toString() === cid); setAgreementFormData({ ...agreementFormData, contact_name: cid, contact_email: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || '' }); }} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
               <option value="">Select Contact Name</option>
               {agreementContacts.map((contact: any) => (
                 <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
@@ -8562,14 +8650,17 @@ function AgreementForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-32 text-xs font-medium text-blue-600">Email Format / Type</label>
-            <select value={agreementFormData.email_format_type} onChange={(e) => setAgreementFormData({ ...agreementFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
-              <option value="Email with Agreement for Signature">Email with Agreement for Signature</option>
-              <option value="Agreement Confirmation Email">Agreement Confirmation Email</option>
-              <option value="Follow-up Email">Follow-up Email</option>
-            </select>
-            <button className="ml-2 w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700">
-              <Mail className="w-4 h-4" />
-            </button>
+            <div className="flex-1 flex">
+              <select value={agreementFormData.email_format_type} onChange={(e) => setAgreementFormData({ ...agreementFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Select Email Format</option>
+                {agreementEmailTemplates.map((template: any) => (
+                  <option key={template.id} value={template.email_format}>{template.email_format}</option>
+                ))}
+              </select>
+              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+                <Mail className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           {/* Email Sent To Table */}
           <div className="border rounded overflow-hidden">
@@ -9127,7 +9218,7 @@ function AgreementForm({ data, crId, leadId, refreshData }: any) {
             </div>
             <div className="p-5">
               <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-                <div><label className="text-xs font-medium text-blue-600 block mb-1">Contact</label><select value={agreementFollowUpForm.contact_id} onChange={(e) => { const cid = e.target.value; const sc = agreementContacts.find((c: any) => c.id?.toString() === cid); setAgreementFollowUpForm({ ...agreementFollowUpForm, contact_id: cid, sent_to: sc?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50"><option value="">Select Contact</option>{agreementContacts.map((c: any) => <option key={c.id} value={c.id}>{`${c.first_name || ''} ${c.last_name || ''}`.trim()}</option>)}</select></div>
+                <div><label className="text-xs font-medium text-blue-600 block mb-1">Contact</label><select value={agreementFollowUpForm.contact_id} onChange={(e) => { const cid = e.target.value; const sc = agreementContacts.find((c: any) => c.id?.toString() === cid); setAgreementFollowUpForm({ ...agreementFollowUpForm, contact_id: cid, sent_to: sc?.work_email || sc?.personal_email || sc?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50"><option value="">Select Contact</option>{agreementContacts.map((c: any) => <option key={c.id} value={c.id}>{`${c.first_name || ''} ${c.last_name || ''}`.trim()}</option>)}</select></div>
                 <div><label className="text-xs font-medium text-blue-600 block mb-1">Activity Subject</label><input value={agreementFollowUpForm.subject} onChange={(e) => setAgreementFollowUpForm({ ...agreementFollowUpForm, subject: e.target.value })} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50" /></div>
                 <div><label className="text-xs font-medium text-blue-600 block mb-1">Email</label><input value={agreementFollowUpForm.sent_to} readOnly className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50" /></div>
                 <div><label className="text-xs font-medium text-blue-600 block mb-1">Activity Type</label><select value={agreementFollowUpForm.activity_type} onChange={(e) => setAgreementFollowUpForm({ ...agreementFollowUpForm, activity_type: e.target.value })} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50"><option value="">Select</option><option value="Call">Call</option><option value="Meeting">Meeting</option><option value="Email">Email</option><option value="Task">Task</option></select></div>
@@ -9188,9 +9279,10 @@ function InitiationForm({ data, crId, leadId, refreshData }: any) {
 
   // Top section state
   const [initiationFormData, setInitiationFormData] = useState({
-    company_name: '', contact_name: '', email_format_type: 'Request for point of contact', branch_office: '', contact_email: ''
+    company_name: '', contact_name: '', email_format_type: '', branch_office: '', contact_email: ''
   });
   const [initiationContacts, setInitiationContacts] = useState<any[]>([]);
+  const [initiationEmailTemplates, setInitiationEmailTemplates] = useState<any[]>([]);
   const [initiationDocs, setInitiationDocs] = useState<any[]>([]);
   const [initiationFile, setInitiationFile] = useState<File | null>(null);
   const [initiationUploading, setInitiationUploading] = useState(false);
@@ -9323,6 +9415,11 @@ function InitiationForm({ data, crId, leadId, refreshData }: any) {
       api.getLeadContactsForEdit(leadId).then(setInitiationContacts).catch(() => setInitiationContacts([]));
     }
   }, [leadId]);
+
+  // Load email templates for Initiation tab
+  useEffect(() => {
+    api.getCRIEmailTemplates('initiation').then(setInitiationEmailTemplates).catch(() => setInitiationEmailTemplates([]));
+  }, []);
 
   // Load documents
   useEffect(() => {
@@ -9507,7 +9604,7 @@ function InitiationForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-36 text-xs font-medium text-blue-600">Contact Name</label>
-            <select value={initiationFormData.contact_name} onChange={(e) => setInitiationFormData({ ...initiationFormData, contact_name: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            <select value={initiationFormData.contact_name} onChange={(e) => { const cid = e.target.value; const selectedContact = initiationContacts.find((c: any) => c.id?.toString() === cid); setInitiationFormData({ ...initiationFormData, contact_name: cid, contact_email: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || '' }); }} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
               <option value="">Select Contact Name</option>
               {initiationContacts.map((contact: any) => (
                 <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
@@ -9516,14 +9613,17 @@ function InitiationForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-36 text-xs font-medium text-blue-600">Email Format / Type</label>
-            <select value={initiationFormData.email_format_type} onChange={(e) => setInitiationFormData({ ...initiationFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
-              <option value="Request for point of contact">Request for point of contact</option>
-              <option value="Project Kickoff Email">Project Kickoff Email</option>
-              <option value="Follow-up Email">Follow-up Email</option>
-            </select>
-            <button className="ml-2 w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700">
-              <Mail className="w-4 h-4" />
-            </button>
+            <div className="flex-1 flex">
+              <select value={initiationFormData.email_format_type} onChange={(e) => setInitiationFormData({ ...initiationFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Select Email Format</option>
+                {initiationEmailTemplates.map((template: any) => (
+                  <option key={template.id} value={template.email_format}>{template.email_format}</option>
+                ))}
+              </select>
+              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+                <Mail className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           {/* Email Sent To Table */}
           <div className="border rounded overflow-hidden">
@@ -10235,7 +10335,7 @@ function InitiationForm({ data, crId, leadId, refreshData }: any) {
                 {/* Left Column */}
                 <div>
                   <label className="text-xs font-medium text-blue-600 block mb-1">Contact</label>
-                  <select value={initiationFollowUpForm.contact_id} onChange={(e) => { const cid = e.target.value; const sc = initiationContacts.find((c: any) => c.id?.toString() === cid); setInitiationFollowUpForm({ ...initiationFollowUpForm, contact_id: cid, sent_to: sc?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50">
+                  <select value={initiationFollowUpForm.contact_id} onChange={(e) => { const cid = e.target.value; const sc = initiationContacts.find((c: any) => c.id?.toString() === cid); setInitiationFollowUpForm({ ...initiationFollowUpForm, contact_id: cid, sent_to: sc?.work_email || sc?.personal_email || sc?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50">
                     <option value="">Select Contact</option>
                     {initiationContacts.map((c: any) => <option key={c.id} value={c.id}>{`${c.first_name || ''} ${c.last_name || ''}`.trim()}</option>)}
                   </select>
@@ -10886,6 +10986,7 @@ function DocumentsSection({ documents, onUpload, onDelete, crId, refreshData }: 
       setSelectedFile(null);
       setNotes('');
       if (fileInputRef.current) fileInputRef.current.value = '';
+      // Trigger reload of documents list
       if (refreshData) refreshData();
     } catch (err: any) {
       alert(err?.response?.data?.detail || 'Failed to upload file');
@@ -11028,9 +11129,10 @@ function PlanningForm({ data, crId, leadId, refreshData }: any) {
 
   // Top section state
   const [planningFormData, setPlanningFormData] = useState({
-    company_name: '', contact_name: '', email_format_type: 'Introduction', branch_office: '', contact_email: ''
+    company_name: '', contact_name: '', email_format_type: '', branch_office: '', contact_email: ''
   });
   const [planningContacts, setPlanningContacts] = useState<any[]>([]);
+  const [planningEmailTemplates, setPlanningEmailTemplates] = useState<any[]>([]);
   const [planningDocs, setPlanningDocs] = useState<any[]>([]);
   const [planningFile, setPlanningFile] = useState<File | null>(null);
   const [planningUploading, setPlanningUploading] = useState(false);
@@ -11142,9 +11244,14 @@ function PlanningForm({ data, crId, leadId, refreshData }: any) {
     }
   }, [crId]);
 
+  // Load email templates for Planning tab
+  useEffect(() => {
+    api.getCRIEmailTemplates('planning').then(setPlanningEmailTemplates).catch(() => setPlanningEmailTemplates([]));
+  }, []);
+
   const fetchPlanningContacts = async () => {
     try {
-      const res = await api.getCRContacts(crId);
+      const res = await api.getLeadContactsForEdit(leadId);
       setPlanningContacts(res);
     } catch (err) { console.error('Failed to fetch contacts:', err); }
   };
@@ -11293,7 +11400,7 @@ function PlanningForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-36 text-xs font-medium text-blue-600">Contact Name</label>
-            <select value={planningFormData.contact_name} onChange={(e) => setPlanningFormData({ ...planningFormData, contact_name: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            <select value={planningFormData.contact_name} onChange={(e) => { const cid = e.target.value; const selectedContact = planningContacts.find((c: any) => c.id?.toString() === cid); setPlanningFormData({ ...planningFormData, contact_name: cid, contact_email: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || '' }); }} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
               <option value="">Select Contact Name</option>
               {planningContacts.map((contact: any) => (
                 <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
@@ -11302,14 +11409,17 @@ function PlanningForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-36 text-xs font-medium text-blue-600">Email Format / Type</label>
-            <select value={planningFormData.email_format_type} onChange={(e) => setPlanningFormData({ ...planningFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
-              <option value="Introduction">Introduction</option>
-              <option value="Planning Update">Planning Update</option>
-              <option value="Follow-up">Follow-up</option>
-            </select>
-            <button className="ml-2 w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700">
-              <Mail className="w-4 h-4" />
-            </button>
+            <div className="flex-1 flex">
+              <select value={planningFormData.email_format_type} onChange={(e) => setPlanningFormData({ ...planningFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Select Email Format</option>
+                {planningEmailTemplates.map((template: any) => (
+                  <option key={template.id} value={template.email_format}>{template.email_format}</option>
+                ))}
+              </select>
+              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+                <Mail className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           {/* Email Sent To Table */}
           <div className="border rounded overflow-hidden">
@@ -12751,7 +12861,7 @@ function PlanningForm({ data, crId, leadId, refreshData }: any) {
               <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                 <div>
                   <label className="text-xs font-medium text-blue-600 block mb-1">Contact</label>
-                  <select value={planningFollowUpForm.contact_id} onChange={(e) => { const cid = e.target.value; const sc = planningContacts.find((c: any) => c.id?.toString() === cid); setPlanningFollowUpForm({ ...planningFollowUpForm, contact_id: cid, sent_to: sc?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50">
+                  <select value={planningFollowUpForm.contact_id} onChange={(e) => { const cid = e.target.value; const sc = planningContacts.find((c: any) => c.id?.toString() === cid); setPlanningFollowUpForm({ ...planningFollowUpForm, contact_id: cid, sent_to: sc?.work_email || sc?.personal_email || sc?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50">
                     <option value="">Select Contact</option>
                     {planningContacts.map((c: any) => <option key={c.id} value={c.id}>{`${c.first_name || ''} ${c.last_name || ''}`.trim()}</option>)}
                   </select>
@@ -12906,9 +13016,10 @@ function ConfigurationForm({ data, crId, leadId, refreshData }: any) {
 
   // Top section state
   const [configFormData, setConfigFormData] = useState({
-    company_name: '', contact_name: '', email_format_type: 'New Email', branch_office: '', contact_email: ''
+    company_name: '', contact_name: '', email_format_type: '', branch_office: '', contact_email: ''
   });
   const [configContacts, setConfigContacts] = useState<any[]>([]);
+  const [configEmailTemplates, setConfigEmailTemplates] = useState<any[]>([]);
   const [configDocs, setConfigDocs] = useState<any[]>([]);
   const [configFile, setConfigFile] = useState<File | null>(null);
   const [configUploading, setConfigUploading] = useState(false);
@@ -12990,8 +13101,13 @@ function ConfigurationForm({ data, crId, leadId, refreshData }: any) {
     }
   }, [crId]);
 
+  // Load email templates for Configuration tab
+  useEffect(() => {
+    api.getCRIEmailTemplates('Configuration').then(setConfigEmailTemplates).catch(() => setConfigEmailTemplates([]));
+  }, []);
+
   const fetchConfigContacts = async () => {
-    try { const res = await api.getCRContacts(crId); setConfigContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
+    try { const res = await api.getLeadContactsForEdit(leadId); setConfigContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
   };
   const fetchConfigDocs = async () => {
     try { const res = await api.getCRDocuments(crId, 'configuration'); setConfigDocs(res); } catch (err) { console.error('Failed to fetch docs:', err); }
@@ -13155,7 +13271,7 @@ function ConfigurationForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-36 text-xs font-medium text-blue-600">Contact Name</label>
-            <select value={configFormData.contact_name} onChange={(e) => setConfigFormData({ ...configFormData, contact_name: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            <select value={configFormData.contact_name} onChange={(e) => { const cid = e.target.value; const selectedContact = configContacts.find((c: any) => c.id?.toString() === cid); setConfigFormData({ ...configFormData, contact_name: cid, contact_email: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || '' }); }} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
               <option value="">Select Contact Name</option>
               {configContacts.map((contact: any) => (
                 <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
@@ -13164,14 +13280,17 @@ function ConfigurationForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-36 text-xs font-medium text-blue-600">Email Format / Type</label>
-            <select value={configFormData.email_format_type} onChange={(e) => setConfigFormData({ ...configFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
-              <option value="New Email">New Email</option>
-              <option value="Configuration Update">Configuration Update</option>
-              <option value="Status Update">Status Update</option>
-            </select>
-            <button className="ml-2 w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700">
-              <Mail className="w-4 h-4" />
-            </button>
+            <div className="flex-1 flex">
+              <select value={configFormData.email_format_type} onChange={(e) => setConfigFormData({ ...configFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Select Email Format</option>
+                {configEmailTemplates.map((template: any) => (
+                  <option key={template.id} value={template.email_format}>{template.email_format}</option>
+                ))}
+              </select>
+              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+                <Mail className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           {/* Email Sent To Table */}
           <div className="border rounded overflow-hidden">
@@ -13630,7 +13749,7 @@ function ConfigurationForm({ data, crId, leadId, refreshData }: any) {
                 {/* Left Column */}
                 <div>
                   <label className="text-xs font-medium text-blue-600 block mb-1">Contact</label>
-                  <select value={configFollowUpForm.contact_id} onChange={(e) => { const cid = e.target.value; const sc = configContacts.find((c: any) => c.id?.toString() === cid); setConfigFollowUpForm({ ...configFollowUpForm, contact_id: cid, sent_to: sc?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50">
+                  <select value={configFollowUpForm.contact_id} onChange={(e) => { const cid = e.target.value; const sc = configContacts.find((c: any) => c.id?.toString() === cid); setConfigFollowUpForm({ ...configFollowUpForm, contact_id: cid, sent_to: sc?.work_email || sc?.personal_email || sc?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50">
                     <option value="">Select Contact</option>
                     {configContacts.map((c: any) => <option key={c.id} value={c.id}>{`${c.first_name || ''} ${c.last_name || ''}`.trim()}</option>)}
                   </select>
@@ -13913,9 +14032,10 @@ function TrainingForm({ data, crId, leadId, refreshData }: any) {
 
   // Top section state
   const [trainingFormData, setTrainingFormData] = useState({
-    company_name: '', contact_name: '', email_format_type: 'Training Schedule', branch_office: '', contact_email: ''
+    company_name: '', contact_name: '', email_format_type: '', branch_office: '', contact_email: ''
   });
   const [trainingContacts, setTrainingContacts] = useState<any[]>([]);
+  const [trainingEmailTemplates, setTrainingEmailTemplates] = useState<any[]>([]);
   const [trainingDocs, setTrainingDocs] = useState<any[]>([]);
   const [trainingFile, setTrainingFile] = useState<File | null>(null);
   const [trainingUploading, setTrainingUploading] = useState(false);
@@ -13979,8 +14099,13 @@ function TrainingForm({ data, crId, leadId, refreshData }: any) {
     }
   }, [crId]);
 
+  // Load email templates for Training tab
+  useEffect(() => {
+    api.getCRIEmailTemplates('training').then(setTrainingEmailTemplates).catch(() => setTrainingEmailTemplates([]));
+  }, []);
+
   const fetchTrainingContacts = async () => {
-    try { const res = await api.getCRContacts(crId); setTrainingContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
+    try { const res = await api.getLeadContactsForEdit(leadId); setTrainingContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
   };
   const fetchTrainingDocs = async () => {
     try { const res = await api.getCRDocuments(crId, 'training'); setTrainingDocs(res); } catch (err) { console.error('Failed to fetch docs:', err); }
@@ -14105,7 +14230,7 @@ function TrainingForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-36 text-xs font-medium text-blue-600">Contact Name</label>
-            <select value={trainingFormData.contact_name} onChange={(e) => setTrainingFormData({ ...trainingFormData, contact_name: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            <select value={trainingFormData.contact_name} onChange={(e) => { const cid = e.target.value; const selectedContact = trainingContacts.find((c: any) => c.id?.toString() === cid); setTrainingFormData({ ...trainingFormData, contact_name: cid, contact_email: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || '' }); }} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
               <option value="">Select Contact Name</option>
               {trainingContacts.map((contact: any) => (
                 <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
@@ -14114,14 +14239,17 @@ function TrainingForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-36 text-xs font-medium text-blue-600">Email Format / Type</label>
-            <select value={trainingFormData.email_format_type} onChange={(e) => setTrainingFormData({ ...trainingFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
-              <option value="Training Schedule">Training Schedule</option>
-              <option value="Training Update">Training Update</option>
-              <option value="Training Completion">Training Completion</option>
-            </select>
-            <button className="ml-2 w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700">
-              <Mail className="w-4 h-4" />
-            </button>
+            <div className="flex-1 flex">
+              <select value={trainingFormData.email_format_type} onChange={(e) => setTrainingFormData({ ...trainingFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Select Email Format</option>
+                {trainingEmailTemplates.map((template: any) => (
+                  <option key={template.id} value={template.email_format}>{template.email_format}</option>
+                ))}
+              </select>
+              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+                <Mail className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           {/* Email Sent To Table */}
           <div className="border rounded overflow-hidden">
@@ -14746,7 +14874,7 @@ function TrainingForm({ data, crId, leadId, refreshData }: any) {
               <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                 <div>
                   <label className="text-xs font-medium text-blue-600 block mb-1">Contact</label>
-                  <select value={trainingFollowUpForm.contact_id} onChange={(e) => { const cid = e.target.value; const sc = trainingContacts.find((c: any) => c.id?.toString() === cid); setTrainingFollowUpForm({ ...trainingFollowUpForm, contact_id: cid, sent_to: sc?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50">
+                  <select value={trainingFollowUpForm.contact_id} onChange={(e) => { const cid = e.target.value; const sc = trainingContacts.find((c: any) => c.id?.toString() === cid); setTrainingFollowUpForm({ ...trainingFollowUpForm, contact_id: cid, sent_to: sc?.work_email || sc?.personal_email || sc?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50">
                     <option value="">Select Contact</option>
                     {trainingContacts.map((c: any) => <option key={c.id} value={c.id}>{`${c.first_name || ''} ${c.last_name || ''}`.trim()}</option>)}
                   </select>
@@ -14968,9 +15096,10 @@ function UATForm({ data, crId, leadId, refreshData }: any) {
 
   // Top section state
   const [uatFormData, setUatFormData] = useState({
-    company_name: '', contact_name: '', email_format_type: 'UAT Acceptance', branch_office: '', contact_email: ''
+    company_name: '', contact_name: '', email_format_type: '', branch_office: '', contact_email: ''
   });
   const [uatContacts, setUatContacts] = useState<any[]>([]);
+  const [uatEmailTemplates, setUatEmailTemplates] = useState<any[]>([]);
   const [uatDocs, setUatDocs] = useState<any[]>([]);
   const [uatFile, setUatFile] = useState<File | null>(null);
   const [uatUploading, setUatUploading] = useState(false);
@@ -15024,8 +15153,13 @@ function UATForm({ data, crId, leadId, refreshData }: any) {
     }
   }, [crId]);
 
+  // Load email templates for UAT tab
+  useEffect(() => {
+    api.getCRIEmailTemplates('UAT').then(setUatEmailTemplates).catch(() => setUatEmailTemplates([]));
+  }, []);
+
   const fetchUatContacts = async () => {
-    try { const res = await api.getCRContacts(crId); setUatContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
+    try { const res = await api.getLeadContactsForEdit(leadId); setUatContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
   };
   const fetchUatDocs = async () => {
     try { const res = await api.getCRDocuments(crId, 'uat'); setUatDocs(res); } catch (err) { console.error('Failed to fetch docs:', err); }
@@ -15150,7 +15284,7 @@ function UATForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-36 text-xs font-medium text-blue-600">Contact Name</label>
-            <select value={uatFormData.contact_name} onChange={(e) => setUatFormData({ ...uatFormData, contact_name: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            <select value={uatFormData.contact_name} onChange={(e) => { const cid = e.target.value; const selectedContact = uatContacts.find((c: any) => c.id?.toString() === cid); setUatFormData({ ...uatFormData, contact_name: cid, contact_email: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || '' }); }} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
               <option value="">Select Contact Name</option>
               {uatContacts.map((contact: any) => (
                 <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
@@ -15159,14 +15293,17 @@ function UATForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-36 text-xs font-medium text-blue-600">Email Format / Type</label>
-            <select value={uatFormData.email_format_type} onChange={(e) => setUatFormData({ ...uatFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
-              <option value="UAT Acceptance">UAT Acceptance</option>
-              <option value="UAT Schedule">UAT Schedule</option>
-              <option value="UAT Completion">UAT Completion</option>
-            </select>
-            <button className="ml-2 w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700">
-              <Mail className="w-4 h-4" />
-            </button>
+            <div className="flex-1 flex">
+              <select value={uatFormData.email_format_type} onChange={(e) => setUatFormData({ ...uatFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Select Email Format</option>
+                {uatEmailTemplates.map((template: any) => (
+                  <option key={template.id} value={template.email_format}>{template.email_format}</option>
+                ))}
+              </select>
+              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+                <Mail className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           {/* Email Sent To Table */}
           <div className="border rounded overflow-hidden">
@@ -15594,7 +15731,7 @@ function UATForm({ data, crId, leadId, refreshData }: any) {
               <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                 <div>
                   <label className="text-xs font-medium text-blue-600 block mb-1">Contact</label>
-                  <select value={uatFollowUpForm.contact_id} onChange={(e) => { const cid = e.target.value; const sc = uatContacts.find((c: any) => c.id?.toString() === cid); setUatFollowUpForm({ ...uatFollowUpForm, contact_id: cid, sent_to: sc?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50">
+                  <select value={uatFollowUpForm.contact_id} onChange={(e) => { const cid = e.target.value; const sc = uatContacts.find((c: any) => c.id?.toString() === cid); setUatFollowUpForm({ ...uatFollowUpForm, contact_id: cid, sent_to: sc?.work_email || sc?.personal_email || sc?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50">
                     <option value="">Select Contact</option>
                     {uatContacts.map((c: any) => <option key={c.id} value={c.id}>{`${c.first_name || ''} ${c.last_name || ''}`.trim()}</option>)}
                   </select>
@@ -15755,9 +15892,10 @@ function DataMigrationForm({ data, crId, leadId, refreshData }: any) {
 
   // Top section state
   const [dmFormData, setDmFormData] = useState({
-    company_name: '', contact_name: '', email_format_type: 'Data Migration Formal Sign-off', branch_office: '', contact_email: ''
+    company_name: '', contact_name: '', email_format_type: '', branch_office: '', contact_email: ''
   });
   const [dmContacts, setDmContacts] = useState<any[]>([]);
+  const [dmEmailTemplates, setDmEmailTemplates] = useState<any[]>([]);
   const [dmDocs, setDmDocs] = useState<any[]>([]);
   const [dmFile, setDmFile] = useState<File | null>(null);
   const [dmUploading, setDmUploading] = useState(false);
@@ -15826,8 +15964,13 @@ function DataMigrationForm({ data, crId, leadId, refreshData }: any) {
     }
   }, [crId]);
 
+  // Load email templates for Data Migration tab
+  useEffect(() => {
+    api.getCRIEmailTemplates('Data Migration').then(setDmEmailTemplates).catch(() => setDmEmailTemplates([]));
+  }, []);
+
   const fetchDmContacts = async () => {
-    try { const res = await api.getCRContacts(crId); setDmContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
+    try { const res = await api.getLeadContactsForEdit(leadId); setDmContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
   };
   const fetchDmDocs = async () => {
     try { const res = await api.getCRDocuments(crId, 'data-migration'); setDmDocs(res); } catch (err) { console.error('Failed to fetch docs:', err); }
@@ -15977,7 +16120,7 @@ function DataMigrationForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-36 text-xs font-medium text-blue-600">Contact Name</label>
-            <select value={dmFormData.contact_name} onChange={(e) => setDmFormData({ ...dmFormData, contact_name: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            <select value={dmFormData.contact_name} onChange={(e) => { const cid = e.target.value; const selectedContact = dmContacts.find((c: any) => c.id?.toString() === cid); setDmFormData({ ...dmFormData, contact_name: cid, contact_email: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || '' }); }} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
               <option value="">Select Contact Name</option>
               {dmContacts.map((contact: any) => (
                 <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
@@ -15986,14 +16129,17 @@ function DataMigrationForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-36 text-xs font-medium text-blue-600">Email Format / Type</label>
-            <select value={dmFormData.email_format_type} onChange={(e) => setDmFormData({ ...dmFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
-              <option value="Data Migration Formal Sign-off">Data Migration Formal Sign-off</option>
-              <option value="Data Migration Schedule">Data Migration Schedule</option>
-              <option value="Data Migration Completion">Data Migration Completion</option>
-            </select>
-            <button className="ml-2 w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700">
-              <Mail className="w-4 h-4" />
-            </button>
+            <div className="flex-1 flex">
+              <select value={dmFormData.email_format_type} onChange={(e) => setDmFormData({ ...dmFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Select Email Format</option>
+                {dmEmailTemplates.map((template: any) => (
+                  <option key={template.id} value={template.email_format}>{template.email_format}</option>
+                ))}
+              </select>
+              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+                <Mail className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           {/* Email Sent To Table */}
           <div className="border rounded overflow-hidden">
@@ -16461,7 +16607,7 @@ function DataMigrationForm({ data, crId, leadId, refreshData }: any) {
               <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                 <div>
                   <label className="text-xs font-medium text-blue-600 block mb-1">Contact</label>
-                  <select value={dmFollowUpForm.contact_id} onChange={(e) => { const cid = e.target.value; const sc = dmContacts.find((c: any) => c.id?.toString() === cid); setDmFollowUpForm({ ...dmFollowUpForm, contact_id: cid, sent_to: sc?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50">
+                  <select value={dmFollowUpForm.contact_id} onChange={(e) => { const cid = e.target.value; const sc = dmContacts.find((c: any) => c.id?.toString() === cid); setDmFollowUpForm({ ...dmFollowUpForm, contact_id: cid, sent_to: sc?.work_email || sc?.personal_email || sc?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50">
                     <option value="">Select Contact</option>
                     {dmContacts.map((c: any) => <option key={c.id} value={c.id}>{`${c.first_name || ''} ${c.last_name || ''}`.trim()}</option>)}
                   </select>
@@ -16675,9 +16821,10 @@ function GoLiveForm({ data, crId, leadId, refreshData }: any) {
 
   // Top section state
   const [glFormData, setGlFormData] = useState({
-    company_name: '', contact_name: '', email_format_type: 'Go Live Plan for Review and Acceptance', branch_office: '', contact_email: ''
+    company_name: '', contact_name: '', email_format_type: '', branch_office: '', contact_email: ''
   });
   const [glContacts, setGlContacts] = useState<any[]>([]);
+  const [glEmailTemplates, setGlEmailTemplates] = useState<any[]>([]);
   const [glDocs, setGlDocs] = useState<any[]>([]);
   const [glFile, setGlFile] = useState<File | null>(null);
   const [glUploading, setGlUploading] = useState(false);
@@ -16757,8 +16904,13 @@ function GoLiveForm({ data, crId, leadId, refreshData }: any) {
     }
   }, [crId]);
 
+  // Load email templates for Go Live tab
+  useEffect(() => {
+    api.getCRIEmailTemplates('Go-Live').then(setGlEmailTemplates).catch(() => setGlEmailTemplates([]));
+  }, []);
+
   const fetchGlContacts = async () => {
-    try { const res = await api.getCRContacts(crId); setGlContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
+    try { const res = await api.getLeadContactsForEdit(leadId); setGlContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
   };
   const fetchGlDocs = async () => {
     try { const res = await api.getCRDocuments(crId, 'go-live'); setGlDocs(res); } catch (err) { console.error('Failed to fetch docs:', err); }
@@ -16934,7 +17086,7 @@ function GoLiveForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-36 text-xs font-medium text-blue-600">Contact Name</label>
-            <select value={glFormData.contact_name} onChange={(e) => setGlFormData({ ...glFormData, contact_name: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            <select value={glFormData.contact_name} onChange={(e) => { const cid = e.target.value; const selectedContact = glContacts.find((c: any) => c.id?.toString() === cid); setGlFormData({ ...glFormData, contact_name: cid, contact_email: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || '' }); }} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
               <option value="">Select Contact Name</option>
               {glContacts.map((contact: any) => (
                 <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
@@ -16943,14 +17095,17 @@ function GoLiveForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center">
             <label className="w-36 text-xs font-medium text-blue-600">Email Format / Type</label>
-            <select value={glFormData.email_format_type} onChange={(e) => setGlFormData({ ...glFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
-              <option value="Go Live Plan for Review and Acceptance">Go Live Plan for Review and Acceptance</option>
-              <option value="Go Live Schedule">Go Live Schedule</option>
-              <option value="Go Live Confirmation">Go Live Confirmation</option>
-            </select>
-            <button className="ml-2 w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700">
-              <Mail className="w-4 h-4" />
-            </button>
+            <div className="flex-1 flex">
+              <select value={glFormData.email_format_type} onChange={(e) => setGlFormData({ ...glFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Select Email Format</option>
+                {glEmailTemplates.map((template: any) => (
+                  <option key={template.id} value={template.email_format}>{template.email_format}</option>
+                ))}
+              </select>
+              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+                <Mail className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           {/* Email Sent To Table */}
           <div className="border rounded overflow-hidden">
@@ -17535,7 +17690,7 @@ function GoLiveForm({ data, crId, leadId, refreshData }: any) {
               <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                 <div>
                   <label className="text-xs font-medium text-blue-600 block mb-1">Contact</label>
-                  <select value={glFollowUpForm.contact_id} onChange={(e) => { const cid = e.target.value; const sc = glContacts.find((c: any) => c.id?.toString() === cid); setGlFollowUpForm({ ...glFollowUpForm, contact_id: cid, sent_to: sc?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50">
+                  <select value={glFollowUpForm.contact_id} onChange={(e) => { const cid = e.target.value; const sc = glContacts.find((c: any) => c.id?.toString() === cid); setGlFollowUpForm({ ...glFollowUpForm, contact_id: cid, sent_to: sc?.work_email || sc?.personal_email || sc?.email || '' }); }} className="w-full h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50">
                     <option value="">Select Contact</option>
                     {glContacts.map((c: any) => <option key={c.id} value={c.id}>{`${c.first_name || ''} ${c.last_name || ''}`.trim()}</option>)}
                   </select>
@@ -17749,9 +17904,10 @@ function SupportForm({ data, crId, leadId, refreshData }: any) {
 
   // Top section state
   const [supportFormData, setSupportFormData] = useState({
-    company_name: '', contact_name: '', email_format_type: 'Open Tickets Status', branch_office: '', contact_email: ''
+    company_name: '', contact_name: '', email_format_type: '', branch_office: '', contact_email: ''
   });
   const [supportContacts, setSupportContacts] = useState<any[]>([]);
+  const [supportEmailTemplates, setSupportEmailTemplates] = useState<any[]>([]);
   const [supportDocs, setSupportDocs] = useState<any[]>([]);
   const [supportFile, setSupportFile] = useState<File | null>(null);
   const [supportUploading, setSupportUploading] = useState(false);
@@ -17800,6 +17956,11 @@ function SupportForm({ data, crId, leadId, refreshData }: any) {
     }
   }, [crId]);
 
+  // Load email templates for Support tab
+  useEffect(() => {
+    api.getCRIEmailTemplates('Support').then(setSupportEmailTemplates).catch(() => setSupportEmailTemplates([]));
+  }, []);
+
   useEffect(() => {
     if (data) {
       setSupportFormData(prev => ({
@@ -17811,7 +17972,7 @@ function SupportForm({ data, crId, leadId, refreshData }: any) {
   }, [data]);
 
   const fetchSupportContacts = async () => {
-    try { const res = await api.getCRContacts(crId); setSupportContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
+    try { const res = await api.getLeadContactsForEdit(leadId); setSupportContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
   };
   const fetchSupportDocs = async () => {
     try { const res = await api.getCRDocuments(crId, 'support'); setSupportDocs(res); } catch (err) { console.error('Failed to fetch docs:', err); }
@@ -17990,21 +18151,24 @@ function SupportForm({ data, crId, leadId, refreshData }: any) {
           </div>
           <div className="flex items-center gap-2">
             <label className={fieldLabelClass}>Contact Name</label>
-            <select value={supportFormData.contact_name} onChange={(e) => { const cid = e.target.value; const sc = supportContacts.find((c: any) => c.id?.toString() === cid); setSupportFormData({ ...supportFormData, contact_name: cid, contact_email: sc?.email || '' }); }} className={fieldSelectClass}>
+            <select value={supportFormData.contact_name} onChange={(e) => { const cid = e.target.value; const sc = supportContacts.find((c: any) => c.id?.toString() === cid); setSupportFormData({ ...supportFormData, contact_name: cid, contact_email: sc?.work_email || sc?.personal_email || sc?.email || '' }); }} className={fieldSelectClass}>
               <option value="">Select Contact Name</option>
               {supportContacts.map((c: any) => <option key={c.id} value={c.id}>{`${c.first_name || ''} ${c.last_name || ''}`.trim()}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-2">
             <label className={fieldLabelClass}>Email Format / Type</label>
-            <select value={supportFormData.email_format_type} onChange={(e) => setSupportFormData({ ...supportFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
-              <option value="Open Tickets Status">Open Tickets Status</option>
-              <option value="Resolved Tickets">Resolved Tickets</option>
-              <option value="Support Summary">Support Summary</option>
-            </select>
-            <button className="h-8 px-3 bg-gray-100 border border-l-0 border-gray-300 rounded-r hover:bg-gray-200">
-              <Mail className="w-4 h-4 text-gray-600" />
-            </button>
+            <div className="flex-1 flex">
+              <select value={supportFormData.email_format_type} onChange={(e) => setSupportFormData({ ...supportFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Select Email Format</option>
+                {supportEmailTemplates.map((template: any) => (
+                  <option key={template.id} value={template.email_format}>{template.email_format}</option>
+                ))}
+              </select>
+              <button className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600">
+                <Mail className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 

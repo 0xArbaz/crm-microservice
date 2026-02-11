@@ -15,7 +15,8 @@ from app.api.v1.endpoints import (
     marketing,
     customer_requirements,
     option_master,
-    location
+    location,
+    cri_email_template
 )
 
 api_router = APIRouter()
@@ -67,3 +68,6 @@ api_router.include_router(option_master.router, prefix="/options", tags=["Option
 
 # Location (Countries, States, Cities)
 api_router.include_router(location.router, prefix="/location", tags=["Location"])
+
+# CRI Email Templates
+api_router.include_router(cri_email_template.router, prefix="/cri-email-templates", tags=["CRI Email Templates"])

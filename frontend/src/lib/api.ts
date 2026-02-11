@@ -1026,6 +1026,35 @@ class ApiService {
   async deleteCity(cityId: number): Promise<void> {
     await this.client.delete(`/location/cities/${cityId}`);
   }
+
+  // ============ CRI Email Templates ============
+
+  async getCRIEmailTemplates(tab?: string, companyId?: number): Promise<any[]> {
+    const params: any = {};
+    if (tab) params.tab = tab;
+    if (companyId) params.company_id = companyId;
+    const response = await this.client.get('/cri-email-templates', { params });
+    return response.data;
+  }
+
+  async getCRIEmailTemplate(templateId: number): Promise<any> {
+    const response = await this.client.get(`/cri-email-templates/${templateId}`);
+    return response.data;
+  }
+
+  async createCRIEmailTemplate(data: any): Promise<any> {
+    const response = await this.client.post('/cri-email-templates', data);
+    return response.data;
+  }
+
+  async updateCRIEmailTemplate(templateId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/cri-email-templates/${templateId}`, data);
+    return response.data;
+  }
+
+  async deleteCRIEmailTemplate(templateId: number): Promise<void> {
+    await this.client.delete(`/cri-email-templates/${templateId}`);
+  }
 }
 
 export const api = new ApiService();
