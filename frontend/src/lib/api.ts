@@ -859,6 +859,173 @@ class ApiService {
   async deleteCRMemo(crId: number, memoId: number): Promise<void> {
     await this.client.delete(`/customer-requirements/${crId}/memos/${memoId}`);
   }
+
+  // CR Contacts
+  async getCRContacts(crId: number): Promise<any[]> {
+    const response = await this.client.get(`/customer-requirements/${crId}/contacts`);
+    return response.data;
+  }
+
+  // ============ Option Master ============
+
+  // Options (Categories)
+  async getOptions(): Promise<any[]> {
+    const response = await this.client.get('/options');
+    return response.data;
+  }
+
+  async getOptionsWithDropdowns(): Promise<any[]> {
+    const response = await this.client.get('/options/with-dropdowns');
+    return response.data;
+  }
+
+  async getOption(optionId: number): Promise<any> {
+    const response = await this.client.get(`/options/${optionId}`);
+    return response.data;
+  }
+
+  async createOption(data: { title: string }): Promise<any> {
+    const response = await this.client.post('/options', data);
+    return response.data;
+  }
+
+  async updateOption(optionId: number, data: { title?: string }): Promise<any> {
+    const response = await this.client.put(`/options/${optionId}`, data);
+    return response.data;
+  }
+
+  async deleteOption(optionId: number): Promise<void> {
+    await this.client.delete(`/options/${optionId}`);
+  }
+
+  // Option Dropdowns
+  async getOptionDropdowns(optionId: number, status?: string): Promise<any[]> {
+    const params = status ? { status } : {};
+    const response = await this.client.get(`/options/${optionId}/dropdowns`, { params });
+    return response.data;
+  }
+
+  async createOptionDropdown(optionId: number, data: {
+    name: string;
+    option_id: number;
+    status?: string;
+    default_value?: boolean;
+    company_id?: number;
+  }): Promise<any> {
+    const response = await this.client.post(`/options/${optionId}/dropdowns`, data);
+    return response.data;
+  }
+
+  async updateOptionDropdown(optionId: number, dropdownId: number, data: {
+    name?: string;
+    status?: string;
+    default_value?: boolean;
+    company_id?: number;
+  }): Promise<any> {
+    const response = await this.client.put(`/options/${optionId}/dropdowns/${dropdownId}`, data);
+    return response.data;
+  }
+
+  async deleteOptionDropdown(optionId: number, dropdownId: number): Promise<void> {
+    await this.client.delete(`/options/${optionId}/dropdowns/${dropdownId}`);
+  }
+
+  // Utility - Get dropdown values by option title
+  async getDropdownValuesByTitle(optionTitle: string, activeOnly: boolean = true): Promise<any[]> {
+    const response = await this.client.get(`/options/dropdown-values/${encodeURIComponent(optionTitle)}`, {
+      params: { active_only: activeOnly }
+    });
+    return response.data;
+  }
+
+  async getOptionByTitle(title: string): Promise<any> {
+    const response = await this.client.get(`/options/by-title/${encodeURIComponent(title)}`);
+    return response.data;
+  }
+
+  // ============ Location (Countries, States, Cities) ============
+
+  // Countries
+  async getCountries(status?: string): Promise<any[]> {
+    const params = status ? { status } : {};
+    const response = await this.client.get('/location/countries', { params });
+    return response.data;
+  }
+
+  async getCountry(countryId: number): Promise<any> {
+    const response = await this.client.get(`/location/countries/${countryId}`);
+    return response.data;
+  }
+
+  async createCountry(data: { name: string; code?: string; status?: string }): Promise<any> {
+    const response = await this.client.post('/location/countries', data);
+    return response.data;
+  }
+
+  async updateCountry(countryId: number, data: { name?: string; code?: string; status?: string }): Promise<any> {
+    const response = await this.client.put(`/location/countries/${countryId}`, data);
+    return response.data;
+  }
+
+  async deleteCountry(countryId: number): Promise<void> {
+    await this.client.delete(`/location/countries/${countryId}`);
+  }
+
+  // States
+  async getStates(countryId?: number, status?: string): Promise<any[]> {
+    const params: any = {};
+    if (countryId) params.country_id = countryId;
+    if (status) params.status = status;
+    const response = await this.client.get('/location/states', { params });
+    return response.data;
+  }
+
+  async getState(stateId: number): Promise<any> {
+    const response = await this.client.get(`/location/states/${stateId}`);
+    return response.data;
+  }
+
+  async createState(data: { name: string; country_id: number; code?: string; status?: string }): Promise<any> {
+    const response = await this.client.post('/location/states', data);
+    return response.data;
+  }
+
+  async updateState(stateId: number, data: { name?: string; country_id?: number; code?: string; status?: string }): Promise<any> {
+    const response = await this.client.put(`/location/states/${stateId}`, data);
+    return response.data;
+  }
+
+  async deleteState(stateId: number): Promise<void> {
+    await this.client.delete(`/location/states/${stateId}`);
+  }
+
+  // Cities
+  async getCities(stateId?: number, status?: string): Promise<any[]> {
+    const params: any = {};
+    if (stateId) params.state_id = stateId;
+    if (status) params.status = status;
+    const response = await this.client.get('/location/cities', { params });
+    return response.data;
+  }
+
+  async getCity(cityId: number): Promise<any> {
+    const response = await this.client.get(`/location/cities/${cityId}`);
+    return response.data;
+  }
+
+  async createCity(data: { name: string; state_id: number; status?: string }): Promise<any> {
+    const response = await this.client.post('/location/cities', data);
+    return response.data;
+  }
+
+  async updateCity(cityId: number, data: { name?: string; state_id?: number; status?: string }): Promise<any> {
+    const response = await this.client.put(`/location/cities/${cityId}`, data);
+    return response.data;
+  }
+
+  async deleteCity(cityId: number): Promise<void> {
+    await this.client.delete(`/location/cities/${cityId}`);
+  }
 }
 
 export const api = new ApiService();

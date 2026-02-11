@@ -8,10 +8,14 @@ import {
   TrendingUp,
   TrendingDown,
   Activity,
+  AlertCircle,
+  RefreshCw,
+  PieChart,
 } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
 import { DashboardStats } from '@/types';
 import { formatCurrency, formatDateTime, getStatusColor } from '@/lib/utils';
@@ -64,19 +68,23 @@ function StatCard({
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchStats = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.getDashboardStats();
+      setStats(data);
+    } catch (error: any) {
+      console.error('Failed to fetch dashboard stats:', error);
+      setError(error?.response?.data?.detail || error?.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const data = await api.getDashboardStats();
-        setStats(data);
-      } catch (error) {
-        console.error('Failed to fetch dashboard stats:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchStats();
   }, []);
 
@@ -90,13 +98,34 @@ export default function DashboardPage() {
     );
   }
 
+  if (error) {
+    return (
+      <MainLayout>
+        <div className="flex flex-col items-center justify-center h-64 space-y-4">
+          <AlertCircle className="w-12 h-12 text-red-500" />
+          <p className="text-red-600 font-medium">{error}</p>
+          <Button onClick={fetchStats} className="flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" />
+            Retry
+          </Button>
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
       <div className="space-y-6">
         {/* Page Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500">Welcome back! Here is your CRM overview.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-gray-500">Welcome back! Here is your CRM overview.</p>
+          </div>
+          <Button onClick={fetchStats} variant="outline" className="flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </Button>
         </div>
 
         {/* Stats Grid */}
@@ -234,7 +263,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Sales Targets & Lead Distribution */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Sales Targets */}
           <Card>
             <CardHeader>
@@ -242,7 +271,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {stats?.sales_targets.length === 0 ? (
+                {!stats?.sales_targets || stats?.sales_targets.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">
                     No active sales targets
                   </p>
@@ -283,23 +312,98 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {stats?.leads_by_status.map((item) => (
-                  <div
-                    key={item.status}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex items-center">
-                      <Badge className={getStatusColor(item.status)}>
-                        {item.status.replace('_', ' ')}
-                      </Badge>
+                {!stats?.leads_by_status || stats?.leads_by_status.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">
+                    No leads data
+                  </p>
+                ) : (
+                  stats?.leads_by_status.map((item) => (
+                    <div
+                      key={item.status}
+                      className="flex items-center justify-between"
+                    >
+                      <div className="flex items-center">
+                        <Badge className={getStatusColor(item.status)}>
+                          {item.status.replace('_', ' ')}
+                        </Badge>
+                      </div>
+                      <span className="font-medium">{item.count}</span>
                     </div>
-                    <span className="font-medium">{item.count}</span>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Leads by Source */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <PieChart className="w-5 h-5 text-gray-500" />
+                <h2 className="text-lg font-semibold">Leads by Source</h2>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {!stats?.leads_by_source || stats?.leads_by_source.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">
+                    No source data available
+                  </p>
+                ) : (
+                  stats?.leads_by_source.map((item) => (
+                    <div key={item.source}>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium capitalize">
+                          {item.source.replace('_', ' ')}
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          {item.count} ({item.percentage}%)
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-500 h-2 rounded-full"
+                          style={{ width: `${item.percentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Funnel Stages Details */}
+        {stats?.funnel?.stages && stats.funnel.stages.length > 0 && (
+          <Card>
+            <CardHeader>
+              <h2 className="text-lg font-semibold">Pipeline Stages</h2>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                {stats.funnel.stages.map((stage) => (
+                  <div
+                    key={stage.stage}
+                    className="text-center p-4 bg-gray-50 rounded-lg"
+                  >
+                    <p className="text-2xl font-bold text-primary-600">
+                      {stage.count}
+                    </p>
+                    <p className="text-sm text-gray-500 capitalize">
+                      {stage.stage.replace('_', ' ')}
+                    </p>
+                    {stage.value > 0 && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        {formatCurrency(Number(stage.value))}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
             </CardContent>
           </Card>
-        </div>
+        )}
       </div>
     </MainLayout>
   );

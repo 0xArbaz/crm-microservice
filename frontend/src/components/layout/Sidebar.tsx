@@ -77,6 +77,14 @@ const navigation: NavItem[] = [
     ],
   },
   { name: 'Webhooks', href: '/webhooks', icon: Webhook },
+  {
+    name: 'Settings',
+    icon: Settings,
+    children: [
+      { name: 'Option Master', href: '/settings/option-master' },
+      { name: 'General Settings', href: '/settings' },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -166,16 +174,6 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="px-4 py-4 border-t border-gray-800">
-        <Link
-          href="/settings"
-          className="flex items-center px-3 py-2 text-sm font-medium text-gray-300 rounded-lg hover:bg-gray-800 hover:text-white transition-colors"
-        >
-          <Settings className="w-5 h-5 mr-3" />
-          Settings
-        </Link>
-      </div>
     </div>
   );
 }

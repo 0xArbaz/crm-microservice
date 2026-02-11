@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -41,19 +41,7 @@ const leadSchema = z.object({
 
 type LeadForm = z.infer<typeof leadSchema>;
 
-const sourceOptions = [
-  { value: '', label: 'Select Lead Source' },
-  { value: 'direct', label: 'Direct' },
-  { value: 'website', label: 'Website' },
-  { value: 'referral', label: 'Referral' },
-  { value: 'social_media', label: 'Social Media' },
-  { value: 'cold_call', label: 'Cold Call' },
-  { value: 'walk_in', label: 'Walk In' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'email', label: 'Email' },
-  { value: 'other', label: 'Other' },
-];
-
+// Static options
 const leadStatusOptions = [
   { value: '', label: 'Select Lead Status' },
   { value: 'new', label: 'New' },
@@ -63,29 +51,7 @@ const leadStatusOptions = [
   { value: 'negotiation', label: 'Negotiation' },
 ];
 
-const groupOptions = [
-  { value: '', label: 'Select Group' },
-  { value: '1', label: 'Group A' },
-  { value: '2', label: 'Group B' },
-  { value: '3', label: 'Group C' },
-];
-
-const industryOptions = [
-  { value: '', label: 'Select Industry' },
-  { value: '1', label: 'Technology' },
-  { value: '2', label: 'Manufacturing' },
-  { value: '3', label: 'Healthcare' },
-  { value: '4', label: 'Finance' },
-  { value: '5', label: 'Retail' },
-];
-
-const regionOptions = [
-  { value: '', label: 'Select Company Region' },
-  { value: '1', label: 'North' },
-  { value: '2', label: 'South' },
-  { value: '3', label: 'East' },
-  { value: '4', label: 'West' },
-];
+// Dynamic options will be fetched from Option Master
 
 const timezoneOptions = [
   { value: '', label: 'Select Company Timezone' },
@@ -108,32 +74,7 @@ const leadScoreOptions = [
   { value: 'cold', label: 'Cold' },
 ];
 
-const countryOptions = [
-  { value: '', label: 'Select Country' },
-  { value: '1', label: 'India' },
-  { value: '2', label: 'United States' },
-  { value: '3', label: 'United Kingdom' },
-  { value: '4', label: 'Canada' },
-  { value: '5', label: 'Australia' },
-];
-
-const stateOptions = [
-  { value: '', label: 'Nothing selected' },
-  { value: '1', label: 'Maharashtra' },
-  { value: '2', label: 'Karnataka' },
-  { value: '3', label: 'Delhi' },
-  { value: '4', label: 'Tamil Nadu' },
-  { value: '5', label: 'Gujarat' },
-];
-
-const cityOptions = [
-  { value: '', label: 'Nothing selected' },
-  { value: '1', label: 'Mumbai' },
-  { value: '2', label: 'Bangalore' },
-  { value: '3', label: 'Delhi' },
-  { value: '4', label: 'Chennai' },
-  { value: '5', label: 'Ahmedabad' },
-];
+// Location options will be fetched dynamically
 
 export default function NewLeadPage() {
   const router = useRouter();
@@ -141,10 +82,22 @@ export default function NewLeadPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Dynamic dropdown options from Option Master
+  const [groupOptions, setGroupOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Group' }]);
+  const [industryOptions, setIndustryOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Industry' }]);
+  const [regionOptions, setRegionOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Company Region' }]);
+  const [sourceOptions, setSourceOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Lead Source' }]);
+
+  // Dynamic location options
+  const [countryOptions, setCountryOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Country' }]);
+  const [stateOptions, setStateOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select State/Province' }]);
+  const [cityOptions, setCityOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select City' }]);
+
   const {
     register,
     handleSubmit,
     formState: { errors },
+    watch,
   } = useForm<LeadForm>({
     resolver: zodResolver(leadSchema),
     defaultValues: {
@@ -153,6 +106,104 @@ export default function NewLeadPage() {
       priority: 'medium',
     },
   });
+
+  // Fetch dropdown options from Option Master
+  useEffect(() => {
+    const fetchOptionMasterData = async () => {
+      try {
+        const optionsData = await api.getOptionsWithDropdowns();
+        optionsData.forEach((option: any) => {
+          const items = option.dropdowns
+            .filter((d: any) => d.status === 'Active')
+            .map((d: any) => ({ value: d.id.toString(), label: d.name }));
+
+          const title = option.title.toLowerCase();
+          if (title === 'groups' || title === 'group') {
+            setGroupOptions([{ value: '', label: 'Select Group' }, ...items]);
+          } else if (title === 'industry' || title === 'industries') {
+            setIndustryOptions([{ value: '', label: 'Select Industry' }, ...items]);
+          } else if (title === 'company region' || title === 'region' || title === 'regions') {
+            setRegionOptions([{ value: '', label: 'Select Company Region' }, ...items]);
+          } else if (title === 'lead source' || title === 'source' || title === 'sources') {
+            setSourceOptions([{ value: '', label: 'Select Lead Source' }, ...items]);
+          }
+        });
+      } catch (err) {
+        console.error('Failed to fetch option master data:', err);
+      }
+    };
+    fetchOptionMasterData();
+  }, []);
+
+  // Watch for form values
+  const selectedCountryId = watch('country_id');
+  const selectedStateId = watch('state_id');
+
+  // Fetch countries on mount
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const countries = await api.getCountries();
+        if (countries && countries.length > 0) {
+          const activeCountries = countries.filter((c: any) => c.status === 'Active');
+          const options = activeCountries.map((c: any) => ({ value: c.id.toString(), label: c.name }));
+          setCountryOptions([{ value: '', label: 'Select Country' }, ...options]);
+        }
+      } catch (err) {
+        console.error('Failed to fetch countries:', err);
+      }
+    };
+    fetchCountries();
+  }, []);
+
+  // Fetch states when country changes
+  useEffect(() => {
+    const fetchStates = async () => {
+      if (selectedCountryId) {
+        try {
+          const states = await api.getStates(parseInt(selectedCountryId));
+          if (states && states.length > 0) {
+            const activeStates = states.filter((s: any) => s.status === 'Active');
+            const options = activeStates.map((s: any) => ({ value: s.id.toString(), label: s.name }));
+            setStateOptions([{ value: '', label: 'Select State/Province' }, ...options]);
+          } else {
+            setStateOptions([{ value: '', label: 'No states available' }]);
+          }
+        } catch (err) {
+          console.error('Failed to fetch states:', err);
+          setStateOptions([{ value: '', label: 'Select State/Province' }]);
+        }
+      } else {
+        setStateOptions([{ value: '', label: 'Select State/Province' }]);
+      }
+      setCityOptions([{ value: '', label: 'Select City' }]);
+    };
+    fetchStates();
+  }, [selectedCountryId]);
+
+  // Fetch cities when state changes
+  useEffect(() => {
+    const fetchCities = async () => {
+      if (selectedStateId) {
+        try {
+          const cities = await api.getCities(parseInt(selectedStateId));
+          if (cities && cities.length > 0) {
+            const activeCities = cities.filter((c: any) => c.status === 'Active');
+            const options = activeCities.map((c: any) => ({ value: c.id.toString(), label: c.name }));
+            setCityOptions([{ value: '', label: 'Select City' }, ...options]);
+          } else {
+            setCityOptions([{ value: '', label: 'No cities available' }]);
+          }
+        } catch (err) {
+          console.error('Failed to fetch cities:', err);
+          setCityOptions([{ value: '', label: 'Select City' }]);
+        }
+      } else {
+        setCityOptions([{ value: '', label: 'Select City' }]);
+      }
+    };
+    fetchCities();
+  }, [selectedStateId]);
 
   const onSubmit = async (data: LeadForm) => {
     setIsSubmitting(true);

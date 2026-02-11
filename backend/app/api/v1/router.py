@@ -13,7 +13,9 @@ from app.api.v1.endpoints import (
     sales_targets,
     webhooks,
     marketing,
-    customer_requirements
+    customer_requirements,
+    option_master,
+    location
 )
 
 api_router = APIRouter()
@@ -59,3 +61,9 @@ api_router.include_router(marketing.router, prefix="/marketing", tags=["Marketin
 
 # Customer Requirements
 api_router.include_router(customer_requirements.router, prefix="/customer-requirements", tags=["Customer Requirements"])
+
+# Option Master
+api_router.include_router(option_master.router, prefix="/options", tags=["Option Master"])
+
+# Location (Countries, States, Cities)
+api_router.include_router(location.router, prefix="/location", tags=["Location"])
