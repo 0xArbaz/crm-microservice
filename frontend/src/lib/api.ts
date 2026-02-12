@@ -866,6 +866,38 @@ class ApiService {
     return response.data;
   }
 
+  // CR Email History
+  async getCREmailHistory(crId: number, tabName?: string): Promise<any[]> {
+    const params = tabName ? { tab_name: tabName } : {};
+    const response = await this.client.get(`/customer-requirements/${crId}/emails`, { params });
+    return response.data;
+  }
+
+  async getCREmailDetail(crId: number, emailId: number): Promise<any> {
+    const response = await this.client.get(`/customer-requirements/${crId}/emails/${emailId}`);
+    return response.data;
+  }
+
+  async sendCREmail(crId: number, data: {
+    tab_name: string;
+    template_id?: number;
+    template_name?: string;
+    to_email: string;
+    cc_email?: string;
+    bcc_email?: string;
+    email_name?: string;
+    subject: string;
+    content: string;
+    attachment_ids?: number[];
+  }): Promise<any> {
+    const response = await this.client.post(`/customer-requirements/${crId}/emails`, data);
+    return response.data;
+  }
+
+  async deleteCREmail(crId: number, emailId: number): Promise<void> {
+    await this.client.delete(`/customer-requirements/${crId}/emails/${emailId}`);
+  }
+
   // ============ Option Master ============
 
   // Options (Categories)

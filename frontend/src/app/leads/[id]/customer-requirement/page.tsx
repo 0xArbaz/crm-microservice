@@ -7,7 +7,7 @@ import {
   Save, Plus, Trash2, Edit2, X, Upload, Download, Phone,
   Calendar, FileText, MessageSquare, Activity, Users, Settings,
   PlayCircle, ClipboardList, FileCheck, Database, Rocket, HeadphonesIcon,
-  Building2, Mail, Globe, MapPin, Clock, RefreshCw, Bold, Italic, Underline, CheckCircle
+  Building2, Mail, Globe, MapPin, Clock, RefreshCw, Bold, Italic, Underline, CheckCircle, Eye
 } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -102,6 +102,7 @@ export default function CustomerRequirementPage() {
   const [showCallLogModal, setShowCallLogModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailModalData, setEmailModalData] = useState<any>({ tab: '', contactEmail: '', templateId: null });
+  const [emailHistoryRefresh, setEmailHistoryRefresh] = useState<{ [key: string]: number }>({});
   const [editingItem, setEditingItem] = useState<any>(null);
 
   // Form states
@@ -156,6 +157,14 @@ export default function CustomerRequirementPage() {
   // Function to reload documents
   const reloadDocuments = useCallback(() => {
     setDocumentsRefreshTrigger(prev => prev + 1);
+  }, []);
+
+  // Function to trigger email history refresh for a specific tab
+  const handleEmailSuccess = useCallback((tabName: string) => {
+    setEmailHistoryRefresh(prev => ({
+      ...prev,
+      [tabName.toLowerCase()]: (prev[tabName.toLowerCase()] || 0) + 1
+    }));
   }, []);
 
   const handleTabChange = (tabId: string) => {
@@ -310,6 +319,7 @@ export default function CustomerRequirementPage() {
               saving={saving}
               inputClass={inputClass}
               labelClass={labelClass}
+              leadId={leadId}
             />
           )}
 
@@ -326,6 +336,7 @@ export default function CustomerRequirementPage() {
               leadId={leadId}
               customerData={formData}
               onOpenEmailModal={handleOpenEmailModal}
+              emailHistoryRefresh={emailHistoryRefresh['introduction'] || 0}
             />
           )}
 
@@ -341,6 +352,7 @@ export default function CustomerRequirementPage() {
               crId={cr?.id}
               leadId={leadId}
               onOpenEmailModal={handleOpenEmailModal}
+              emailHistoryRefresh={emailHistoryRefresh['requirement'] || 0}
             />
           )}
 
@@ -354,6 +366,7 @@ export default function CustomerRequirementPage() {
               presentations={presentations}
               refreshData={fetchData}
               onOpenEmailModal={handleOpenEmailModal}
+              emailHistoryRefresh={emailHistoryRefresh['presentation'] || 0}
             />
           )}
 
@@ -367,6 +380,7 @@ export default function CustomerRequirementPage() {
               demos={demos}
               refreshData={fetchData}
               onOpenEmailModal={handleOpenEmailModal}
+              emailHistoryRefresh={emailHistoryRefresh['demo'] || 0}
             />
           )}
 
@@ -378,6 +392,7 @@ export default function CustomerRequirementPage() {
               leadId={leadId}
               refreshData={fetchData}
               onOpenEmailModal={handleOpenEmailModal}
+              emailHistoryRefresh={emailHistoryRefresh['proposal'] || 0}
             />
           )}
 
@@ -389,6 +404,7 @@ export default function CustomerRequirementPage() {
               leadId={leadId}
               refreshData={fetchData}
               onOpenEmailModal={handleOpenEmailModal}
+              emailHistoryRefresh={emailHistoryRefresh['agreement'] || 0}
             />
           )}
 
@@ -412,6 +428,7 @@ export default function CustomerRequirementPage() {
               leadId={leadId}
               refreshData={fetchData}
               onOpenEmailModal={handleOpenEmailModal}
+              emailHistoryRefresh={emailHistoryRefresh['initiation'] || 0}
             />
           )}
 
@@ -423,6 +440,7 @@ export default function CustomerRequirementPage() {
               leadId={leadId}
               refreshData={fetchData}
               onOpenEmailModal={handleOpenEmailModal}
+              emailHistoryRefresh={emailHistoryRefresh['planning'] || 0}
             />
           )}
 
@@ -434,6 +452,7 @@ export default function CustomerRequirementPage() {
               leadId={leadId}
               refreshData={fetchData}
               onOpenEmailModal={handleOpenEmailModal}
+              emailHistoryRefresh={emailHistoryRefresh['configuration'] || 0}
             />
           )}
 
@@ -445,6 +464,7 @@ export default function CustomerRequirementPage() {
               leadId={leadId}
               refreshData={fetchData}
               onOpenEmailModal={handleOpenEmailModal}
+              emailHistoryRefresh={emailHistoryRefresh['training'] || 0}
             />
           )}
 
@@ -456,6 +476,7 @@ export default function CustomerRequirementPage() {
               leadId={leadId}
               refreshData={fetchData}
               onOpenEmailModal={handleOpenEmailModal}
+              emailHistoryRefresh={emailHistoryRefresh['uat'] || 0}
             />
           )}
 
@@ -467,6 +488,7 @@ export default function CustomerRequirementPage() {
               leadId={leadId}
               refreshData={fetchData}
               onOpenEmailModal={handleOpenEmailModal}
+              emailHistoryRefresh={emailHistoryRefresh['data migration'] || 0}
             />
           )}
 
@@ -478,6 +500,7 @@ export default function CustomerRequirementPage() {
               leadId={leadId}
               refreshData={fetchData}
               onOpenEmailModal={handleOpenEmailModal}
+              emailHistoryRefresh={emailHistoryRefresh['go live'] || 0}
             />
           )}
 
@@ -489,6 +512,7 @@ export default function CustomerRequirementPage() {
               leadId={leadId}
               refreshData={fetchData}
               onOpenEmailModal={handleOpenEmailModal}
+              emailHistoryRefresh={emailHistoryRefresh['support'] || 0}
             />
           )}
 
@@ -560,6 +584,7 @@ export default function CustomerRequirementPage() {
           contactEmail={emailModalData.contactEmail}
           templateId={emailModalData.templateId}
           companyName={formData?.company_name || cr?.company_name || ''}
+          onSuccess={handleEmailSuccess}
         />
       )}
     </MainLayout>
@@ -567,8 +592,16 @@ export default function CustomerRequirementPage() {
 }
 
 // ============== Customer Details Form ==============
-function CustomerDetailsForm({ formData, setFormData, onSave, saving, inputClass, labelClass }: any) {
+function CustomerDetailsForm({ formData, setFormData, onSave, saving, inputClass, labelClass, leadId }: any) {
   const [profileSubTab, setProfileSubTab] = useState('company-profile');
+  const [customerContacts, setCustomerContacts] = useState<any[]>([]);
+
+  // Load contacts
+  useEffect(() => {
+    if (leadId) {
+      api.getLeadContactsForEdit(leadId).then(setCustomerContacts).catch(() => setCustomerContacts([]));
+    }
+  }, [leadId]);
 
   const fieldLabelClass = "text-xs font-medium text-blue-600 w-36 flex-shrink-0";
   const fieldInputClass = "flex-1 h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-gray-50";
@@ -838,8 +871,9 @@ function CustomerDetailsForm({ formData, setFormData, onSave, saving, inputClass
               <label className={fieldLabelClass}>Decision Maker</label>
               <select value={formData.decision_maker || ''} onChange={(e) => setFormData({ ...formData, decision_maker: e.target.value })} className={fieldSelectClass}>
                 <option value="">Select Decision Maker</option>
-                <option value="1">Arbaz Alam</option>
-                <option value="2">Contact Person</option>
+                {customerContacts.map((contact: any) => (
+                  <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
+                ))}
               </select>
             </div>
             <div className={rowClass}>
@@ -930,7 +964,7 @@ function CustomerDetailsForm({ formData, setFormData, onSave, saving, inputClass
 }
 
 // ============== Introduction Form ==============
-function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClass, crId, leadId, customerData, onOpenEmailModal }: any) {
+function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClass, crId, leadId, customerData, onOpenEmailModal, emailHistoryRefresh }: any) {
   const [introSubTab, setIntroSubTab] = useState('activity');
   const [activitySubTab, setActivitySubTab] = useState('all');
   const [emailsSent, setEmailsSent] = useState<any[]>([]);
@@ -1020,6 +1054,13 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
       api.getCRDocuments(crId, 'introduction-upload').then(setSubTabDocs).catch(() => setSubTabDocs([]));
     }
   }, [crId, introSubTab]);
+
+  // Load email history for Introduction tab
+  useEffect(() => {
+    if (crId) {
+      api.getCREmailHistory(crId, 'introduction').then(setEmailsSent).catch(() => setEmailsSent([]));
+    }
+  }, [crId, emailHistoryRefresh]);
 
   const handleSubTabChooseFile = () => {
     subTabFileRef.current?.click();
@@ -1310,7 +1351,7 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
               <thead>
                 <tr className="bg-blue-600">
                   <th className={thClass}>Email Sent To</th>
-                  <th className={thClass}>Attachments</th>
+                  <th className={thClass}>Subject</th>
                   <th className={thClass}>Sent On</th>
                   <th className={thClass}>Action</th>
                 </tr>
@@ -1320,12 +1361,17 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                   <tr><td colSpan={4} className="px-3 py-4 text-center text-gray-400 text-xs">No emails sent</td></tr>
                 ) : (
                   emailsSent.map((email: any, index: number) => (
-                    <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className={tdClass}>{email.to}</td>
-                      <td className={tdClass}>{email.attachments || '-'}</td>
-                      <td className={tdClass}>{email.sent_on}</td>
+                    <tr key={email.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className={tdClass}>{email.to_email}</td>
+                      <td className={tdClass}>{email.subject || '-'}</td>
+                      <td className={tdClass}>{email.sent_at ? new Date(email.sent_at).toLocaleDateString() : '-'}</td>
                       <td className={tdClass}>
-                        <button className="p-1 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-3 h-3" /></button>
+                        <button
+                          onClick={() => alert(`Subject: ${email.subject}\nTo: ${email.to_email}\nCC: ${email.cc_email || '-'}\nBCC: ${email.bcc_email || '-'}\n\n${email.content || ''}`)}
+                          className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="View Email"
+                        >
+                          <Eye className="w-3 h-3" />
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -1832,9 +1878,9 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                     className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                   >
                     <option value="">Select Contact</option>
-                    <option value="Contact 1">Contact 1</option>
-                    <option value="Contact 2">Contact 2</option>
-                    <option value="Contact 3">Contact 3</option>
+                    {introContacts.map((contact: any) => (
+                      <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -1926,9 +1972,9 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                     className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                   >
                     <option value="">Select Contact</option>
-                    <option value="1">Contact 1</option>
-                    <option value="2">Contact 2</option>
-                    <option value="3">Contact 3</option>
+                    {introContacts.map((contact: any) => (
+                      <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -2136,7 +2182,7 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
 }
 
 // ============== Requirement Form ==============
-function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass, crId, leadId, onOpenEmailModal }: any) {
+function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass, crId, leadId, onOpenEmailModal, emailHistoryRefresh }: any) {
   const [reqSubTab, setReqSubTab] = useState('pre-demo-business-questionnaire');
   const [emailsSent, setEmailsSent] = useState<any[]>([]);
   const [reqDocs, setReqDocs] = useState<any[]>([]);
@@ -2223,6 +2269,13 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
       api.getCRDocuments(crId, 'requirement-upload').then(setReqSubTabDocs).catch(() => setReqSubTabDocs([]));
     }
   }, [crId, reqSubTab]);
+
+  // Load email history
+  useEffect(() => {
+    if (crId) {
+      api.getCREmailHistory(crId, 'requirement').then(setEmailsSent).catch(() => setEmailsSent([]));
+    }
+  }, [crId, emailHistoryRefresh]);
 
   // Document handlers
   const handleReqChooseFile = () => reqFileInputRef.current?.click();
@@ -2346,10 +2399,11 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
           </div>
           <div className={rowClass}>
             <label className={fieldLabelClass}>Contact Name</label>
-            <select value={data?.contact_id || ''} onChange={(e) => setData({ ...data, contact_id: e.target.value })} className={fieldSelectClass}>
+            <select value={data?.contact_id || ''} onChange={(e) => { const cid = e.target.value; const selectedContact = reqContacts.find((c: any) => c.id?.toString() === cid); setData({ ...data, contact_id: cid, contact_email: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || '' }); }} className={fieldSelectClass}>
               <option value="">Select Contact Name</option>
-              <option value="1">Contact 1</option>
-              <option value="2">Contact 2</option>
+              {reqContacts.map((contact: any) => (
+                <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
+              ))}
             </select>
           </div>
           <div className={rowClass}>
@@ -2376,7 +2430,7 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
               <thead>
                 <tr className="bg-blue-600">
                   <th className={thClass}>Email Sent To</th>
-                  <th className={thClass}>Attachments</th>
+                  <th className={thClass}>Subject</th>
                   <th className={thClass}>Sent On</th>
                   <th className={thClass}>Action</th>
                 </tr>
@@ -2386,11 +2440,18 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
                   <tr><td colSpan={4} className="px-3 py-4 text-center text-gray-400 text-xs">No emails sent</td></tr>
                 ) : (
                   emailsSent.map((email: any, index: number) => (
-                    <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className={tdClass}>{email.to}</td>
-                      <td className={tdClass}>{email.attachments || '-'}</td>
-                      <td className={tdClass}>{email.sent_on}</td>
-                      <td className={tdClass}><button className="p-1 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-3 h-3" /></button></td>
+                    <tr key={email.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className={tdClass}>{email.to_email}</td>
+                      <td className={tdClass}>{email.subject || '-'}</td>
+                      <td className={tdClass}>{email.sent_at ? new Date(email.sent_at).toLocaleDateString() : '-'}</td>
+                      <td className={tdClass}>
+                        <button
+                          onClick={() => alert(`Subject: ${email.subject}\nTo: ${email.to_email}\nCC: ${email.cc_email || '-'}\nBCC: ${email.bcc_email || '-'}\n\n${email.content || ''}`)}
+                          className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="View Email"
+                        >
+                          <Eye className="w-3 h-3" />
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -3628,7 +3689,7 @@ const PRESENTATION_MODULES: Record<string, string[]> = {
 };
 
 // ============== Presentation Form ==============
-function PresentationForm({ data, setData, crId, leadId, presentations, refreshData, onOpenEmailModal }: any) {
+function PresentationForm({ data, setData, crId, leadId, presentations, refreshData, onOpenEmailModal, emailHistoryRefresh }: any) {
   const [presSubTab, setPresSubTab] = useState('presentation');
   const [emailsSent, setEmailsSent] = useState<any[]>([]);
   const [presDocs, setPresDocs] = useState<any[]>([]);
@@ -3783,6 +3844,13 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
       }
     } catch {}
   }, [presentations]);
+
+  // Load email history
+  useEffect(() => {
+    if (crId) {
+      api.getCREmailHistory(crId, 'presentation').then(setEmailsSent).catch(() => setEmailsSent([]));
+    }
+  }, [crId, emailHistoryRefresh]);
 
   // Document handlers
   const handlePresChooseFile = () => presFileInputRef.current?.click();
@@ -3948,10 +4016,11 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
           </div>
           <div className={rowClass}>
             <label className={fieldLabelClass}>Contact Name</label>
-            <select value={data?.contact_id || ''} onChange={(e) => setData({ ...data, contact_id: e.target.value })} className={fieldSelectClass}>
+            <select value={data?.contact_id || ''} onChange={(e) => { const cid = e.target.value; const selectedContact = presContacts.find((c: any) => c.id?.toString() === cid); setData({ ...data, contact_id: cid, contact_email: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || '' }); }} className={fieldSelectClass}>
               <option value="">Select Contact Name</option>
-              <option value="1">Contact 1</option>
-              <option value="2">Contact 2</option>
+              {presContacts.map((contact: any) => (
+                <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
+              ))}
             </select>
           </div>
           <div className={rowClass}>
@@ -3977,7 +4046,7 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
               <thead>
                 <tr className="bg-blue-600">
                   <th className={thClass}>Email Sent To</th>
-                  <th className={thClass}>Attachments</th>
+                  <th className={thClass}>Subject</th>
                   <th className={thClass}>Sent On</th>
                   <th className={thClass}>Action</th>
                 </tr>
@@ -3987,12 +4056,17 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
                   <tr><td colSpan={4} className="px-3 py-4 text-center text-gray-400 text-xs">No emails sent</td></tr>
                 ) : (
                   emailsSent.map((email: any, index: number) => (
-                    <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className={tdClass}>{email.to}</td>
-                      <td className={tdClass}>{email.attachments || '-'}</td>
-                      <td className={tdClass}>{email.sent_on}</td>
+                    <tr key={email.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className={tdClass}>{email.to_email}</td>
+                      <td className={tdClass}>{email.subject || '-'}</td>
+                      <td className={tdClass}>{email.sent_at ? new Date(email.sent_at).toLocaleDateString() : '-'}</td>
                       <td className={tdClass}>
-                        <button className="p-1 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-3 h-3" /></button>
+                        <button
+                          onClick={() => alert(`Subject: ${email.subject}\nTo: ${email.to_email}\nCC: ${email.cc_email || '-'}\nBCC: ${email.bcc_email || '-'}\n\n${email.content || ''}`)}
+                          className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="View Email"
+                        >
+                          <Eye className="w-3 h-3" />
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -5089,7 +5163,7 @@ const DEMO_MODULES: Record<string, string[]> = {
 };
 
 // ============== Demo Form ==============
-function DemoForm({ data, setData, crId, leadId, demos, refreshData, onOpenEmailModal }: any) {
+function DemoForm({ data, setData, crId, leadId, demos, refreshData, onOpenEmailModal, emailHistoryRefresh }: any) {
   const [demoSubTab, setDemoSubTab] = useState('demo-video');
   const [demoContacts, setDemoContacts] = useState<any[]>([]);
   const [demoDocs, setDemoDocs] = useState<any[]>([]);
@@ -5248,6 +5322,13 @@ function DemoForm({ data, setData, crId, leadId, demos, refreshData, onOpenEmail
       api.getCRDocuments(crId, 'demo-upload').then(setDemoSubTabDocs).catch(() => setDemoSubTabDocs([]));
     }
   }, [crId, demoSubTab]);
+
+  // Load email history
+  useEffect(() => {
+    if (crId) {
+      api.getCREmailHistory(crId, 'demo').then(setDemoEmailsSent).catch(() => setDemoEmailsSent([]));
+    }
+  }, [crId, emailHistoryRefresh]);
 
   // Document handlers
   const handleDemoChooseFile = () => demoFileRef.current?.click();
@@ -5439,7 +5520,7 @@ function DemoForm({ data, setData, crId, leadId, demos, refreshData, onOpenEmail
             <thead>
               <tr className="bg-blue-700">
                 <th className={thClass}>Email Sent To</th>
-                <th className={thClass}>Attachments</th>
+                <th className={thClass}>Subject</th>
                 <th className={thClass}>Sent On</th>
                 <th className="px-3 py-2.5 text-center text-xs font-medium text-white w-20">Action</th>
               </tr>
@@ -5449,12 +5530,17 @@ function DemoForm({ data, setData, crId, leadId, demos, refreshData, onOpenEmail
                 <tr><td colSpan={4} className="px-3 py-4 text-center text-orange-400 text-xs">No Data Available</td></tr>
               ) : (
                 demoEmailsSent.map((email: any, index: number) => (
-                  <tr key={email.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className={tdClass}>{email.sent_to || '-'}</td>
-                    <td className={tdClass}>{email.attachments || '-'}</td>
-                    <td className={tdClass}>{email.sent_on || '-'}</td>
+                  <tr key={email.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className={tdClass}>{email.to_email || '-'}</td>
+                    <td className={tdClass}>{email.subject || '-'}</td>
+                    <td className={tdClass}>{email.sent_at ? new Date(email.sent_at).toLocaleDateString() : '-'}</td>
                     <td className={`${tdClass} text-center`}>
-                      <button className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3 h-3" /></button>
+                      <button
+                        onClick={() => alert(`Subject: ${email.subject}\nTo: ${email.to_email}\nCC: ${email.cc_email || '-'}\nBCC: ${email.bcc_email || '-'}\n\n${email.content || ''}`)}
+                        className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="View Email"
+                      >
+                        <Eye className="w-3 h-3" />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -6700,7 +6786,7 @@ const PROPOSAL_MODULES: Record<string, string[]> = {
   'Setup': ['Role Mgmt', 'Bank Master', 'Accounting', 'Configuration', 'Company Setup', 'User Mgmt', 'Option Master', 'Variant Master', 'Auto Scheduler', 'Form Management']
 };
 
-function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
+function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHistoryRefresh }: any) {
   const [proposalSubTab, setProposalSubTab] = useState('details');
   const proposalSubTabs = ['Details', 'Process Flow', 'Proposal', 'Proposal Date', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -6948,6 +7034,13 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any
       api.getCRMemos(crId, 'proposal').then(setProposalMemos).catch(() => setProposalMemos([]));
     }
   }, [crId, proposalSubTab]);
+
+  // Load email history
+  useEffect(() => {
+    if (crId) {
+      api.getCREmailHistory(crId, 'proposal').then(setEmailSentList).catch(() => setEmailSentList([]));
+    }
+  }, [crId, emailHistoryRefresh]);
 
   // Follow-up handlers
   const handleOpenProposalFollowUp = (item?: any) => {
@@ -7222,7 +7315,7 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any
             <thead>
               <tr className="bg-blue-700">
                 <th className="px-3 py-2 text-left text-xs font-medium text-white border-r border-blue-600">Email Sent To</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-white border-r border-blue-600">Attachments</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-white border-r border-blue-600">Subject</th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-white border-r border-blue-600">Sent On</th>
                 <th className="px-3 py-2 text-center text-xs font-medium text-white">Action</th>
               </tr>
@@ -7231,12 +7324,19 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any
               {emailSentList.length === 0 ? (
                 <tr><td colSpan={4} className="px-4 py-4 text-center text-gray-400 text-xs">No emails sent</td></tr>
               ) : (
-                emailSentList.map((item, idx) => (
-                  <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-3 py-2 text-xs border-b">{item.email}</td>
-                    <td className="px-3 py-2 text-xs border-b">{item.attachments}</td>
-                    <td className="px-3 py-2 text-xs border-b">{item.sent_on}</td>
-                    <td className="px-3 py-2 text-xs border-b text-center">-</td>
+                emailSentList.map((item: any, idx: number) => (
+                  <tr key={item.id || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-3 py-2 text-xs border-b">{item.to_email}</td>
+                    <td className="px-3 py-2 text-xs border-b">{item.subject || '-'}</td>
+                    <td className="px-3 py-2 text-xs border-b">{item.sent_at ? new Date(item.sent_at).toLocaleDateString() : '-'}</td>
+                    <td className="px-3 py-2 text-xs border-b text-center">
+                      <button
+                        onClick={() => alert(`Subject: ${item.subject}\nTo: ${item.to_email}\nCC: ${item.cc_email || '-'}\nBCC: ${item.bcc_email || '-'}\n\n${item.content || ''}`)}
+                        className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="View Email"
+                      >
+                        <Eye className="w-3 h-3" />
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -8236,7 +8336,7 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any
 }
 
 // ============== Agreement Form ==============
-function AgreementForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
+function AgreementForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHistoryRefresh }: any) {
   const [agreementSubTab, setAgreementSubTab] = useState('details');
   const agreementSubTabs = ['Details', 'Agreement', 'Agreement Date', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -8522,6 +8622,13 @@ function AgreementForm({ data, crId, leadId, refreshData, onOpenEmailModal }: an
     }
   }, [crId, agreementSubTab]);
 
+  // Load email history
+  useEffect(() => {
+    if (crId) {
+      api.getCREmailHistory(crId, 'agreement').then(setEmailSentList).catch(() => setEmailSentList([]));
+    }
+  }, [crId, emailHistoryRefresh]);
+
   // Initialize agreement content when sub-tab opens
   useEffect(() => {
     if (agreementSubTab === 'agreement') {
@@ -8722,7 +8829,7 @@ function AgreementForm({ data, crId, leadId, refreshData, onOpenEmailModal }: an
               <thead>
                 <tr className="bg-blue-700">
                   <th className="px-3 py-2 text-left text-xs font-medium text-white border-r border-blue-600">Email Sent To</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-white border-r border-blue-600">Attachments</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-white border-r border-blue-600">Subject</th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-white border-r border-blue-600">Sent On</th>
                   <th className="px-3 py-2 text-center text-xs font-medium text-white">Action</th>
                 </tr>
@@ -8731,12 +8838,19 @@ function AgreementForm({ data, crId, leadId, refreshData, onOpenEmailModal }: an
                 {emailSentList.length === 0 ? (
                   <tr><td colSpan={4} className="px-3 py-4 text-center text-orange-400 text-xs">No emails sent</td></tr>
                 ) : (
-                  emailSentList.map((item, idx) => (
-                    <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-3 py-2 text-xs border-b">{item.email}</td>
-                      <td className="px-3 py-2 text-xs border-b">{item.attachments}</td>
-                      <td className="px-3 py-2 text-xs border-b">{item.sent_on}</td>
-                      <td className="px-3 py-2 text-xs border-b text-center">-</td>
+                  emailSentList.map((item: any, idx: number) => (
+                    <tr key={item.id || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-3 py-2 text-xs border-b">{item.to_email}</td>
+                      <td className="px-3 py-2 text-xs border-b">{item.subject || '-'}</td>
+                      <td className="px-3 py-2 text-xs border-b">{item.sent_at ? new Date(item.sent_at).toLocaleDateString() : '-'}</td>
+                      <td className="px-3 py-2 text-xs border-b text-center">
+                        <button
+                          onClick={() => alert(`Subject: ${item.subject}\nTo: ${item.to_email}\nCC: ${item.cc_email || '-'}\nBCC: ${item.bcc_email || '-'}\n\n${item.content || ''}`)}
+                          className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="View Email"
+                        >
+                          <Eye className="w-3 h-3" />
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -9327,7 +9441,7 @@ function AgreementForm({ data, crId, leadId, refreshData, onOpenEmailModal }: an
 }
 
 // ============== Initiation Form ==============
-function InitiationForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
+function InitiationForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHistoryRefresh }: any) {
   const [initiationSubTab, setInitiationSubTab] = useState('details');
   const initiationSubTabs = ['Details', 'Contacts', 'Communication', 'Notes', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -9509,6 +9623,13 @@ function InitiationForm({ data, crId, leadId, refreshData, onOpenEmailModal }: a
       api.getCRDocuments(crId, 'initiation-upload').then(setInitiationSubTabDocs).catch(() => setInitiationSubTabDocs([]));
     }
   }, [crId, initiationSubTab]);
+
+  // Load email history
+  useEffect(() => {
+    if (crId) {
+      api.getCREmailHistory(crId, 'initiation').then(setEmailSentList).catch(() => setEmailSentList([]));
+    }
+  }, [crId, emailHistoryRefresh]);
 
   // Document handlers
   const handleInitiationChooseFile = () => initiationFileRef.current?.click();
@@ -11180,7 +11301,7 @@ function MemosSection({ memos, onAdd, onEdit, onDelete }: any) {
 }
 
 // ============== Planning Form ==============
-function PlanningForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
+function PlanningForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHistoryRefresh }: any) {
   const [planningSubTab, setPlanningSubTab] = useState('details');
   const planningSubTabs = ['Details', 'Configuration', 'Data Migration', 'Training', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -11305,6 +11426,13 @@ function PlanningForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any
   useEffect(() => {
     api.getCRIEmailTemplates('planning').then(setPlanningEmailTemplates).catch(() => setPlanningEmailTemplates([]));
   }, []);
+
+  // Load email history
+  useEffect(() => {
+    if (crId) {
+      api.getCREmailHistory(crId, 'planning').then(setPlanningEmailSentList).catch(() => setPlanningEmailSentList([]));
+    }
+  }, [crId, emailHistoryRefresh]);
 
   const fetchPlanningContacts = async () => {
     try {
@@ -13070,7 +13198,7 @@ function PlanningForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any
 }
 
 // ============== Configuration Form ==============
-function ConfigurationForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
+function ConfigurationForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHistoryRefresh }: any) {
   const [configSubTab, setConfigSubTab] = useState('details');
   const configSubTabs = ['Details', 'Summary', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -13165,6 +13293,13 @@ function ConfigurationForm({ data, crId, leadId, refreshData, onOpenEmailModal }
   useEffect(() => {
     api.getCRIEmailTemplates('Configuration').then(setConfigEmailTemplates).catch(() => setConfigEmailTemplates([]));
   }, []);
+
+  // Load email history
+  useEffect(() => {
+    if (crId) {
+      api.getCREmailHistory(crId, 'configuration').then(setConfigEmailSentList).catch(() => setConfigEmailSentList([]));
+    }
+  }, [crId, emailHistoryRefresh]);
 
   const fetchConfigContacts = async () => {
     try { const res = await api.getLeadContactsForEdit(leadId); setConfigContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
@@ -14089,7 +14224,7 @@ function ConfigurationForm({ data, crId, leadId, refreshData, onOpenEmailModal }
 }
 
 // ============== Training Form ==============
-function TrainingForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
+function TrainingForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHistoryRefresh }: any) {
   const [trainingSubTab, setTrainingSubTab] = useState('details');
   const trainingSubTabs = ['Details', 'Mapping', 'Schedule', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -14166,6 +14301,13 @@ function TrainingForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any
   useEffect(() => {
     api.getCRIEmailTemplates('training').then(setTrainingEmailTemplates).catch(() => setTrainingEmailTemplates([]));
   }, []);
+
+  // Load email history
+  useEffect(() => {
+    if (crId) {
+      api.getCREmailHistory(crId, 'training').then(setTrainingEmailSentList).catch(() => setTrainingEmailSentList([]));
+    }
+  }, [crId, emailHistoryRefresh]);
 
   const fetchTrainingContacts = async () => {
     try { const res = await api.getLeadContactsForEdit(leadId); setTrainingContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
@@ -15156,7 +15298,7 @@ function TrainingForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any
 }
 
 // ============== UAT Form ==============
-function UATForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
+function UATForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHistoryRefresh }: any) {
   const [uatSubTab, setUatSubTab] = useState('details');
   const uatSubTabs = ['Details', 'Result', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -15223,6 +15365,13 @@ function UATForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
   useEffect(() => {
     api.getCRIEmailTemplates('UAT').then(setUatEmailTemplates).catch(() => setUatEmailTemplates([]));
   }, []);
+
+  // Load email history
+  useEffect(() => {
+    if (crId) {
+      api.getCREmailHistory(crId, 'uat').then(setUatEmailSentList).catch(() => setUatEmailSentList([]));
+    }
+  }, [crId, emailHistoryRefresh]);
 
   const fetchUatContacts = async () => {
     try { const res = await api.getLeadContactsForEdit(leadId); setUatContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
@@ -15955,7 +16104,7 @@ function UATForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
 }
 
 // ============== Data Migration Form ==============
-function DataMigrationForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
+function DataMigrationForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHistoryRefresh }: any) {
   const [dmSubTab, setDmSubTab] = useState('details');
   const dmSubTabs = ['Details', 'Summary', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -16037,6 +16186,13 @@ function DataMigrationForm({ data, crId, leadId, refreshData, onOpenEmailModal }
   useEffect(() => {
     api.getCRIEmailTemplates('Data Migration').then(setDmEmailTemplates).catch(() => setDmEmailTemplates([]));
   }, []);
+
+  // Load email history
+  useEffect(() => {
+    if (crId) {
+      api.getCREmailHistory(crId, 'data migration').then(setDmEmailSentList).catch(() => setDmEmailSentList([]));
+    }
+  }, [crId, emailHistoryRefresh]);
 
   const fetchDmContacts = async () => {
     try { const res = await api.getLeadContactsForEdit(leadId); setDmContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
@@ -16887,7 +17043,7 @@ function DataMigrationForm({ data, crId, leadId, refreshData, onOpenEmailModal }
 }
 
 // ============== Go Live Form ==============
-function GoLiveForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
+function GoLiveForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHistoryRefresh }: any) {
   const [glSubTab, setGlSubTab] = useState('details');
   const glSubTabs = ['Details', 'Activity', 'Summary', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'];
 
@@ -16980,6 +17136,13 @@ function GoLiveForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) 
   useEffect(() => {
     api.getCRIEmailTemplates('Go-Live').then(setGlEmailTemplates).catch(() => setGlEmailTemplates([]));
   }, []);
+
+  // Load email history
+  useEffect(() => {
+    if (crId) {
+      api.getCREmailHistory(crId, 'go live').then(setGlEmailSentList).catch(() => setGlEmailSentList([]));
+    }
+  }, [crId, emailHistoryRefresh]);
 
   const fetchGlContacts = async () => {
     try { const res = await api.getLeadContactsForEdit(leadId); setGlContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
@@ -17973,7 +18136,7 @@ function GoLiveForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) 
 }
 
 // ============== Support Form ==============
-function SupportForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any) {
+function SupportForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHistoryRefresh }: any) {
   const [supportSubTab, setSupportSubTab] = useState('ticket');
   const supportSubTabs = ['Ticket', 'Summary', 'Feedback', 'Memo', 'Workflow & Audit Trail'];
 
@@ -18035,6 +18198,13 @@ function SupportForm({ data, crId, leadId, refreshData, onOpenEmailModal }: any)
   useEffect(() => {
     api.getCRIEmailTemplates('Support').then(setSupportEmailTemplates).catch(() => setSupportEmailTemplates([]));
   }, []);
+
+  // Load email history
+  useEffect(() => {
+    if (crId) {
+      api.getCREmailHistory(crId, 'support').then(setSupportEmailSentList).catch(() => setSupportEmailSentList([]));
+    }
+  }, [crId, emailHistoryRefresh]);
 
   useEffect(() => {
     if (data) {
@@ -19514,7 +19684,7 @@ function CallLogModal({ isOpen, onClose, crId, editingItem, refreshData }: any) 
 }
 
 // ============== Email Modal ==============
-function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, templateId, companyName }: any) {
+function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, templateId, companyName, onSuccess }: any) {
   const [formData, setFormData] = useState({
     to: contactEmail || '',
     cc: '',
@@ -19602,13 +19772,30 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, template
       alert('Please enter subject');
       return;
     }
+
+    // Get email body from contentEditable div
+    const bodyContent = editorRef.current?.innerHTML || formData.body || '';
+
     setSending(true);
     try {
-      // For now, we'll simulate sending - in production, this would call an API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Send email via API and store in history
+      await api.sendCREmail(crId, {
+        tab_name: tab,
+        template_id: selectedTemplate?.id || null,
+        template_name: selectedTemplate?.title || null,
+        to_email: formData.to,
+        cc_email: formData.cc || undefined,
+        bcc_email: formData.bcc || undefined,
+        email_name: companyName || '',
+        subject: formData.subject,
+        content: bodyContent,
+        attachment_ids: [],
+      });
       alert('Email sent successfully!');
+      if (onSuccess) onSuccess(tab);
       onClose();
     } catch (err: any) {
+      console.error('Failed to send email:', err);
       alert(err?.response?.data?.detail || 'Failed to send email');
     } finally {
       setSending(false);

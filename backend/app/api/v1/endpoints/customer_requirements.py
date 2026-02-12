@@ -13,7 +13,8 @@ from app.models.customer_requirement import (
     CustomerRequirement, CRIntroduction, CRRequirement, CRPresentation,
     CRDemo, CRProposal, CRAgreement, CRInitiation, CRPlanning,
     CRConfiguration, CRTraining, CRUAT, CRDataMigration, CRGoLive,
-    CRSupport, CRCallLog, CRDocument, CRActivity, CRMemo, CRStatusHistory
+    CRSupport, CRCallLog, CRDocument, CRActivity, CRMemo, CRStatusHistory,
+    CREmailHistory
 )
 from app.schemas.customer_requirement import (
     CustomerRequirementCreate, CustomerRequirementUpdate, CustomerRequirementResponse,
@@ -26,8 +27,10 @@ from app.schemas.customer_requirement import (
     CRDocumentCreate, CRDocumentResponse,
     CRActivityCreate, CRActivityUpdate, CRActivityResponse,
     CRMemoCreate, CRMemoUpdate, CRMemoResponse,
-    CRCallLogCreate, CRCallLogUpdate, CRCallLogResponse
+    CRCallLogCreate, CRCallLogUpdate, CRCallLogResponse,
+    CREmailHistoryCreate, CREmailHistoryResponse, SendEmailRequest
 )
+import json
 from app.core.permissions import check_permission
 
 router = APIRouter()
@@ -741,3 +744,102 @@ def delete_memo(
     db.commit()
 
     return {"message": "Memo deleted successfully"}
+
+
+# ============== Email History (Generic for all tabs) ==============
+
+@router.get("/{cr_id}/emails", response_model=List[CREmailHistoryResponse])
+def list_email_history(
+    cr_id: int,
+    tab_name: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List email history, optionally filtered by tab"""
+    query = db.query(CREmailHistory).filter(CREmailHistory.customer_requirement_id == cr_id)
+    if tab_name:
+        query = query.filter(CREmailHistory.tab_name == tab_name)
+    return query.order_by(CREmailHistory.sent_at.desc()).all()
+
+
+@router.get("/{cr_id}/emails/{email_id}", response_model=CREmailHistoryResponse)
+def get_email_history_detail(
+    cr_id: int,
+    email_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get email history detail by ID"""
+    email = db.query(CREmailHistory).filter(
+        CREmailHistory.id == email_id,
+        CREmailHistory.customer_requirement_id == cr_id
+    ).first()
+    if not email:
+        raise HTTPException(status_code=404, detail="Email record not found")
+    return email
+
+
+@router.post("/{cr_id}/emails", response_model=CREmailHistoryResponse, status_code=status.HTTP_201_CREATED)
+def send_email(
+    cr_id: int,
+    data: SendEmailRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Send an email and store in history"""
+    # Verify customer requirement exists
+    cr = db.query(CustomerRequirement).filter(CustomerRequirement.id == cr_id).first()
+    if not cr:
+        raise HTTPException(status_code=404, detail="Customer requirement not found")
+
+    # Convert attachment IDs list to JSON string
+    attachment_ids_str = None
+    if data.attachment_ids:
+        attachment_ids_str = json.dumps(data.attachment_ids)
+
+    # Create email history record
+    email_record = CREmailHistory(
+        customer_requirement_id=cr_id,
+        tab_name=data.tab_name,
+        template_id=data.template_id,
+        template_name=data.template_name,
+        to_email=data.to_email,
+        cc_email=data.cc_email,
+        bcc_email=data.bcc_email,
+        email_name=data.email_name,
+        subject=data.subject,
+        content=data.content,
+        attachment_ids=attachment_ids_str,
+        status='sent',  # For now, we'll mark as sent. Real email sending can be added later
+        created_by=current_user.id
+    )
+
+    db.add(email_record)
+    db.commit()
+    db.refresh(email_record)
+
+    # TODO: Add actual email sending logic here using SMTP or email service
+    # For now, we're just storing the email record
+
+    return email_record
+
+
+@router.delete("/{cr_id}/emails/{email_id}")
+def delete_email_history(
+    cr_id: int,
+    email_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete an email history record"""
+    email = db.query(CREmailHistory).filter(
+        CREmailHistory.id == email_id,
+        CREmailHistory.customer_requirement_id == cr_id
+    ).first()
+    if not email:
+        raise HTTPException(status_code=404, detail="Email record not found")
+
+    db.delete(email)
+    db.commit()
+
+    return {"message": "Email record deleted successfully"}

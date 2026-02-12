@@ -565,3 +565,37 @@ class CRStatusHistory(Base):
 
     changed_at = Column(DateTime(timezone=True), server_default=func.now())
     changed_by = Column(Integer, nullable=True)
+
+
+class CREmailHistory(Base):
+    """Email history for customer requirement tabs"""
+    __tablename__ = "cr_email_histories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    customer_requirement_id = Column(Integer, ForeignKey("customer_requirements.id"), nullable=False, index=True)
+
+    tab_name = Column(String(100), nullable=False)  # which tab this email belongs to
+    template_id = Column(Integer, nullable=True)  # reference to cri_email_templates.id
+    template_name = Column(String(255), nullable=True)  # template title for display
+
+    # Email recipients
+    to_email = Column(Text, nullable=False)  # comma-separated
+    cc_email = Column(Text, nullable=True)
+    bcc_email = Column(Text, nullable=True)
+    email_name = Column(String(255), nullable=True)  # contact name
+
+    # Email content
+    subject = Column(String(500), nullable=False)
+    content = Column(Text, nullable=True)  # HTML content
+
+    # Attachments - JSON array of document IDs or file paths
+    attachment_ids = Column(Text, nullable=True)  # JSON array of cr_documents.id
+    uploaded_attachments = Column(Text, nullable=True)  # JSON array of uploaded file paths
+
+    # Status
+    status = Column(String(50), default='sent')  # sent, failed, draft
+
+    # Tracking
+    sent_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(Integer, nullable=True)

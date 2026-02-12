@@ -528,3 +528,55 @@ class CRCallLogResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ============== Email History ==============
+
+class CREmailHistoryCreate(BaseModel):
+    tab_name: str
+    template_id: Optional[int] = None
+    template_name: Optional[str] = None
+    to_email: str
+    cc_email: Optional[str] = None
+    bcc_email: Optional[str] = None
+    email_name: Optional[str] = None
+    subject: str
+    content: Optional[str] = None
+    attachment_ids: Optional[str] = None  # JSON array
+    uploaded_attachments: Optional[str] = None  # JSON array
+
+
+class CREmailHistoryResponse(BaseModel):
+    id: int
+    customer_requirement_id: int
+    tab_name: str
+    template_id: Optional[int] = None
+    template_name: Optional[str] = None
+    to_email: str
+    cc_email: Optional[str] = None
+    bcc_email: Optional[str] = None
+    email_name: Optional[str] = None
+    subject: str
+    content: Optional[str] = None
+    attachment_ids: Optional[str] = None
+    uploaded_attachments: Optional[str] = None
+    status: Optional[str] = None
+    sent_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    created_by: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class SendEmailRequest(BaseModel):
+    tab_name: str
+    template_id: Optional[int] = None
+    template_name: Optional[str] = None
+    to_email: str
+    cc_email: Optional[str] = None
+    bcc_email: Optional[str] = None
+    email_name: Optional[str] = None
+    subject: str
+    content: str
+    attachment_ids: Optional[List[int]] = None  # List of document IDs to attach
