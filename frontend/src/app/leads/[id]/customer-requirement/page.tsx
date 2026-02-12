@@ -101,7 +101,7 @@ export default function CustomerRequirementPage() {
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [showCallLogModal, setShowCallLogModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
-  const [emailModalData, setEmailModalData] = useState<any>({ tab: '', contactEmail: '', templateId: null });
+  const [emailModalData, setEmailModalData] = useState<any>({ tab: '', contactEmail: '', templateId: null, attachments: [] });
   const [emailHistoryRefresh, setEmailHistoryRefresh] = useState<{ [key: string]: number }>({});
   const [editingItem, setEditingItem] = useState<any>(null);
 
@@ -249,8 +249,8 @@ export default function CustomerRequirementPage() {
   };
 
   // Open email modal handler
-  const handleOpenEmailModal = (tab: string, contactEmail: string = '', templateId: number | null = null) => {
-    setEmailModalData({ tab, contactEmail, templateId });
+  const handleOpenEmailModal = (tab: string, contactEmail: string = '', templateId: number | null = null, attachments: any[] = []) => {
+    setEmailModalData({ tab, contactEmail, templateId, attachments });
     setShowEmailModal(true);
   };
 
@@ -351,6 +351,7 @@ export default function CustomerRequirementPage() {
               labelClass={labelClass}
               crId={cr?.id}
               leadId={leadId}
+              customerData={formData}
               onOpenEmailModal={handleOpenEmailModal}
               emailHistoryRefresh={emailHistoryRefresh['requirement'] || 0}
             />
@@ -585,6 +586,7 @@ export default function CustomerRequirementPage() {
           templateId={emailModalData.templateId}
           companyName={formData?.company_name || cr?.company_name || ''}
           onSuccess={handleEmailSuccess}
+          attachments={emailModalData.attachments || []}
         />
       )}
     </MainLayout>
@@ -1003,6 +1005,19 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
   const [subTabNotes, setSubTabNotes] = useState('');
   const [subTabUploading, setSubTabUploading] = useState(false);
   const subTabFileRef = React.useRef<HTMLInputElement>(null);
+  const [selectedDocIds, setSelectedDocIds] = useState<number[]>([]);
+
+  // Activity Follow-Up Modal state (for All Activity sub-tab)
+  const [showActivityFollowUpModal, setShowActivityFollowUpModal] = useState(false);
+  const [activityFollowUpData, setActivityFollowUpData] = useState<any>(null);
+  const [activityFollowUpForm, setActivityFollowUpForm] = useState({
+    contact_id: '', call_outcome: '', priority: '', activity_type: '',
+    start_date: new Date().toISOString().split('T')[0],
+    start_time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+    assigned_to: '', status: 'Open', description: ''
+  });
+  const activityFollowUpEditorRef = React.useRef<HTMLDivElement>(null);
+  const [showPreviousActivities, setShowPreviousActivities] = useState(false);
 
   // Load documents when crId is available
   useEffect(() => {
@@ -1176,6 +1191,46 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
     });
   };
 
+  // Handler to open Activity Follow-Up modal from All Activity table
+  const handleOpenActivityFollowUp = (activity: any) => {
+    setActivityFollowUpData(activity);
+    setActivityFollowUpForm({
+      contact_id: activity.contact || '',
+      call_outcome: activity.description || '',
+      priority: '',
+      activity_type: activity.type || 'Call Back',
+      start_date: new Date().toISOString().split('T')[0],
+      start_time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      assigned_to: activity.by || '',
+      status: 'Open',
+      description: activity.description || ''
+    });
+    setShowActivityFollowUpModal(true);
+  };
+
+  // Handler to save Activity Follow-Up
+  const handleSaveActivityFollowUp = async () => {
+    if (!crId) {
+      alert('Please save the customer requirement first');
+      return;
+    }
+    try {
+      const activityData = {
+        ...activityFollowUpForm,
+        tab: 'introduction-activity-followup',
+        subject: activityFollowUpForm.call_outcome,
+      };
+      await api.createCRActivity(crId, activityData);
+      // Refresh activities list
+      const updatedActivities = await api.getCRActivities(crId, 'introduction-activity-followup').catch(() => []);
+      setShowActivityFollowUpModal(false);
+      alert('Activity follow-up saved successfully');
+    } catch (err: any) {
+      console.error('Failed to save activity follow-up:', err);
+      alert(err?.response?.data?.detail || 'Failed to save activity follow-up');
+    }
+  };
+
   const handleDeleteDocument = async (docId: number) => {
     if (!crId) return;
     if (!confirm('Are you sure you want to delete this document?')) return;
@@ -1337,7 +1392,10 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                 ))}
               </select>
               <button
-                onClick={() => onOpenEmailModal && onOpenEmailModal('Introduction', introFormData.contact_email, introEmailTemplates.find((t: any) => t.email_format === introFormData.email_format_type)?.id)}
+                onClick={() => {
+                  const selectedDocs = documents.filter((d: any) => selectedDocIds.includes(d.id));
+                  onOpenEmailModal && onOpenEmailModal('Introduction', introFormData.contact_email, introEmailTemplates.find((t: any) => t.email_format === introFormData.email_format_type)?.id, selectedDocs);
+                }}
                 className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
               >
                 <Mail className="w-4 h-4" />
@@ -1447,7 +1505,19 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                       <td className={tdClass}>{doc.file_size ? `${(doc.file_size / 1024).toFixed(1)} KB` : '-'}</td>
                       <td className={tdClass}>{doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : '-'}</td>
                       <td className={tdClass}>
-                        <div className="flex gap-1 justify-center">
+                        <div className="flex gap-1 justify-center items-center">
+                          <input
+                            type="checkbox"
+                            className="w-3.5 h-3.5 accent-blue-600"
+                            checked={selectedDocIds.includes(doc.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedDocIds(prev => [...prev, doc.id]);
+                              } else {
+                                setSelectedDocIds(prev => prev.filter(id => id !== doc.id));
+                              }
+                            }}
+                          />
                           <button
                             type="button"
                             onClick={() => handleDeleteDocument(doc.id)}
@@ -1548,7 +1618,12 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                         <td className={`${tdClass} text-blue-600`}>{activity.description}</td>
                         <td className={tdClass}>{activity.action_to_be_taken || '-'}</td>
                         <td className={tdClass}>
-                          <button className="px-3 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50">Follow-Up</button>
+                          <button
+                            onClick={() => handleOpenActivityFollowUp(activity)}
+                            className="px-3 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                          >
+                            Follow-Up
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -2119,6 +2194,199 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
         </div>
       )}
 
+      {/* Activity Follow-Up Modal (from All Activity table) */}
+      {showActivityFollowUpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded shadow-xl w-[680px] max-h-[90vh] overflow-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-4 py-2.5 bg-blue-600 text-white">
+              <div className="flex items-center gap-3">
+                <h3 className="font-semibold text-sm uppercase tracking-wide">ADD ACTIVITY FOLLOW-UP</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowPreviousActivities(!showPreviousActivities)}
+                  className="px-3 py-1 text-xs font-medium border border-white rounded hover:bg-blue-700"
+                >
+                  View Previous Activities
+                </button>
+              </div>
+              <button onClick={() => setShowActivityFollowUpModal(false)} className="text-yellow-300 hover:text-yellow-100 rounded p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 bg-gray-50">
+              <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                {/* Row 1: Contact / Call Outcome */}
+                <div>
+                  <label className="text-xs font-semibold text-blue-600 mb-1 block">Contact</label>
+                  <select
+                    value={activityFollowUpForm.contact_id}
+                    onChange={(e) => setActivityFollowUpForm({ ...activityFollowUpForm, contact_id: e.target.value })}
+                    className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="">Select Contact</option>
+                    {introContacts.map((contact: any) => (
+                      <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-blue-600 mb-1 block">Call Outcome</label>
+                  <input
+                    type="text"
+                    value={activityFollowUpForm.call_outcome}
+                    onChange={(e) => setActivityFollowUpForm({ ...activityFollowUpForm, call_outcome: e.target.value })}
+                    className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                    placeholder="Introductory Email to Customer (Oil and Gas)"
+                  />
+                </div>
+
+                {/* Row 2: Priority / Activity Type */}
+                <div>
+                  <label className="text-xs font-semibold text-blue-600 mb-1 block">Priority</label>
+                  <select
+                    value={activityFollowUpForm.priority}
+                    onChange={(e) => setActivityFollowUpForm({ ...activityFollowUpForm, priority: e.target.value })}
+                    className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="">Select Priority</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-blue-600 mb-1 block">Activity Type</label>
+                  <select
+                    value={activityFollowUpForm.activity_type}
+                    onChange={(e) => setActivityFollowUpForm({ ...activityFollowUpForm, activity_type: e.target.value })}
+                    className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="">Select Type</option>
+                    <option value="Call Back">Call Back</option>
+                    <option value="Email">Email</option>
+                    <option value="Meeting">Meeting</option>
+                    <option value="Follow-Up">Follow-Up</option>
+                    <option value="Demo">Demo</option>
+                  </select>
+                </div>
+
+                {/* Row 3: Start Date / Time / Assigned To */}
+                <div>
+                  <label className="text-xs font-semibold text-blue-600 mb-1 block">Start Date / Time</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={activityFollowUpForm.start_date}
+                      onChange={(e) => setActivityFollowUpForm({ ...activityFollowUpForm, start_date: e.target.value })}
+                      className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                    />
+                    <input
+                      type="time"
+                      value={activityFollowUpForm.start_time}
+                      onChange={(e) => setActivityFollowUpForm({ ...activityFollowUpForm, start_time: e.target.value })}
+                      className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-blue-600 mb-1 block">Assigned To</label>
+                  <select
+                    value={activityFollowUpForm.assigned_to}
+                    onChange={(e) => setActivityFollowUpForm({ ...activityFollowUpForm, assigned_to: e.target.value })}
+                    className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="">Select User</option>
+                    <option value="Junaid Ali">Junaid Ali</option>
+                    <option value="Hamza Manzoor">Hamza Manzoor</option>
+                    <option value="Admin User">Admin User</option>
+                  </select>
+                </div>
+
+                {/* Row 4: Status (full row on right side) */}
+                <div></div>
+                <div>
+                  <label className="text-xs font-semibold text-blue-600 mb-1 block">Status</label>
+                  <select
+                    value={activityFollowUpForm.status}
+                    onChange={(e) => setActivityFollowUpForm({ ...activityFollowUpForm, status: e.target.value })}
+                    className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="Open">Open</option>
+                    <option value="Closed">Closed</option>
+                    <option value="In Progress">In Progress</option>
+                  </select>
+                </div>
+
+                {/* Description Display */}
+                <div className="col-span-2 mt-1">
+                  <label className="text-xs font-semibold text-blue-600 mb-1 block">Description</label>
+                  <p className="text-sm text-gray-700 mb-2">{activityFollowUpForm.description || 'Streamline Operations with Smart Cloud Business Management Software (ERP)'}</p>
+                </div>
+
+                {/* Description Rich Text Editor */}
+                <div className="col-span-2">
+                  <label className="text-xs font-semibold text-blue-600 mb-1 block">Description</label>
+                  <div className="border border-gray-300 rounded overflow-hidden">
+                    {/* Rich Text Editor Toolbar */}
+                    <div className="flex items-center gap-1 px-2 py-1.5 bg-white border-b border-gray-300">
+                      <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded font-bold text-sm">B</button>
+                      <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded italic text-sm font-serif">I</button>
+                      <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded underline text-sm">U</button>
+                      <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded text-sm">
+                        <span className="text-yellow-500">&#9998;</span>
+                      </button>
+                      <div className="h-5 w-px bg-gray-300 mx-1"></div>
+                      <select className="h-7 px-1 text-xs border border-gray-300 rounded bg-white">
+                        <option>jost</option>
+                        <option>Arial</option>
+                        <option>Times New Roman</option>
+                      </select>
+                      <select className="h-7 w-14 px-1 text-xs border border-gray-300 rounded bg-white">
+                        <option>14</option>
+                        <option>12</option>
+                        <option>16</option>
+                        <option>18</option>
+                      </select>
+                      <div className="h-5 w-px bg-gray-300 mx-1"></div>
+                      <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded text-sm font-bold">
+                        <span className="bg-yellow-300 px-1 rounded">A</span>
+                      </button>
+                      <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded text-sm">&#9776;</button>
+                      <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded text-sm">&#9776;</button>
+                      <button type="button" className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded text-sm">&#9776;</button>
+                    </div>
+                    {/* Text Area */}
+                    <div
+                      ref={activityFollowUpEditorRef}
+                      contentEditable
+                      className="w-full min-h-[150px] px-3 py-2 text-sm focus:outline-none bg-white"
+                      style={{ resize: 'vertical' }}
+                      onInput={(e) => {
+                        const content = (e.target as HTMLDivElement).innerHTML;
+                        setActivityFollowUpForm({ ...activityFollowUpForm, description: content });
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Save Button */}
+              <div className="flex justify-center mt-5">
+                <button
+                  onClick={handleSaveActivityFollowUp}
+                  className="px-8 py-2 text-sm font-medium text-white bg-green-500 rounded hover:bg-green-600"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Memo Modal */}
       {showIntroMemoModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -2182,7 +2450,7 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
 }
 
 // ============== Requirement Form ==============
-function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass, crId, leadId, onOpenEmailModal, emailHistoryRefresh }: any) {
+function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass, crId, leadId, customerData, onOpenEmailModal, emailHistoryRefresh }: any) {
   const [reqSubTab, setReqSubTab] = useState('pre-demo-business-questionnaire');
   const [emailsSent, setEmailsSent] = useState<any[]>([]);
   const [reqDocs, setReqDocs] = useState<any[]>([]);
@@ -2190,6 +2458,7 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
   const [reqSelectedFile, setReqSelectedFile] = useState<File | null>(null);
   const [reqUploading, setReqUploading] = useState(false);
   const reqFileInputRef = React.useRef<HTMLInputElement>(null);
+  const [reqSelectedDocIds, setReqSelectedDocIds] = useState<number[]>([]);
 
   // Sub-tab states
   const [reqSubTabDocs, setReqSubTabDocs] = useState<any[]>([]);
@@ -2395,7 +2664,7 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
         <div className="space-y-1">
           <div className={rowClass}>
             <label className={fieldLabelClass}>Company Name</label>
-            <input type="text" value={data?.company_name || ''} onChange={(e) => setData({ ...data, company_name: e.target.value })} className={fieldInputClass} />
+            <input type="text" value={customerData?.company_name || ''} readOnly className={fieldInputClass} />
           </div>
           <div className={rowClass}>
             <label className={fieldLabelClass}>Contact Name</label>
@@ -2416,7 +2685,10 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
                 ))}
               </select>
               <button
-                onClick={() => onOpenEmailModal && onOpenEmailModal('Requirement', '', reqEmailTemplates.find((t: any) => t.email_format === data?.email_format)?.id)}
+                onClick={() => {
+                  const selectedDocs = reqDocs.filter((d: any) => reqSelectedDocIds.includes(d.id));
+                  onOpenEmailModal && onOpenEmailModal('Requirement', '', reqEmailTemplates.find((t: any) => t.email_format === data?.email_format)?.id, selectedDocs);
+                }}
                 className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
               >
                 <Mail className="w-4 h-4" />
@@ -2508,7 +2780,18 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
                       <td className={tdClass}>{doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
                       <td className={tdClass}>
                         <div className="flex gap-1 justify-center items-center">
-                          <input type="checkbox" className="w-3 h-3" />
+                          <input
+                            type="checkbox"
+                            className="w-3 h-3"
+                            checked={reqSelectedDocIds.includes(doc.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setReqSelectedDocIds(prev => [...prev, doc.id]);
+                              } else {
+                                setReqSelectedDocIds(prev => prev.filter(id => id !== doc.id));
+                              }
+                            }}
+                          />
                           <button type="button" onClick={() => handleReqDeleteDoc(doc.id)} className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3 h-3" /></button>
                         </div>
                       </td>
@@ -4124,7 +4407,8 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
                       <td className={tdClass}>{doc.file_size ? `${(doc.file_size / 1024).toFixed(1)} KB` : '-'}</td>
                       <td className={tdClass}>{doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : '-'}</td>
                       <td className={tdClass}>
-                        <div className="flex gap-1 justify-center">
+                        <div className="flex gap-1 justify-center items-center">
+                          <input type="checkbox" className="w-3.5 h-3.5 accent-blue-600" />
                           <button type="button" onClick={() => handlePresDeleteDoc(doc.id)} className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3 h-3" /></button>
                         </div>
                       </td>
@@ -5205,6 +5489,7 @@ function DemoForm({ data, setData, crId, leadId, demos, refreshData, onOpenEmail
   const [demoSubTabNotes, setDemoSubTabNotes] = useState('');
   const [demoSubTabUploading, setDemoSubTabUploading] = useState(false);
   const demoSubTabFileRef = React.useRef<HTMLInputElement>(null);
+  const [demoSelectedDocIds, setDemoSelectedDocIds] = useState<number[]>([]);
 
   // Post-Demo Business Questionnaire State
   const [postDemoForm, setPostDemoForm] = useState({
@@ -5482,7 +5767,10 @@ function DemoForm({ data, setData, crId, leadId, demos, refreshData, onOpenEmail
                 ))}
               </select>
               <button
-                onClick={() => onOpenEmailModal && onOpenEmailModal('Demo', demoFormData.contact_email, demoEmailTemplates.find((t: any) => t.email_format === demoFormData.email_format_type)?.id)}
+                onClick={() => {
+                  const selectedDocs = demoDocs.filter((d: any) => demoSelectedDocIds.includes(d.id));
+                  onOpenEmailModal && onOpenEmailModal('Demo', demoFormData.contact_email, demoEmailTemplates.find((t: any) => t.email_format === demoFormData.email_format_type)?.id, selectedDocs);
+                }}
                 className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
               >
                 <Mail className="w-4 h-4" />
@@ -5573,7 +5861,18 @@ function DemoForm({ data, setData, crId, leadId, demos, refreshData, onOpenEmail
                     <td className={tdClass}>{doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : '-'}</td>
                     <td className={`${tdClass} text-center`}>
                       <div className="flex gap-1 justify-center">
-                        <input type="checkbox" className="w-4 h-4" />
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4"
+                          checked={demoSelectedDocIds.includes(doc.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setDemoSelectedDocIds(prev => [...prev, doc.id]);
+                            } else {
+                              setDemoSelectedDocIds(prev => prev.filter(id => id !== doc.id));
+                            }
+                          }}
+                        />
                         <button onClick={() => handleDemoDeleteDoc(doc.id)} className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3 h-3" /></button>
                       </div>
                     </td>
@@ -6801,6 +7100,7 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
   const [proposalUploading, setProposalUploading] = useState(false);
   const proposalFileRef = React.useRef<HTMLInputElement>(null);
   const [emailSentList, setEmailSentList] = useState<any[]>([]);
+  const [proposalSelectedDocIds, setProposalSelectedDocIds] = useState<number[]>([]);
 
   // Details sub-tab state
   const [detailsForm, setDetailsForm] = useState({
@@ -7042,6 +7342,51 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
     }
   }, [crId, emailHistoryRefresh]);
 
+  // Load top-level proposal documents
+  useEffect(() => {
+    if (crId) {
+      api.getCRDocuments(crId, 'proposal').then(setProposalDocs).catch(() => setProposalDocs([]));
+    }
+  }, [crId]);
+
+  // Document upload handler
+  const handleProposalUploadFile = async () => {
+    if (!proposalFile) {
+      alert('Please choose a file first');
+      return;
+    }
+    if (!crId) {
+      alert('Please save the customer requirement first');
+      return;
+    }
+    setProposalUploading(true);
+    try {
+      await api.uploadCRDocument(crId, proposalFile, 'proposal', 'Proposal Document');
+      const docs = await api.getCRDocuments(crId, 'proposal');
+      setProposalDocs(docs);
+      setProposalFile(null);
+      if (proposalFileRef.current) proposalFileRef.current.value = '';
+    } catch (err: any) {
+      console.error('Upload failed:', err);
+      alert(err?.response?.data?.detail || 'Failed to upload file');
+    } finally {
+      setProposalUploading(false);
+    }
+  };
+
+  // Document delete handler
+  const handleProposalDeleteDoc = async (docId: number) => {
+    if (!crId) return;
+    if (!confirm('Are you sure you want to delete this document?')) return;
+    try {
+      await api.deleteCRDocument(crId, docId);
+      setProposalDocs(proposalDocs.filter((d: any) => d.id !== docId));
+    } catch (err: any) {
+      console.error('Delete failed:', err);
+      alert(err?.response?.data?.detail || 'Failed to delete document');
+    }
+  };
+
   // Follow-up handlers
   const handleOpenProposalFollowUp = (item?: any) => {
     if (item) {
@@ -7277,7 +7622,10 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
                 ))}
               </select>
               <button
-                onClick={() => onOpenEmailModal && onOpenEmailModal('Proposal', proposalFormData.contact_email, proposalEmailTemplates.find((t: any) => t.email_format === proposalFormData.email_format_type)?.id)}
+                onClick={() => {
+                  const selectedDocs = proposalDocs.filter((d: any) => proposalSelectedDocIds.includes(d.id));
+                  onOpenEmailModal && onOpenEmailModal('Proposal', proposalFormData.contact_email, proposalEmailTemplates.find((t: any) => t.email_format === proposalFormData.email_format_type)?.id, selectedDocs);
+                }}
                 className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
               >
                 <Mail className="w-4 h-4" />
@@ -7298,11 +7646,12 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
           </div>
           <div className="flex items-center">
             <label className="w-32 text-xs font-medium text-blue-600">Document</label>
-            <input type="file" ref={proposalFileRef} onChange={(e) => setProposalFile(e.target.files?.[0] || null)} className="hidden" />
-            <button onClick={() => proposalFileRef.current?.click()} className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 flex items-center gap-1">
-              <Plus className="w-3 h-3" /> Choose File
-            </button>
-            <button className="ml-2 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded hover:bg-gray-50">Upload</button>
+            <div className="flex-1 flex gap-2">
+              <input type="text" className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50" readOnly value={proposalFile?.name || ''} />
+              <input ref={proposalFileRef} type="file" onChange={(e) => setProposalFile(e.target.files?.[0] || null)} className="hidden" />
+              <button onClick={() => proposalFileRef.current?.click()} className="h-8 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs flex items-center gap-1"><Upload className="w-3 h-3" /> Choose File</button>
+              <button onClick={handleProposalUploadFile} disabled={!proposalFile || proposalUploading} className="h-8 px-4 border border-gray-300 rounded hover:bg-gray-50 text-xs disabled:opacity-50">{proposalUploading ? 'Uploading...' : 'Upload'}</button>
+            </div>
           </div>
         </div>
       </div>
@@ -7314,15 +7663,15 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
           <table className="w-full">
             <thead>
               <tr className="bg-blue-700">
-                <th className="px-3 py-2 text-left text-xs font-medium text-white border-r border-blue-600">Email Sent To</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-white border-r border-blue-600">Subject</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-white border-r border-blue-600">Sent On</th>
-                <th className="px-3 py-2 text-center text-xs font-medium text-white">Action</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-white border-r border-blue-600">Email Sent To</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-white border-r border-blue-600">Subject</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-white border-r border-blue-600">Sent On</th>
+                <th className="px-3 py-2.5 text-center text-xs font-medium text-white w-20">Action</th>
               </tr>
             </thead>
             <tbody>
               {emailSentList.length === 0 ? (
-                <tr><td colSpan={4} className="px-4 py-4 text-center text-gray-400 text-xs">No emails sent</td></tr>
+                <tr><td colSpan={4} className="px-3 py-4 text-center text-orange-400 text-xs">No Data Available</td></tr>
               ) : (
                 emailSentList.map((item: any, idx: number) => (
                   <tr key={item.id || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
@@ -7349,46 +7698,42 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
           <table className="w-full">
             <thead>
               <tr className="bg-blue-700">
-                <th className="px-3 py-2 text-left text-xs font-medium text-white border-r border-blue-600">File Name</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-white border-r border-blue-600">Link</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-white border-r border-blue-600">Size</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-white border-r border-blue-600">Upload On</th>
-                <th className="px-3 py-2 text-center text-xs font-medium text-white">Action</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-white border-r border-blue-600">File Name</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-white border-r border-blue-600">Link</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-white border-r border-blue-600">Size</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-white border-r border-blue-600">Upload On</th>
+                <th className="px-3 py-2.5 text-center text-xs font-medium text-white w-20">Action</th>
               </tr>
             </thead>
             <tbody>
               {proposalDocs.length === 0 ? (
-                <>
-                  <tr className="bg-white">
-                    <td className="px-3 py-2 text-xs border-b text-orange-500 italic">Proposal Date Time</td>
-                    <td className="px-3 py-2 text-xs border-b text-blue-600">service: delta.axieve...</td>
-                    <td className="px-3 py-2 text-xs border-b">0 kb</td>
-                    <td className="px-3 py-2 text-xs border-b">05/23/2024</td>
-                    <td className="px-3 py-2 text-xs border-b text-center"><input type="checkbox" checked className="w-3.5 h-3.5 accent-blue-600" readOnly /></td>
-                  </tr>
-                  <tr className="bg-gray-50">
-                    <td className="px-3 py-2 text-xs border-b text-orange-500 italic">pharma_erp_analysis_for_manager.docx</td>
-                    <td className="px-3 py-2 text-xs border-b text-blue-600">service: delta.axieve...</td>
-                    <td className="px-3 py-2 text-xs border-b">47.27 Kb</td>
-                    <td className="px-3 py-2 text-xs border-b">11/17/2025</td>
-                    <td className="px-3 py-2 text-xs border-b text-center"><input type="checkbox" className="w-3.5 h-3.5 accent-blue-600" /><button className="ml-1 p-0.5 text-gray-500 hover:text-red-500"><Trash2 className="w-3 h-3" /></button></td>
-                  </tr>
-                  <tr className="bg-white">
-                    <td className="px-3 py-2 text-xs border-b text-orange-500 italic">Proposal</td>
-                    <td className="px-3 py-2 text-xs border-b text-blue-600">service: delta.axieve...</td>
-                    <td className="px-3 py-2 text-xs border-b">36.63 Kb</td>
-                    <td className="px-3 py-2 text-xs border-b">11/28/2025</td>
-                    <td className="px-3 py-2 text-xs border-b text-center"><input type="checkbox" className="w-3.5 h-3.5 accent-blue-600" /><button className="ml-1 p-0.5 text-gray-500 hover:text-red-500"><Trash2 className="w-3 h-3" /></button></td>
-                  </tr>
-                </>
+                <tr><td colSpan={5} className="px-3 py-4 text-center text-orange-400 text-xs">No Data Available</td></tr>
               ) : (
-                proposalDocs.map((doc, idx) => (
+                proposalDocs.map((doc: any, idx: number) => (
                   <tr key={doc.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-3 py-2 text-xs border-b text-orange-500 italic">{doc.file_name}</td>
-                    <td className="px-3 py-2 text-xs border-b text-blue-600">{doc.link || '-'}</td>
-                    <td className="px-3 py-2 text-xs border-b">{doc.size || '-'}</td>
-                    <td className="px-3 py-2 text-xs border-b">{doc.uploaded_on || '-'}</td>
-                    <td className="px-3 py-2 text-xs border-b text-center"><input type="checkbox" className="w-3.5 h-3.5 accent-blue-600" /></td>
+                    <td className="px-3 py-2 text-xs border-b text-blue-600">{doc.file_name || doc.original_filename || '-'}</td>
+                    <td className="px-3 py-2 text-xs border-b text-blue-600">
+                      {doc.file_path ? <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/${doc.file_path}`} target="_blank" rel="noopener noreferrer" className="hover:underline">service.delta.axieve...</a> : '-'}
+                    </td>
+                    <td className="px-3 py-2 text-xs border-b">{doc.file_size ? `${(doc.file_size / 1024).toFixed(2)} Kb` : '-'}</td>
+                    <td className="px-3 py-2 text-xs border-b">{doc.created_at ? new Date(doc.created_at).toLocaleDateString() : '-'}</td>
+                    <td className="px-3 py-2 text-xs border-b text-center">
+                      <div className="flex gap-1 justify-center">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4"
+                          checked={proposalSelectedDocIds.includes(doc.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setProposalSelectedDocIds(prev => [...prev, doc.id]);
+                            } else {
+                              setProposalSelectedDocIds(prev => prev.filter(id => id !== doc.id));
+                            }
+                          }}
+                        />
+                        <button onClick={() => handleProposalDeleteDoc(doc.id)} className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3 h-3" /></button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -8871,11 +9216,12 @@ function AgreementForm({ data, crId, leadId, refreshData, onOpenEmailModal, emai
           </div>
           <div className="flex items-center">
             <label className="w-32 text-xs font-medium text-blue-600">Document</label>
-            <input type="file" ref={agreementFileRef} onChange={handleAgreementFileChange} className="hidden" />
-            <button onClick={handleAgreementChooseFile} className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 flex items-center gap-1">
-              <Upload className="w-3 h-3" /> Choose File
-            </button>
-            <button onClick={handleAgreementUploadFile} disabled={!agreementFile || agreementUploading} className="ml-2 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">{agreementUploading ? 'Uploading...' : 'Upload'}</button>
+            <div className="flex-1 flex gap-2">
+              <input type="text" className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50" readOnly value={agreementFile?.name || ''} />
+              <input type="file" ref={agreementFileRef} onChange={handleAgreementFileChange} className="hidden" />
+              <button onClick={handleAgreementChooseFile} className="h-8 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs flex items-center gap-1"><Upload className="w-3 h-3" /> Choose File</button>
+              <button onClick={handleAgreementUploadFile} disabled={!agreementFile || agreementUploading} className="h-8 px-4 border border-gray-300 rounded hover:bg-gray-50 text-xs disabled:opacity-50">{agreementUploading ? 'Uploading...' : 'Upload'}</button>
+            </div>
           </div>
           {/* File Name Table */}
           <div className="border rounded overflow-hidden">
@@ -9846,11 +10192,12 @@ function InitiationForm({ data, crId, leadId, refreshData, onOpenEmailModal, ema
           </div>
           <div className="flex items-center">
             <label className="w-32 text-xs font-medium text-blue-600">Document</label>
-            <input type="file" ref={initiationFileRef} onChange={handleInitiationFileChange} className="hidden" />
-            <button onClick={handleInitiationChooseFile} className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 flex items-center gap-1">
-              <Upload className="w-3 h-3" /> Choose File
-            </button>
-            <button onClick={handleInitiationUploadFile} disabled={!initiationFile || initiationUploading} className="ml-2 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">{initiationUploading ? 'Uploading...' : 'Upload'}</button>
+            <div className="flex-1 flex gap-2">
+              <input type="text" className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50" readOnly value={initiationFile?.name || ''} />
+              <input type="file" ref={initiationFileRef} onChange={handleInitiationFileChange} className="hidden" />
+              <button onClick={handleInitiationChooseFile} className="h-8 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs flex items-center gap-1"><Upload className="w-3 h-3" /> Choose File</button>
+              <button onClick={handleInitiationUploadFile} disabled={!initiationFile || initiationUploading} className="h-8 px-4 border border-gray-300 rounded hover:bg-gray-50 text-xs disabled:opacity-50">{initiationUploading ? 'Uploading...' : 'Upload'}</button>
+            </div>
           </div>
           {/* File Name Table */}
           <div className="border rounded overflow-hidden">
@@ -11422,6 +11769,17 @@ function PlanningForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
     }
   }, [crId]);
 
+  // Initialize form data from customer data
+  useEffect(() => {
+    if (data) {
+      setPlanningFormData(prev => ({
+        ...prev,
+        company_name: data.company_name || '',
+        branch_office: data.branch_office || ''
+      }));
+    }
+  }, [data]);
+
   // Load email templates for Planning tab
   useEffect(() => {
     api.getCRIEmailTemplates('planning').then(setPlanningEmailTemplates).catch(() => setPlanningEmailTemplates([]));
@@ -11652,11 +12010,12 @@ function PlanningForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
           </div>
           <div className="flex items-center">
             <label className="w-32 text-xs font-medium text-blue-600">Document</label>
-            <input type="file" ref={planningFileRef} onChange={handlePlanningFileChange} className="hidden" />
-            <button onClick={handlePlanningChooseFile} className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 flex items-center gap-1">
-              <Upload className="w-3 h-3" /> Choose File
-            </button>
-            <button onClick={handlePlanningUploadFile} disabled={!planningFile || planningUploading} className="ml-2 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">{planningUploading ? 'Uploading...' : 'Upload'}</button>
+            <div className="flex-1 flex gap-2">
+              <input type="text" className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50" readOnly value={planningFile?.name || ''} />
+              <input type="file" ref={planningFileRef} onChange={handlePlanningFileChange} className="hidden" />
+              <button onClick={handlePlanningChooseFile} className="h-8 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs flex items-center gap-1"><Upload className="w-3 h-3" /> Choose File</button>
+              <button onClick={handlePlanningUploadFile} disabled={!planningFile || planningUploading} className="h-8 px-4 border border-gray-300 rounded hover:bg-gray-50 text-xs disabled:opacity-50">{planningUploading ? 'Uploading...' : 'Upload'}</button>
+            </div>
           </div>
           {/* File Name Table */}
           <div className="border rounded overflow-hidden">
@@ -13278,6 +13637,17 @@ function ConfigurationForm({ data, crId, leadId, refreshData, onOpenEmailModal, 
   const [configSubTabUploading, setConfigSubTabUploading] = useState(false);
   const configSubTabFileRef = React.useRef<HTMLInputElement>(null);
 
+  // Initialize form data from customer data
+  useEffect(() => {
+    if (data) {
+      setConfigFormData(prev => ({
+        ...prev,
+        company_name: data.company_name || '',
+        branch_office: data.branch_office || ''
+      }));
+    }
+  }, [data]);
+
   // Fetch data
   useEffect(() => {
     if (crId) {
@@ -13533,11 +13903,12 @@ function ConfigurationForm({ data, crId, leadId, refreshData, onOpenEmailModal, 
           </div>
           <div className="flex items-center">
             <label className="w-32 text-xs font-medium text-blue-600">Document</label>
-            <input type="file" ref={configFileRef} onChange={handleConfigFileChange} className="hidden" />
-            <button onClick={handleConfigChooseFile} className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 flex items-center gap-1">
-              <Upload className="w-3 h-3" /> Choose File
-            </button>
-            <button onClick={handleConfigUploadFile} disabled={!configFile || configUploading} className="ml-2 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">{configUploading ? 'Uploading...' : 'Upload'}</button>
+            <div className="flex-1 flex gap-2">
+              <input type="text" className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50" readOnly value={configFile?.name || ''} />
+              <input type="file" ref={configFileRef} onChange={handleConfigFileChange} className="hidden" />
+              <button onClick={handleConfigChooseFile} className="h-8 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs flex items-center gap-1"><Upload className="w-3 h-3" /> Choose File</button>
+              <button onClick={handleConfigUploadFile} disabled={!configFile || configUploading} className="h-8 px-4 border border-gray-300 rounded hover:bg-gray-50 text-xs disabled:opacity-50">{configUploading ? 'Uploading...' : 'Upload'}</button>
+            </div>
           </div>
           {/* File Name Table */}
           <div className="border rounded overflow-hidden">
@@ -14286,6 +14657,17 @@ function TrainingForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
   const [trainingSubTabUploading, setTrainingSubTabUploading] = useState(false);
   const trainingSubTabFileRef = React.useRef<HTMLInputElement>(null);
 
+  // Initialize form data from customer data
+  useEffect(() => {
+    if (data) {
+      setTrainingFormData(prev => ({
+        ...prev,
+        company_name: data.company_name || '',
+        branch_office: data.branch_office || ''
+      }));
+    }
+  }, [data]);
+
   // Fetch data
   useEffect(() => {
     if (crId) {
@@ -14500,11 +14882,12 @@ function TrainingForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
           </div>
           <div className="flex items-center">
             <label className="w-32 text-xs font-medium text-blue-600">Document</label>
-            <input type="file" ref={trainingFileRef} onChange={handleTrainingFileChange} className="hidden" />
-            <button onClick={handleTrainingChooseFile} className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 flex items-center gap-1">
-              <Upload className="w-3 h-3" /> Choose File
-            </button>
-            <button onClick={handleTrainingUploadFile} disabled={!trainingFile || trainingUploading} className="ml-2 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">{trainingUploading ? 'Uploading...' : 'Upload'}</button>
+            <div className="flex-1 flex gap-2">
+              <input type="text" className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50" readOnly value={trainingFile?.name || ''} />
+              <input type="file" ref={trainingFileRef} onChange={handleTrainingFileChange} className="hidden" />
+              <button onClick={handleTrainingChooseFile} className="h-8 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs flex items-center gap-1"><Upload className="w-3 h-3" /> Choose File</button>
+              <button onClick={handleTrainingUploadFile} disabled={!trainingFile || trainingUploading} className="h-8 px-4 border border-gray-300 rounded hover:bg-gray-50 text-xs disabled:opacity-50">{trainingUploading ? 'Uploading...' : 'Upload'}</button>
+            </div>
           </div>
           {/* File Name Table */}
           <div className="border rounded overflow-hidden">
@@ -15350,6 +15733,17 @@ function UATForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHisto
   const [uatSubTabUploading, setUatSubTabUploading] = useState(false);
   const uatSubTabFileRef = React.useRef<HTMLInputElement>(null);
 
+  // Initialize form data from customer data
+  useEffect(() => {
+    if (data) {
+      setUatFormData(prev => ({
+        ...prev,
+        company_name: data.company_name || '',
+        branch_office: data.branch_office || ''
+      }));
+    }
+  }, [data]);
+
   // Fetch data
   useEffect(() => {
     if (crId) {
@@ -15564,11 +15958,12 @@ function UATForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHisto
           </div>
           <div className="flex items-center">
             <label className="w-32 text-xs font-medium text-blue-600">Document</label>
-            <input type="file" ref={uatFileRef} onChange={handleUatFileChange} className="hidden" />
-            <button onClick={handleUatChooseFile} className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 flex items-center gap-1">
-              <Upload className="w-3 h-3" /> Choose File
-            </button>
-            <button onClick={handleUatUploadFile} disabled={!uatFile || uatUploading} className="ml-2 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">{uatUploading ? 'Uploading...' : 'Upload'}</button>
+            <div className="flex-1 flex gap-2">
+              <input type="text" className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50" readOnly value={uatFile?.name || ''} />
+              <input type="file" ref={uatFileRef} onChange={handleUatFileChange} className="hidden" />
+              <button onClick={handleUatChooseFile} className="h-8 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs flex items-center gap-1"><Upload className="w-3 h-3" /> Choose File</button>
+              <button onClick={handleUatUploadFile} disabled={!uatFile || uatUploading} className="h-8 px-4 border border-gray-300 rounded hover:bg-gray-50 text-xs disabled:opacity-50">{uatUploading ? 'Uploading...' : 'Upload'}</button>
+            </div>
           </div>
           {/* File Name Table */}
           <div className="border rounded overflow-hidden">
@@ -16194,6 +16589,17 @@ function DataMigrationForm({ data, crId, leadId, refreshData, onOpenEmailModal, 
     }
   }, [crId, emailHistoryRefresh]);
 
+  // Initialize form data from customer data
+  useEffect(() => {
+    if (data) {
+      setDmFormData(prev => ({
+        ...prev,
+        company_name: data.company_name || '',
+        branch_office: data.branch_office || ''
+      }));
+    }
+  }, [data]);
+
   const fetchDmContacts = async () => {
     try { const res = await api.getLeadContactsForEdit(leadId); setDmContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
   };
@@ -16410,11 +16816,12 @@ function DataMigrationForm({ data, crId, leadId, refreshData, onOpenEmailModal, 
           </div>
           <div className="flex items-center">
             <label className="w-32 text-xs font-medium text-blue-600">Document</label>
-            <input type="file" ref={dmFileRef} onChange={handleDmFileChange} className="hidden" />
-            <button onClick={handleDmChooseFile} className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 flex items-center gap-1">
-              <Upload className="w-3 h-3" /> Choose File
-            </button>
-            <button onClick={handleDmUploadFile} disabled={!dmFile || dmUploading} className="ml-2 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">{dmUploading ? 'Uploading...' : 'Upload'}</button>
+            <div className="flex-1 flex gap-2">
+              <input type="text" className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50" readOnly value={dmFile?.name || ''} />
+              <input type="file" ref={dmFileRef} onChange={handleDmFileChange} className="hidden" />
+              <button onClick={handleDmChooseFile} className="h-8 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs flex items-center gap-1"><Upload className="w-3 h-3" /> Choose File</button>
+              <button onClick={handleDmUploadFile} disabled={!dmFile || dmUploading} className="h-8 px-4 border border-gray-300 rounded hover:bg-gray-50 text-xs disabled:opacity-50">{dmUploading ? 'Uploading...' : 'Upload'}</button>
+            </div>
           </div>
           {/* File Name Table */}
           <div className="border rounded overflow-hidden">
@@ -17058,6 +17465,7 @@ function GoLiveForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHi
   const [glUploading, setGlUploading] = useState(false);
   const glFileRef = React.useRef<HTMLInputElement>(null);
   const [glEmailSentList, setGlEmailSentList] = useState<any[]>([]);
+  const [glSelectedDocIds, setGlSelectedDocIds] = useState<number[]>([]);
 
   // Details sub-tab state
   const [glCustomerForm, setGlCustomerForm] = useState({
@@ -17143,6 +17551,17 @@ function GoLiveForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHi
       api.getCREmailHistory(crId, 'go live').then(setGlEmailSentList).catch(() => setGlEmailSentList([]));
     }
   }, [crId, emailHistoryRefresh]);
+
+  // Initialize form data from customer data
+  useEffect(() => {
+    if (data) {
+      setGlFormData(prev => ({
+        ...prev,
+        company_name: data.company_name || '',
+        branch_office: data.branch_office || ''
+      }));
+    }
+  }, [data]);
 
   const fetchGlContacts = async () => {
     try { const res = await api.getLeadContactsForEdit(leadId); setGlContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
@@ -17338,7 +17757,10 @@ function GoLiveForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHi
                 ))}
               </select>
               <button
-                onClick={() => onOpenEmailModal && onOpenEmailModal('Go Live', glFormData.contact_email, glEmailTemplates.find((t: any) => t.email_format === glFormData.email_format_type)?.id)}
+                onClick={() => {
+                  const selectedDocs = glDocs.filter((d: any) => glSelectedDocIds.includes(d.id));
+                  onOpenEmailModal && onOpenEmailModal('Go Live', glFormData.contact_email, glEmailTemplates.find((t: any) => t.email_format === glFormData.email_format_type)?.id, selectedDocs);
+                }}
                 className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
               >
                 <Mail className="w-4 h-4" />
@@ -17388,11 +17810,12 @@ function GoLiveForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHi
           </div>
           <div className="flex items-center">
             <label className="w-32 text-xs font-medium text-blue-600">Document</label>
-            <input type="file" ref={glFileRef} onChange={handleGlFileChange} className="hidden" />
-            <button onClick={handleGlChooseFile} className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 flex items-center gap-1">
-              <Upload className="w-3 h-3" /> Choose File
-            </button>
-            <button onClick={handleGlUploadFile} disabled={!glFile || glUploading} className="ml-2 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">{glUploading ? 'Uploading...' : 'Upload'}</button>
+            <div className="flex-1 flex gap-2">
+              <input type="text" className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded bg-gray-50" readOnly value={glFile?.name || ''} />
+              <input type="file" ref={glFileRef} onChange={handleGlFileChange} className="hidden" />
+              <button onClick={handleGlChooseFile} className="h-8 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs flex items-center gap-1"><Upload className="w-3 h-3" /> Choose File</button>
+              <button onClick={handleGlUploadFile} disabled={!glFile || glUploading} className="h-8 px-4 border border-gray-300 rounded hover:bg-gray-50 text-xs disabled:opacity-50">{glUploading ? 'Uploading...' : 'Upload'}</button>
+            </div>
           </div>
           {/* File Name Table */}
           <div className="border rounded overflow-hidden">
@@ -17418,7 +17841,18 @@ function GoLiveForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHi
                       <td className="px-3 py-2 text-xs border-b">{doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : '-'}</td>
                       <td className="px-3 py-2 text-xs border-b text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <input type="checkbox" className="w-3.5 h-3.5 accent-blue-600" />
+                          <input
+                            type="checkbox"
+                            className="w-3.5 h-3.5 accent-blue-600"
+                            checked={glSelectedDocIds.includes(doc.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setGlSelectedDocIds(prev => [...prev, doc.id]);
+                              } else {
+                                setGlSelectedDocIds(prev => prev.filter(id => id !== doc.id));
+                              }
+                            }}
+                          />
                           <button onClick={() => handleGlDeleteDoc(doc.id)} className="p-0.5 text-gray-500 hover:text-red-500"><Trash2 className="w-3 h-3" /></button>
                         </div>
                       </td>
@@ -18151,6 +18585,7 @@ function SupportForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailH
   const [supportUploading, setSupportUploading] = useState(false);
   const supportFileRef = React.useRef<HTMLInputElement>(null);
   const [supportEmailSentList, setSupportEmailSentList] = useState<any[]>([]);
+  const [supportSelectedDocIds, setSupportSelectedDocIds] = useState<number[]>([]);
 
   // Ticket state
   const [supportTickets, setSupportTickets] = useState<any[]>([]);
@@ -18411,7 +18846,10 @@ function SupportForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailH
                 ))}
               </select>
               <button
-                onClick={() => onOpenEmailModal && onOpenEmailModal('Support', supportFormData.contact_email, supportEmailTemplates.find((t: any) => t.email_format === supportFormData.email_format_type)?.id)}
+                onClick={() => {
+                  const selectedDocs = supportDocs.filter((d: any) => supportSelectedDocIds.includes(d.id));
+                  onOpenEmailModal && onOpenEmailModal('Support', supportFormData.contact_email, supportEmailTemplates.find((t: any) => t.email_format === supportFormData.email_format_type)?.id, selectedDocs);
+                }}
                 className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
               >
                 <Mail className="w-4 h-4" />
@@ -18501,10 +18939,21 @@ function SupportForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailH
                       </a>
                     </td>
                     <td className="px-2 py-1.5 border-r">{doc.file_size ? `${(doc.file_size / 1024).toFixed(2)} Kb` : '-'}</td>
-                    <td className="px-2 py-1.5 border-r">{doc.created_at ? new Date(doc.created_at).toLocaleDateString() : '-'}</td>
+                    <td className="px-2 py-1.5 border-r">{doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : (doc.created_at ? new Date(doc.created_at).toLocaleDateString() : '-')}</td>
                     <td className="px-2 py-1.5 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <input type="checkbox" className="w-3 h-3" />
+                        <input
+                          type="checkbox"
+                          className="w-3 h-3"
+                          checked={supportSelectedDocIds.includes(doc.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSupportSelectedDocIds(prev => [...prev, doc.id]);
+                            } else {
+                              setSupportSelectedDocIds(prev => prev.filter(id => id !== doc.id));
+                            }
+                          }}
+                        />
                         <button onClick={() => handleSupportDeleteDoc(doc.id)} className="text-red-500 hover:text-red-700"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </td>
@@ -19684,7 +20133,7 @@ function CallLogModal({ isOpen, onClose, crId, editingItem, refreshData }: any) 
 }
 
 // ============== Email Modal ==============
-function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, templateId, companyName, onSuccess }: any) {
+function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, templateId, companyName, onSuccess, attachments = [] }: any) {
   const [formData, setFormData] = useState({
     to: contactEmail || '',
     cc: '',
@@ -19695,10 +20144,18 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, template
   const [templates, setTemplates] = useState<any[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedAttachments, setSelectedAttachments] = useState<any[]>(attachments || []);
   const [sending, setSending] = useState(false);
   const [loadingTemplate, setLoadingTemplate] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const editorRef = React.useRef<HTMLDivElement>(null);
+
+  // Update selectedAttachments when attachments prop changes
+  useEffect(() => {
+    if (attachments && attachments.length > 0) {
+      setSelectedAttachments(attachments);
+    }
+  }, [attachments]);
 
   // Load templates for the tab
   useEffect(() => {
@@ -19776,6 +20233,9 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, template
     // Get email body from contentEditable div
     const bodyContent = editorRef.current?.innerHTML || formData.body || '';
 
+    // Get attachment IDs from selected attachments
+    const attachmentIds = selectedAttachments.map((att: any) => att.id);
+
     setSending(true);
     try {
       // Send email via API and store in history
@@ -19789,7 +20249,7 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, template
         email_name: companyName || '',
         subject: formData.subject,
         content: bodyContent,
-        attachment_ids: [],
+        attachment_ids: attachmentIds,
       });
       alert('Email sent successfully!');
       if (onSuccess) onSuccess(tab);
@@ -19800,6 +20260,11 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, template
     } finally {
       setSending(false);
     }
+  };
+
+  // Remove attachment from list
+  const handleRemoveAttachment = (attachmentId: number) => {
+    setSelectedAttachments(prev => prev.filter((att: any) => att.id !== attachmentId));
   };
 
   // Format buttons for toolbar
@@ -19901,6 +20366,30 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, template
               {sending ? 'Sending...' : 'Send'}
             </button>
           </div>
+
+          {/* Attached Documents Section */}
+          {selectedAttachments.length > 0 && (
+            <div className="flex items-start mt-2">
+              <label className="text-sm font-medium text-blue-600 w-20 pt-1">Attached</label>
+              <div className="flex-1 flex flex-wrap gap-2">
+                {selectedAttachments.map((att: any) => (
+                  <div key={att.id} className="flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs">
+                    <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                    <span className="text-gray-700 max-w-[150px] truncate">{att.file_name || att.name || 'Attachment'}</span>
+                    <button
+                      onClick={() => handleRemoveAttachment(att.id)}
+                      className="ml-1 text-red-500 hover:text-red-700"
+                      title="Remove attachment"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Toolbar - Gray background matching screenshot */}
