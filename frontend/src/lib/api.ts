@@ -898,6 +898,82 @@ class ApiService {
     await this.client.delete(`/customer-requirements/${crId}/emails/${emailId}`);
   }
 
+  // CR Diligence Short Form (Pre-Demo Business Questionnaire)
+  async getCRDiligenceShortForm(crId: number): Promise<any> {
+    const response = await this.client.get(`/customer-requirements/${crId}/diligence-short-form`);
+    return response.data;
+  }
+
+  async updateCRDiligenceShortForm(crId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/customer-requirements/${crId}/diligence-short-form`, data);
+    return response.data;
+  }
+
+  async createCRDiligenceShortForm(crId: number, data: any): Promise<any> {
+    const response = await this.client.post(`/customer-requirements/${crId}/diligence-short-form`, data);
+    return response.data;
+  }
+
+  // CR Meeting Calendar (Meeting Date & Time)
+  async getCRMeetingCalendar(crId: number): Promise<any> {
+    const response = await this.client.get(`/customer-requirements/${crId}/meeting-calendar`);
+    return response.data;
+  }
+
+  // PDF Generation
+  async generateCRPDF(crId: number, tabName: string): Promise<void> {
+    const response = await this.client.get(`/customer-requirements/${crId}/generate-pdf/${tabName}`, {
+      responseType: 'blob'
+    });
+    // Create download link
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `CR_${crId}_${tabName}_${new Date().toISOString().slice(0,10)}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  }
+
+  // ============ Public Forms (no authentication required) ============
+
+  async getPublicDiligenceForm(leadId: number): Promise<any> {
+    const response = await this.client.get(`/public/forms/diligence/${leadId}`);
+    return response.data;
+  }
+
+  async updatePublicDiligenceForm(leadId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/public/forms/diligence/${leadId}`, data);
+    return response.data;
+  }
+
+  async getPublicCustomerRequirement(leadId: number): Promise<any> {
+    const response = await this.client.get(`/public/forms/customer-requirement/${leadId}`);
+    return response.data;
+  }
+
+  async getPublicMeetingCalendar(leadId: number): Promise<any> {
+    const response = await this.client.get(`/public/forms/meeting-calendar/${leadId}`);
+    return response.data;
+  }
+
+  async updatePublicMeetingCalendar(leadId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/public/forms/meeting-calendar/${leadId}`, data);
+    return response.data;
+  }
+
+  // ============ Presentation Meeting (Public) ============
+  async getPublicPresentationMeeting(leadId: number): Promise<any> {
+    const response = await this.client.get(`/public/forms/presentation-meeting/${leadId}`);
+    return response.data;
+  }
+
+  async updatePublicPresentationMeeting(leadId: number, data: any): Promise<any> {
+    const response = await this.client.put(`/public/forms/presentation-meeting/${leadId}`, data);
+    return response.data;
+  }
+
   // ============ Option Master ============
 
   // Options (Categories)
@@ -1066,6 +1142,16 @@ class ApiService {
     if (tab) params.tab = tab;
     if (companyId) params.company_id = companyId;
     const response = await this.client.get('/cri-email-templates', { params });
+    return response.data;
+  }
+
+  async getDistinctEmailFormats(): Promise<string[]> {
+    const response = await this.client.get('/cri-email-templates/distinct-formats');
+    return response.data;
+  }
+
+  async getEmailTemplatesByFormat(formatValue: string): Promise<any[]> {
+    const response = await this.client.get(`/cri-email-templates/by-format/${encodeURIComponent(formatValue)}`);
     return response.data;
   }
 

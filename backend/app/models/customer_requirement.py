@@ -520,6 +520,7 @@ class CRActivity(Base):
     contact_id = Column(Integer, nullable=True)
     assigned_to = Column(Integer, nullable=True)
     priority = Column(String(50), nullable=True)
+    source = Column(String(100), nullable=True)  # Email, Phone, Meeting, Website, etc.
 
     start_date = Column(Date, nullable=True)
     start_time = Column(String(50), nullable=True)
@@ -598,4 +599,204 @@ class CREmailHistory(Base):
     # Tracking
     sent_at = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(Integer, nullable=True)
+
+
+class CRDiligenceShortForm(Base):
+    """Pre-Demo Business Questionnaire (Diligence Short Form)"""
+    __tablename__ = "cr_diligence_short_forms"
+
+    id = Column(Integer, primary_key=True, index=True)
+    customer_requirement_id = Column(Integer, ForeignKey("customer_requirements.id"), nullable=False, index=True)
+
+    # Section 1: General Information
+    company_name = Column(String(255), nullable=True)
+    key_person = Column(String(255), nullable=True)
+    designation = Column(String(255), nullable=True)
+    email = Column(String(255), nullable=True)
+    phone = Column(String(100), nullable=True)
+    website = Column(String(255), nullable=True)
+    address = Column(Text, nullable=True)
+    city = Column(Integer, nullable=True)  # city_id
+    state = Column(Integer, nullable=True)  # state_id
+    postal_code = Column(String(50), nullable=True)
+    country = Column(Integer, nullable=True)  # country_id
+    years_operation = Column(String(50), nullable=True)
+    branch_address = Column(Text, nullable=True)
+
+    # Section 2: About Your Business - Years in Business
+    years_1_5 = Column(Boolean, default=False)
+    years_6_10 = Column(Boolean, default=False)
+    years_11_50 = Column(Boolean, default=False)
+    years_51_100 = Column(Boolean, default=False)
+
+    # Section 2: Company Size (Number of Employees)
+    size_1_5 = Column(Boolean, default=False)
+    size_6_10 = Column(Boolean, default=False)
+    size_11_50 = Column(Boolean, default=False)
+    size_51_100 = Column(Boolean, default=False)
+    size_100_plus = Column(Boolean, default=False)
+
+    # Section 2: Industry Type
+    industry_trading = Column(Boolean, default=False)
+    industry_manufacturing = Column(Boolean, default=False)
+    industry_services = Column(Boolean, default=False)
+    industry_distribution = Column(Boolean, default=False)
+    industry_retail = Column(Boolean, default=False)
+    industry_projects = Column(Boolean, default=False)
+    industry_consulting = Column(Boolean, default=False)
+    industry_other_chk = Column(Boolean, default=False)
+    industry_other = Column(String(255), nullable=True)
+
+    # Section 2: Legal Structure
+    legal_sole = Column(Boolean, default=False)
+    legal_partnership = Column(Boolean, default=False)
+    legal_llc = Column(Boolean, default=False)
+
+    # Section 2: Annual Revenue
+    rev_100k = Column(Boolean, default=False)
+    rev_250k = Column(Boolean, default=False)
+    rev_1m = Column(Boolean, default=False)
+    rev_5m = Column(Boolean, default=False)
+    rev_10m = Column(Boolean, default=False)
+    rev_above_10m = Column(Boolean, default=False)
+
+    # Section 2: Market Reach
+    market_local = Column(Boolean, default=False)
+    market_national = Column(Boolean, default=False)
+    market_international = Column(Boolean, default=False)
+
+    # Section 3: Current Systems
+    sys_paper = Column(Boolean, default=False)
+    sys_account = Column(Boolean, default=False)
+    sys_crm = Column(Boolean, default=False)
+    sys_hrm = Column(Boolean, default=False)
+    sys_inv = Column(Boolean, default=False)
+    sys_erp = Column(Boolean, default=False)
+    sys_other_chk = Column(Boolean, default=False)
+    sys_other = Column(String(255), nullable=True)
+
+    # Section 4: Key Business Priorities
+    key_cust = Column(Boolean, default=False)
+    key_proposal = Column(Boolean, default=False)
+    key_suppliers = Column(Boolean, default=False)
+    key_inventory = Column(Boolean, default=False)
+    key_financial = Column(Boolean, default=False)
+    key_employees = Column(Boolean, default=False)
+    key_projects = Column(Boolean, default=False)
+    key_dms = Column(Boolean, default=False)
+    key_reports = Column(Boolean, default=False)
+    key_integration = Column(Boolean, default=False)
+    key_multicurrency = Column(Boolean, default=False)
+    key_errors = Column(Boolean, default=False)
+    key_costs = Column(Boolean, default=False)
+    key_other_chk = Column(Boolean, default=False)
+    key_other = Column(String(255), nullable=True)
+
+    # Section 5: Main Business Challenges
+    main_manual = Column(Boolean, default=False)
+    main_delay = Column(Boolean, default=False)
+    main_tracking = Column(Boolean, default=False)
+    main_payments = Column(Boolean, default=False)
+    main_suppliers = Column(Boolean, default=False)
+    main_inventory = Column(Boolean, default=False)
+    main_hr = Column(Boolean, default=False)
+    main_reports = Column(Boolean, default=False)
+    main_currency = Column(Boolean, default=False)
+    main_branches = Column(Boolean, default=False)
+    main_emp = Column(Boolean, default=False)
+    main_lack = Column(Boolean, default=False)
+    main_diff = Column(Boolean, default=False)
+    main_branch = Column(Boolean, default=False)
+    main_other_chk = Column(Boolean, default=False)
+    main_other = Column(String(255), nullable=True)
+
+    # Section 6: Other Requirements
+    other_notes = Column(Text, nullable=True)
+
+    # Status
+    submit_status = Column(Integer, default=1)  # 1=draft, 2=submitted
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_by = Column(Integer, nullable=True)
+
+
+class CRMeetingCalendar(Base):
+    """Meeting Calendar Form - for scheduling meetings/demos"""
+    __tablename__ = "cr_meeting_calendars"
+
+    id = Column(Integer, primary_key=True, index=True)
+    customer_requirement_id = Column(Integer, ForeignKey("customer_requirements.id"), nullable=False, index=True)
+
+    # General Information (read-only, populated from customer requirement)
+    gi_name = Column(String(255), nullable=True)  # Key Person's Name
+    gi_company = Column(String(255), nullable=True)  # Company Name
+    gi_address = Column(Text, nullable=True)  # Address
+    gi_country = Column(Integer, nullable=True)  # Country ID
+    gi_province = Column(Integer, nullable=True)  # State/Province ID
+    gi_city = Column(Integer, nullable=True)  # City ID
+    gi_postal = Column(String(50), nullable=True)  # Postal Code
+    gi_phone = Column(String(100), nullable=True)  # Company Phone
+    gi_ext = Column(String(20), nullable=True)  # Phone Extension
+    gi_fax = Column(String(100), nullable=True)  # Fax
+    gi_email = Column(String(255), nullable=True)  # Email
+    gi_website = Column(String(255), nullable=True)  # Website
+    gi_branch_office = Column(String(255), nullable=True)  # Any Branch Office
+    gi_branch_address = Column(Text, nullable=True)  # Branch Address
+
+    # Arrange Meeting Session
+    prefered_date = Column(Date, nullable=True)  # Preferred Date (for presentation)
+    prefered_time = Column(String(50), nullable=True)  # Preferred Time (for presentation)
+    gi_remark = Column(Text, nullable=True)  # Remark (for presentation)
+    timezone = Column(Integer, nullable=True)  # Timezone ID (for presentation)
+
+    # Second meeting slot (for demo/additional session)
+    prefered_date2 = Column(Date, nullable=True)  # Preferred Date 2
+    prefered_time2 = Column(String(50), nullable=True)  # Preferred Time 2
+    gi_remark2 = Column(Text, nullable=True)  # Remark 2
+    timezone2 = Column(Integer, nullable=True)  # Timezone ID 2
+
+    # Status
+    submit_status = Column(Integer, default=1)  # 1=draft, 2=submitted
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_by = Column(Integer, nullable=True)
+
+
+class CRPresentationMeeting(Base):
+    """Presentation/Demo Meeting Form - for scheduling presentation demos"""
+    __tablename__ = "cr_presentation_meetings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    customer_requirement_id = Column(Integer, ForeignKey("customer_requirements.id"), nullable=False, index=True)
+
+    # General Information (read-only, populated from customer requirement)
+    gi_name = Column(String(255), nullable=True)  # Key Person's Name
+    gi_company = Column(String(255), nullable=True)  # Company Name
+    gi_address = Column(Text, nullable=True)  # Address
+    gi_country = Column(Integer, nullable=True)  # Country ID
+    gi_province = Column(Integer, nullable=True)  # State/Province ID
+    gi_city = Column(Integer, nullable=True)  # City ID
+    gi_postal = Column(String(50), nullable=True)  # Postal Code
+    gi_phone = Column(String(100), nullable=True)  # Company Phone
+    gi_ext = Column(String(20), nullable=True)  # Phone Extension
+    gi_fax = Column(String(100), nullable=True)  # Fax
+    gi_email = Column(String(255), nullable=True)  # Email
+    gi_website = Column(String(255), nullable=True)  # Website
+    gi_branch_office = Column(String(255), nullable=True)  # Any Branch Office
+    gi_branch_address = Column(Text, nullable=True)  # Branch Address
+
+    # Arrange Demo Session
+    prefered_date = Column(Date, nullable=True)  # Preferred Date
+    prefered_time = Column(String(50), nullable=True)  # Preferred Time
+    gi_remark = Column(Text, nullable=True)  # Remark
+    timezone = Column(Integer, nullable=True)  # Timezone ID
+
+    # Status
+    submit_status = Column(Integer, default=1)  # 1=draft, 2=submitted
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_by = Column(Integer, nullable=True)

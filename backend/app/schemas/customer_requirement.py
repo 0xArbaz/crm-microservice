@@ -427,6 +427,7 @@ class CRActivityCreate(BaseModel):
     contact_id: Optional[int] = None
     assigned_to: Optional[int] = None
     priority: Optional[str] = None
+    source: Optional[str] = None
     start_date: Optional[date] = None
     start_time: Optional[str] = None
     end_date: Optional[date] = None
@@ -441,6 +442,7 @@ class CRActivityUpdate(BaseModel):
     contact_id: Optional[int] = None
     assigned_to: Optional[int] = None
     priority: Optional[str] = None
+    source: Optional[str] = None
     start_date: Optional[date] = None
     start_time: Optional[str] = None
     end_date: Optional[date] = None
@@ -458,6 +460,7 @@ class CRActivityResponse(BaseModel):
     contact_id: Optional[int] = None
     assigned_to: Optional[int] = None
     priority: Optional[str] = None
+    source: Optional[str] = None
     start_date: Optional[date] = None
     start_time: Optional[str] = None
     end_date: Optional[date] = None
@@ -580,3 +583,381 @@ class SendEmailRequest(BaseModel):
     subject: str
     content: str
     attachment_ids: Optional[List[int]] = None  # List of document IDs to attach
+
+
+# ============== Diligence Short Form (Pre-Demo Business Questionnaire) ==============
+
+class CRDiligenceShortFormCreate(BaseModel):
+    # Section 1: General Information
+    company_name: Optional[str] = None
+    key_person: Optional[str] = None
+    designation: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[int] = None
+    state: Optional[int] = None
+    postal_code: Optional[str] = None
+    country: Optional[int] = None
+    years_operation: Optional[str] = None
+    branch_address: Optional[str] = None
+
+    # Section 2: About Your Business - Years in Business
+    years_1_5: Optional[bool] = False
+    years_6_10: Optional[bool] = False
+    years_11_50: Optional[bool] = False
+    years_51_100: Optional[bool] = False
+
+    # Section 2: Company Size
+    size_1_5: Optional[bool] = False
+    size_6_10: Optional[bool] = False
+    size_11_50: Optional[bool] = False
+    size_51_100: Optional[bool] = False
+    size_100_plus: Optional[bool] = False
+
+    # Section 2: Industry Type
+    industry_trading: Optional[bool] = False
+    industry_manufacturing: Optional[bool] = False
+    industry_services: Optional[bool] = False
+    industry_distribution: Optional[bool] = False
+    industry_retail: Optional[bool] = False
+    industry_projects: Optional[bool] = False
+    industry_consulting: Optional[bool] = False
+    industry_other_chk: Optional[bool] = False
+    industry_other: Optional[str] = None
+
+    # Section 2: Legal Structure
+    legal_sole: Optional[bool] = False
+    legal_partnership: Optional[bool] = False
+    legal_llc: Optional[bool] = False
+
+    # Section 2: Annual Revenue
+    rev_100k: Optional[bool] = False
+    rev_250k: Optional[bool] = False
+    rev_1m: Optional[bool] = False
+    rev_5m: Optional[bool] = False
+    rev_10m: Optional[bool] = False
+    rev_above_10m: Optional[bool] = False
+
+    # Section 2: Market Reach
+    market_local: Optional[bool] = False
+    market_national: Optional[bool] = False
+    market_international: Optional[bool] = False
+
+    # Section 3: Current Systems
+    sys_paper: Optional[bool] = False
+    sys_account: Optional[bool] = False
+    sys_crm: Optional[bool] = False
+    sys_hrm: Optional[bool] = False
+    sys_inv: Optional[bool] = False
+    sys_erp: Optional[bool] = False
+    sys_other_chk: Optional[bool] = False
+    sys_other: Optional[str] = None
+
+    # Section 4: Key Business Priorities
+    key_cust: Optional[bool] = False
+    key_proposal: Optional[bool] = False
+    key_suppliers: Optional[bool] = False
+    key_inventory: Optional[bool] = False
+    key_financial: Optional[bool] = False
+    key_employees: Optional[bool] = False
+    key_projects: Optional[bool] = False
+    key_dms: Optional[bool] = False
+    key_reports: Optional[bool] = False
+    key_integration: Optional[bool] = False
+    key_multicurrency: Optional[bool] = False
+    key_errors: Optional[bool] = False
+    key_costs: Optional[bool] = False
+    key_other_chk: Optional[bool] = False
+    key_other: Optional[str] = None
+
+    # Section 5: Main Business Challenges
+    main_manual: Optional[bool] = False
+    main_delay: Optional[bool] = False
+    main_tracking: Optional[bool] = False
+    main_payments: Optional[bool] = False
+    main_suppliers: Optional[bool] = False
+    main_inventory: Optional[bool] = False
+    main_hr: Optional[bool] = False
+    main_reports: Optional[bool] = False
+    main_currency: Optional[bool] = False
+    main_branches: Optional[bool] = False
+    main_emp: Optional[bool] = False
+    main_lack: Optional[bool] = False
+    main_diff: Optional[bool] = False
+    main_branch: Optional[bool] = False
+    main_other_chk: Optional[bool] = False
+    main_other: Optional[str] = None
+
+    # Section 6: Other Requirements
+    other_notes: Optional[str] = None
+
+    submit_status: Optional[int] = 1
+
+
+class CRDiligenceShortFormUpdate(CRDiligenceShortFormCreate):
+    pass
+
+
+class CRDiligenceShortFormResponse(BaseModel):
+    id: int
+    customer_requirement_id: int
+
+    # Section 1: General Information
+    company_name: Optional[str] = None
+    key_person: Optional[str] = None
+    designation: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[int] = None
+    state: Optional[int] = None
+    postal_code: Optional[str] = None
+    country: Optional[int] = None
+    years_operation: Optional[str] = None
+    branch_address: Optional[str] = None
+
+    # Section 2: About Your Business - Years in Business
+    years_1_5: Optional[bool] = None
+    years_6_10: Optional[bool] = None
+    years_11_50: Optional[bool] = None
+    years_51_100: Optional[bool] = None
+
+    # Section 2: Company Size
+    size_1_5: Optional[bool] = None
+    size_6_10: Optional[bool] = None
+    size_11_50: Optional[bool] = None
+    size_51_100: Optional[bool] = None
+    size_100_plus: Optional[bool] = None
+
+    # Section 2: Industry Type
+    industry_trading: Optional[bool] = None
+    industry_manufacturing: Optional[bool] = None
+    industry_services: Optional[bool] = None
+    industry_distribution: Optional[bool] = None
+    industry_retail: Optional[bool] = None
+    industry_projects: Optional[bool] = None
+    industry_consulting: Optional[bool] = None
+    industry_other_chk: Optional[bool] = None
+    industry_other: Optional[str] = None
+
+    # Section 2: Legal Structure
+    legal_sole: Optional[bool] = None
+    legal_partnership: Optional[bool] = None
+    legal_llc: Optional[bool] = None
+
+    # Section 2: Annual Revenue
+    rev_100k: Optional[bool] = None
+    rev_250k: Optional[bool] = None
+    rev_1m: Optional[bool] = None
+    rev_5m: Optional[bool] = None
+    rev_10m: Optional[bool] = None
+    rev_above_10m: Optional[bool] = None
+
+    # Section 2: Market Reach
+    market_local: Optional[bool] = None
+    market_national: Optional[bool] = None
+    market_international: Optional[bool] = None
+
+    # Section 3: Current Systems
+    sys_paper: Optional[bool] = None
+    sys_account: Optional[bool] = None
+    sys_crm: Optional[bool] = None
+    sys_hrm: Optional[bool] = None
+    sys_inv: Optional[bool] = None
+    sys_erp: Optional[bool] = None
+    sys_other_chk: Optional[bool] = None
+    sys_other: Optional[str] = None
+
+    # Section 4: Key Business Priorities
+    key_cust: Optional[bool] = None
+    key_proposal: Optional[bool] = None
+    key_suppliers: Optional[bool] = None
+    key_inventory: Optional[bool] = None
+    key_financial: Optional[bool] = None
+    key_employees: Optional[bool] = None
+    key_projects: Optional[bool] = None
+    key_dms: Optional[bool] = None
+    key_reports: Optional[bool] = None
+    key_integration: Optional[bool] = None
+    key_multicurrency: Optional[bool] = None
+    key_errors: Optional[bool] = None
+    key_costs: Optional[bool] = None
+    key_other_chk: Optional[bool] = None
+    key_other: Optional[str] = None
+
+    # Section 5: Main Business Challenges
+    main_manual: Optional[bool] = None
+    main_delay: Optional[bool] = None
+    main_tracking: Optional[bool] = None
+    main_payments: Optional[bool] = None
+    main_suppliers: Optional[bool] = None
+    main_inventory: Optional[bool] = None
+    main_hr: Optional[bool] = None
+    main_reports: Optional[bool] = None
+    main_currency: Optional[bool] = None
+    main_branches: Optional[bool] = None
+    main_emp: Optional[bool] = None
+    main_lack: Optional[bool] = None
+    main_diff: Optional[bool] = None
+    main_branch: Optional[bool] = None
+    main_other_chk: Optional[bool] = None
+    main_other: Optional[str] = None
+
+    # Section 6: Other Requirements
+    other_notes: Optional[str] = None
+
+    submit_status: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ============== Meeting Calendar Form ==============
+
+class CRMeetingCalendarCreate(BaseModel):
+    # General Information (read-only, populated from customer requirement)
+    gi_name: Optional[str] = None
+    gi_company: Optional[str] = None
+    gi_address: Optional[str] = None
+    gi_country: Optional[int] = None
+    gi_province: Optional[int] = None
+    gi_city: Optional[int] = None
+    gi_postal: Optional[str] = None
+    gi_phone: Optional[str] = None
+    gi_ext: Optional[str] = None
+    gi_fax: Optional[str] = None
+    gi_email: Optional[str] = None
+    gi_website: Optional[str] = None
+    gi_branch_office: Optional[str] = None
+    gi_branch_address: Optional[str] = None
+
+    # Arrange Meeting Session
+    prefered_date: Optional[date] = None
+    prefered_time: Optional[str] = None
+    gi_remark: Optional[str] = None
+    timezone: Optional[int] = None
+
+    # Second meeting slot
+    prefered_date2: Optional[date] = None
+    prefered_time2: Optional[str] = None
+    gi_remark2: Optional[str] = None
+    timezone2: Optional[int] = None
+
+    submit_status: Optional[int] = 1
+
+
+class CRMeetingCalendarUpdate(CRMeetingCalendarCreate):
+    pass
+
+
+class CRMeetingCalendarResponse(BaseModel):
+    id: int
+    customer_requirement_id: int
+
+    # General Information
+    gi_name: Optional[str] = None
+    gi_company: Optional[str] = None
+    gi_address: Optional[str] = None
+    gi_country: Optional[int] = None
+    gi_province: Optional[int] = None
+    gi_city: Optional[int] = None
+    gi_postal: Optional[str] = None
+    gi_phone: Optional[str] = None
+    gi_ext: Optional[str] = None
+    gi_fax: Optional[str] = None
+    gi_email: Optional[str] = None
+    gi_website: Optional[str] = None
+    gi_branch_office: Optional[str] = None
+    gi_branch_address: Optional[str] = None
+
+    # Arrange Meeting Session
+    prefered_date: Optional[date] = None
+    prefered_time: Optional[str] = None
+    gi_remark: Optional[str] = None
+    timezone: Optional[int] = None
+
+    # Second meeting slot
+    prefered_date2: Optional[date] = None
+    prefered_time2: Optional[str] = None
+    gi_remark2: Optional[str] = None
+    timezone2: Optional[int] = None
+
+    submit_status: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ============== Presentation Meeting Schemas ==============
+
+class CRPresentationMeetingCreate(BaseModel):
+    customer_requirement_id: Optional[int] = None
+
+    # General Information
+    gi_name: Optional[str] = None
+    gi_company: Optional[str] = None
+    gi_address: Optional[str] = None
+    gi_country: Optional[int] = None
+    gi_province: Optional[int] = None
+    gi_city: Optional[int] = None
+    gi_postal: Optional[str] = None
+    gi_phone: Optional[str] = None
+    gi_ext: Optional[str] = None
+    gi_fax: Optional[str] = None
+    gi_email: Optional[str] = None
+    gi_website: Optional[str] = None
+    gi_branch_office: Optional[str] = None
+    gi_branch_address: Optional[str] = None
+
+    # Arrange Demo Session
+    prefered_date: Optional[date] = None
+    prefered_time: Optional[str] = None
+    gi_remark: Optional[str] = None
+    timezone: Optional[int] = None
+
+    submit_status: Optional[int] = None
+
+
+class CRPresentationMeetingUpdate(CRPresentationMeetingCreate):
+    pass
+
+
+class CRPresentationMeetingResponse(BaseModel):
+    id: int
+    customer_requirement_id: int
+
+    # General Information
+    gi_name: Optional[str] = None
+    gi_company: Optional[str] = None
+    gi_address: Optional[str] = None
+    gi_country: Optional[int] = None
+    gi_province: Optional[int] = None
+    gi_city: Optional[int] = None
+    gi_postal: Optional[str] = None
+    gi_phone: Optional[str] = None
+    gi_ext: Optional[str] = None
+    gi_fax: Optional[str] = None
+    gi_email: Optional[str] = None
+    gi_website: Optional[str] = None
+    gi_branch_office: Optional[str] = None
+    gi_branch_address: Optional[str] = None
+
+    # Arrange Demo Session
+    prefered_date: Optional[date] = None
+    prefered_time: Optional[str] = None
+    gi_remark: Optional[str] = None
+    timezone: Optional[int] = None
+
+    submit_status: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

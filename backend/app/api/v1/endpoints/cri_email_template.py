@@ -1,6 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import distinct
 
 from app.api.deps import get_db, get_current_user
 from app.models.cri_email_template import CRIEmailTemplate
@@ -11,6 +12,32 @@ from app.schemas.cri_email_template import (
 )
 
 router = APIRouter()
+
+
+@router.get("/distinct-formats", response_model=List[str])
+def get_distinct_email_format_values(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """Get distinct email_format_option_values from all templates"""
+    results = db.query(distinct(CRIEmailTemplate.email_format_option_values)).filter(
+        CRIEmailTemplate.email_format_option_values.isnot(None),
+        CRIEmailTemplate.email_format_option_values != ''
+    ).all()
+    return [r[0] for r in results if r[0]]
+
+
+@router.get("/by-format/{format_value}", response_model=List[CRIEmailTemplateResponse])
+def get_templates_by_format(
+    format_value: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """Get all templates with a specific email_format_option_values"""
+    templates = db.query(CRIEmailTemplate).filter(
+        CRIEmailTemplate.email_format_option_values == format_value
+    ).order_by(CRIEmailTemplate.id.desc()).all()
+    return templates
 
 
 @router.get("/", response_model=List[CRIEmailTemplateResponse])

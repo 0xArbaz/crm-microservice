@@ -7,6 +7,8 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
 import { Lead } from '@/types';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const countryOptions = [
   { value: '', label: 'Country' },
@@ -152,15 +154,79 @@ export default function LeadsPage() {
   };
 
   const exportCSV = () => {
-    alert('Exporting to CSV...');
+    if (leads.length === 0) {
+      alert('No data to export');
+      return;
+    }
+
+    const headers = ['Company', 'Address', 'Country', 'State', 'City', 'Industry', 'Region', 'Source', 'Priority', 'Status'];
+    const rows = leads.map(lead => [
+      lead.company_name || '',
+      lead.address_line1 || '',
+      lead.country || '',
+      lead.state || '',
+      lead.city || '',
+      lead.industry_id ? `Industry ${lead.industry_id}` : '',
+      lead.region_id ? `Region ${lead.region_id}` : '',
+      lead.source?.replace('_', ' ') || '',
+      lead.priority || '',
+      lead.lead_status?.replace('_', ' ') || ''
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `leads-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
   };
 
   const exportExcel = () => {
-    alert('Exporting to Excel...');
+    // Excel export uses CSV format which Excel can open
+    exportCSV();
   };
 
   const exportPDF = () => {
-    alert('Exporting to PDF...');
+    if (leads.length === 0) {
+      alert('No data to export');
+      return;
+    }
+
+    const doc = new jsPDF('landscape', 'mm', 'a4');
+
+    // Add title
+    doc.setFontSize(16);
+    doc.text('Manage Leads', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
+
+    // Prepare table data
+    const headers = [['Company', 'Address', 'Country', 'State', 'City', 'Industry', 'Region', 'Source', 'Priority', 'Status']];
+    const rows = leads.map(lead => [
+      lead.company_name || '-',
+      lead.address_line1 || '-',
+      lead.country || '-',
+      lead.state || '-',
+      lead.city || '-',
+      lead.industry_id ? `Industry ${lead.industry_id}` : '-',
+      lead.region_id ? `Region ${lead.region_id}` : '-',
+      lead.source?.replace('_', ' ') || '-',
+      lead.priority || '-',
+      lead.lead_status?.replace('_', ' ') || '-'
+    ]);
+
+    // Generate table
+    autoTable(doc, {
+      head: headers,
+      body: rows,
+      startY: 28,
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
+
+    // Save PDF
+    doc.save(`leads-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const getPriorityBadgeClass = (priority: string) => {

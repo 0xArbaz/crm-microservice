@@ -7,9 +7,12 @@ import {
   Save, Plus, Trash2, Edit2, X, Upload, Download, Phone,
   Calendar, FileText, MessageSquare, Activity, Users, Settings,
   PlayCircle, ClipboardList, FileCheck, Database, Rocket, HeadphonesIcon,
-  Building2, Mail, Globe, MapPin, Clock, RefreshCw, Bold, Italic, Underline, CheckCircle, Eye
+  Building2, Mail, Globe, MapPin, Clock, RefreshCw, Bold, Italic, Underline, CheckCircle, Eye, Link2, ExternalLink, Copy
 } from 'lucide-react';
 import api from '@/lib/api';
+import { useAuthStore } from '@/stores/auth';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // Tab configuration with icons
 const mainTabs = [
@@ -30,6 +33,7 @@ const mainTabs = [
   { id: 'support', label: 'Support', icon: HeadphonesIcon },
   { id: 'call-logs', label: 'Call Logs', icon: Phone },
   { id: 'upload-file', label: 'Upload File', icon: Upload },
+  { id: 'links', label: 'Links', icon: Link2 },
 ];
 
 // Sub-tabs for each main tab
@@ -101,7 +105,7 @@ export default function CustomerRequirementPage() {
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [showCallLogModal, setShowCallLogModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
-  const [emailModalData, setEmailModalData] = useState<any>({ tab: '', contactEmail: '', templateId: null, attachments: [] });
+  const [emailModalData, setEmailModalData] = useState<any>({ tab: '', contactEmail: '', contactName: '', templateId: null, attachments: [] });
   const [emailHistoryRefresh, setEmailHistoryRefresh] = useState<{ [key: string]: number }>({});
   const [editingItem, setEditingItem] = useState<any>(null);
 
@@ -249,8 +253,9 @@ export default function CustomerRequirementPage() {
   };
 
   // Open email modal handler
-  const handleOpenEmailModal = (tab: string, contactEmail: string = '', templateId: number | null = null, attachments: any[] = []) => {
-    setEmailModalData({ tab, contactEmail, templateId, attachments });
+  const handleOpenEmailModal = (tab: string, contactEmail: string = '', templateId: number | null = null, attachments: any[] = [], contactName: string = '') => {
+    console.log('Opening email modal:', { tab, contactEmail, contactName, templateId });
+    setEmailModalData({ tab, contactEmail, contactName, templateId, attachments });
     setShowEmailModal(true);
   };
 
@@ -527,6 +532,11 @@ export default function CustomerRequirementPage() {
               refreshData={reloadDocuments}
             />
           )}
+
+          {/* Links Tab */}
+          {activeTab === 'links' && (
+            <LinksSection leadId={leadId} companyName={cr?.company_name || formData?.company_name || ''} />
+          )}
         </div>
       </div>
 
@@ -575,14 +585,15 @@ export default function CustomerRequirementPage() {
       )}
 
       {/* Email Modal */}
-      {showEmailModal && cr?.id && (
+      {showEmailModal && (
         <EmailModal
           isOpen={showEmailModal}
           onClose={() => setShowEmailModal(false)}
-          crId={cr.id}
+          crId={cr?.id || 0}
           leadId={leadId}
           tab={emailModalData.tab}
           contactEmail={emailModalData.contactEmail}
+          contactName={emailModalData.contactName || ''}
           templateId={emailModalData.templateId}
           companyName={formData?.company_name || cr?.company_name || ''}
           onSuccess={handleEmailSuccess}
@@ -597,6 +608,9 @@ export default function CustomerRequirementPage() {
 function CustomerDetailsForm({ formData, setFormData, onSave, saving, inputClass, labelClass, leadId }: any) {
   const [profileSubTab, setProfileSubTab] = useState('company-profile');
   const [customerContacts, setCustomerContacts] = useState<any[]>([]);
+  const [countries, setCountries] = useState<any[]>([]);
+  const [states, setStates] = useState<any[]>([]);
+  const [cities, setCities] = useState<any[]>([]);
 
   // Load contacts
   useEffect(() => {
@@ -604,6 +618,37 @@ function CustomerDetailsForm({ formData, setFormData, onSave, saving, inputClass
       api.getLeadContactsForEdit(leadId).then(setCustomerContacts).catch(() => setCustomerContacts([]));
     }
   }, [leadId]);
+
+  // Load countries on mount
+  useEffect(() => {
+    api.getCountries().then(setCountries).catch(() => setCountries([]));
+  }, []);
+
+  // Load states when country changes
+  useEffect(() => {
+    if (formData.country_id) {
+      api.getStates(formData.country_id).then(setStates).catch(() => setStates([]));
+    } else {
+      setStates([]);
+    }
+  }, [formData.country_id]);
+
+  // Load cities when state changes
+  useEffect(() => {
+    if (formData.state_id) {
+      api.getCities(formData.state_id).then(setCities).catch(() => setCities([]));
+    } else {
+      setCities([]);
+    }
+  }, [formData.state_id]);
+
+  const handleCountryChange = (countryId: number | null) => {
+    setFormData({ ...formData, country_id: countryId, state_id: null, city_id: null });
+  };
+
+  const handleStateChange = (stateId: number | null) => {
+    setFormData({ ...formData, state_id: stateId, city_id: null });
+  };
 
   const fieldLabelClass = "text-xs font-medium text-blue-600 w-36 flex-shrink-0";
   const fieldInputClass = "flex-1 h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-gray-50";
@@ -630,22 +675,20 @@ function CustomerDetailsForm({ formData, setFormData, onSave, saving, inputClass
           </div>
           <div className={rowClass}>
             <label className={fieldLabelClass}>Country</label>
-            <select value={formData.country_id || ''} onChange={(e) => setFormData({ ...formData, country_id: parseInt(e.target.value) || null })} className={fieldSelectClass}>
+            <select value={formData.country_id || ''} onChange={(e) => handleCountryChange(parseInt(e.target.value) || null)} className={fieldSelectClass}>
               <option value="">Select Country</option>
-              <option value="1">United Arab Emirates</option>
-              <option value="2">India</option>
-              <option value="3">United States</option>
-              <option value="4">United Kingdom</option>
-              <option value="5">Pakistan</option>
+              {countries.map((c: any) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
             </select>
           </div>
           <div className={rowClass}>
             <label className={fieldLabelClass}>State/Province</label>
-            <select value={formData.state_id || ''} onChange={(e) => setFormData({ ...formData, state_id: parseInt(e.target.value) || null })} className={fieldSelectClass}>
+            <select value={formData.state_id || ''} onChange={(e) => handleStateChange(parseInt(e.target.value) || null)} className={fieldSelectClass}>
               <option value="">Select State</option>
-              <option value="1">Dubai</option>
-              <option value="2">Abu Dhabi</option>
-              <option value="3">Maharashtra</option>
+              {states.map((s: any) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
             </select>
           </div>
           <div className={rowClass}>
@@ -653,9 +696,9 @@ function CustomerDetailsForm({ formData, setFormData, onSave, saving, inputClass
             <div className="flex-1 flex gap-1">
               <select value={formData.city_id || ''} onChange={(e) => setFormData({ ...formData, city_id: parseInt(e.target.value) || null })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
                 <option value="">Select City</option>
-                <option value="1">Hub</option>
-                <option value="2">Dubai</option>
-                <option value="3">Mumbai</option>
+                {cities.map((c: any) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
               </select>
               <button className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100">
                 <Plus className="w-4 h-4" />
@@ -1049,6 +1092,29 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
     }
   }, [customerData]);
 
+  // Load all activities when activity sub-tab is active
+  useEffect(() => {
+    if (crId && introSubTab === 'activity') {
+      // Load based on activitySubTab
+      const tabName = activitySubTab === 'followup' ? 'introduction-activity-followup' : 'introduction-activity';
+      api.getCRActivities(crId, tabName).then((data) => {
+        // Map API response to table display format
+        const mappedActivities = data.map((a: any) => ({
+          id: a.id,
+          by: a.created_by_name || a.assigned_to_name || 'System',
+          date: a.start_date || '',
+          time: a.start_time || '',
+          source: a.source || 'Manual',
+          type: a.activity_type || '',
+          description: a.description || a.subject || '',
+          action_to_be_taken: a.subject || '',
+          contact: a.contact_id,
+        }));
+        setActivities(mappedActivities);
+      }).catch(() => setActivities([]));
+    }
+  }, [crId, introSubTab, activitySubTab]);
+
   // Load follow-up activities when sub-tab changes
   useEffect(() => {
     if (crId && introSubTab === 'follow-up') {
@@ -1170,25 +1236,58 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
     contact: ''
   });
 
-  const handleSaveActivity = () => {
-    const newActivity = {
-      ...activityFormData,
-      by: activityFormData.created_by || 'Current User',
-      date: activityFormData.start_date,
-      time: activityFormData.start_time,
-    };
-    setActivities([...activities, newActivity]);
-    setShowActivityModal(false);
-    setActivityFormData({
-      created_by: '',
-      action_to_be_taken: '',
-      start_date: '',
-      start_time: '',
-      description: '',
-      source: '',
-      type: '',
-      contact: ''
-    });
+  const handleSaveActivity = async () => {
+    if (!crId) {
+      alert('Please save the customer requirement first');
+      return;
+    }
+    if (!activityFormData.type) {
+      alert('Please select a type');
+      return;
+    }
+    try {
+      const activityData = {
+        tab_name: 'introduction-activity',
+        activity_type: activityFormData.type,
+        subject: activityFormData.action_to_be_taken || activityFormData.description || '',
+        description: activityFormData.description || '',
+        source: activityFormData.source || null,
+        contact_id: activityFormData.contact && !isNaN(parseInt(activityFormData.contact)) ? parseInt(activityFormData.contact) : null,
+        start_date: activityFormData.start_date || null,
+        start_time: activityFormData.start_time || null,
+        status: 'Open',
+      };
+      await api.createCRActivity(crId, activityData);
+      // Refresh activities list
+      const data = await api.getCRActivities(crId, 'introduction-activity').catch(() => []);
+      const mappedActivities = data.map((a: any) => ({
+        id: a.id,
+        by: a.created_by_name || a.assigned_to_name || 'System',
+        date: a.start_date || '',
+        time: a.start_time || '',
+        source: a.source || 'Manual',
+        type: a.activity_type || '',
+        description: a.description || a.subject || '',
+        action_to_be_taken: a.subject || '',
+        contact: a.contact_id,
+      }));
+      setActivities(mappedActivities);
+      setShowActivityModal(false);
+      setActivityFormData({
+        created_by: '',
+        action_to_be_taken: '',
+        start_date: '',
+        start_time: '',
+        description: '',
+        source: '',
+        type: '',
+        contact: ''
+      });
+      alert('Activity saved successfully');
+    } catch (err: any) {
+      console.error('Failed to save activity:', err);
+      alert(err?.response?.data?.detail || 'Failed to save activity');
+    }
   };
 
   // Handler to open Activity Follow-Up modal from All Activity table
@@ -1208,26 +1307,145 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
     setShowActivityFollowUpModal(true);
   };
 
+  // Export Activities to CSV
+  const exportActivitiesCSV = () => {
+    if (activities.length === 0) {
+      alert('No activities to export');
+      return;
+    }
+
+    const headers = ['By', 'Date', 'Time', 'Source', 'Type', 'Description', 'Action to be Taken'];
+    const rows = activities.map(a => [
+      a.by || '',
+      a.date || '',
+      a.time || '',
+      a.source || '',
+      a.type || '',
+      a.description || '',
+      a.action_to_be_taken || ''
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `activities-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
+
+  // Export Activities to PDF
+  const exportActivitiesPDF = () => {
+    if (activities.length === 0) {
+      alert('No activities to export');
+      return;
+    }
+
+    const doc = new jsPDF('landscape', 'mm', 'a4');
+
+    // Add title
+    doc.setFontSize(16);
+    doc.text('Activity Report', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
+
+    // Prepare table data
+    const headers = [['By', 'Date', 'Time', 'Source', 'Type', 'Description', 'Action to be Taken']];
+    const rows = activities.map(a => [
+      a.by || '-',
+      a.date || '-',
+      a.time || '-',
+      a.source || '-',
+      a.type || '-',
+      a.description || '-',
+      a.action_to_be_taken || '-'
+    ]);
+
+    // Generate table
+    autoTable(doc, {
+      head: headers,
+      body: rows,
+      startY: 28,
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
+
+    // Save PDF
+    doc.save(`activities-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   // Handler to save Activity Follow-Up
   const handleSaveActivityFollowUp = async () => {
     if (!crId) {
       alert('Please save the customer requirement first');
       return;
     }
+    if (!activityFollowUpForm.activity_type) {
+      alert('Please select an activity type');
+      return;
+    }
+    if (!activityFollowUpForm.call_outcome) {
+      alert('Please enter a call outcome');
+      return;
+    }
     try {
       const activityData = {
-        ...activityFollowUpForm,
-        tab: 'introduction-activity-followup',
+        tab_name: 'introduction-activity-followup',
+        activity_type: activityFollowUpForm.activity_type,
         subject: activityFollowUpForm.call_outcome,
+        description: activityFollowUpForm.description || '',
+        contact_id: activityFollowUpForm.contact_id ? parseInt(activityFollowUpForm.contact_id) : null,
+        assigned_to: activityFollowUpForm.assigned_to && !isNaN(parseInt(activityFollowUpForm.assigned_to)) ? parseInt(activityFollowUpForm.assigned_to) : null,
+        priority: activityFollowUpForm.priority || null,
+        start_date: activityFollowUpForm.start_date || null,
+        start_time: activityFollowUpForm.start_time || null,
+        status: activityFollowUpForm.status || 'Open',
       };
       await api.createCRActivity(crId, activityData);
       // Refresh activities list
       const updatedActivities = await api.getCRActivities(crId, 'introduction-activity-followup').catch(() => []);
       setShowActivityFollowUpModal(false);
+      // Reset form
+      setActivityFollowUpForm({
+        contact_id: '', call_outcome: '', priority: '', activity_type: '',
+        start_date: new Date().toISOString().split('T')[0],
+        start_time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        assigned_to: '', status: 'Open', description: ''
+      });
       alert('Activity follow-up saved successfully');
     } catch (err: any) {
       console.error('Failed to save activity follow-up:', err);
       alert(err?.response?.data?.detail || 'Failed to save activity follow-up');
+    }
+  };
+
+  // Handler to close Activity Follow-Up (set status to Closed)
+  const handleCloseActivityFollowUp = async (activity: any) => {
+    if (!crId || !activity.id) return;
+    if (!confirm('Are you sure you want to close this activity?')) return;
+    try {
+      await api.updateCRActivity(crId, activity.id, { status: 'Closed' });
+      // Refresh activities list
+      const tabName = activitySubTab === 'followup' ? 'introduction-activity-followup' : 'introduction-activity';
+      const data = await api.getCRActivities(crId, tabName);
+      const mappedActivities = data.map((a: any) => ({
+        id: a.id,
+        by: a.created_by_name || a.assigned_to_name || 'System',
+        date: a.start_date ? new Date(a.start_date).toLocaleDateString('en-GB') : '-',
+        time: a.start_time || '-',
+        source: a.source || '-',
+        type: a.activity_type || '-',
+        description: a.description || '-',
+        action_to_be_taken: a.subject || '-',
+        assigned_to: a.assigned_to_name || '-',
+        priority: a.priority || 'High',
+        status: a.status || 'Open'
+      }));
+      setActivities(mappedActivities);
+      alert('Activity closed successfully');
+    } catch (err: any) {
+      console.error('Failed to close activity:', err);
+      alert(err?.response?.data?.detail || 'Failed to close activity');
     }
   };
 
@@ -1281,15 +1499,34 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
 
   const handleSaveFollowUp = async () => {
     if (!crId) return;
+    if (!followUpFormData.activity_type) {
+      alert('Please select an activity type');
+      return;
+    }
+    if (!followUpFormData.subject) {
+      alert('Please enter a subject');
+      return;
+    }
     try {
+      const activityData = {
+        tab_name: 'introduction-followup',
+        activity_type: followUpFormData.activity_type,
+        subject: followUpFormData.subject,
+        description: followUpFormData.description || '',
+        contact_id: followUpFormData.contact_id && !isNaN(parseInt(followUpFormData.contact_id)) ? parseInt(followUpFormData.contact_id) : null,
+        assigned_to: followUpFormData.assigned_to && !isNaN(parseInt(followUpFormData.assigned_to)) ? parseInt(followUpFormData.assigned_to) : null,
+        priority: followUpFormData.priority || null,
+        start_date: followUpFormData.start_date || null,
+        start_time: followUpFormData.start_time || null,
+        end_date: followUpFormData.end_date || null,
+        end_time: followUpFormData.end_time || null,
+        status: followUpFormData.status || 'Open',
+      };
       if (editingFollowUp) {
-        const updated = await api.updateCRActivity(crId, editingFollowUp.id, followUpFormData);
+        const updated = await api.updateCRActivity(crId, editingFollowUp.id, activityData);
         setFollowUpActivities(followUpActivities.map((a: any) => a.id === editingFollowUp.id ? updated : a));
       } else {
-        const created = await api.createCRActivity(crId, {
-          ...followUpFormData,
-          tab_name: 'introduction-followup',
-        });
+        const created = await api.createCRActivity(crId, activityData);
         setFollowUpActivities([...followUpActivities, created]);
       }
       setShowFollowUpModal(false);
@@ -1392,9 +1629,16 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                 ))}
               </select>
               <button
-                onClick={() => {
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   const selectedDocs = documents.filter((d: any) => selectedDocIds.includes(d.id));
-                  onOpenEmailModal && onOpenEmailModal('Introduction', introFormData.contact_email, introEmailTemplates.find((t: any) => t.email_format === introFormData.email_format_type)?.id, selectedDocs);
+                  const selectedContact = introContacts.find((c: any) => c.id?.toString() === introFormData.contact_name);
+                  const contactFullName = selectedContact ? `${selectedContact.first_name || ''} ${selectedContact.last_name || ''}`.trim() : '';
+                  if (onOpenEmailModal) {
+                    onOpenEmailModal('Introduction', introFormData.contact_email, introEmailTemplates.find((t: any) => t.email_format === introFormData.email_format_type)?.id, selectedDocs, contactFullName);
+                  }
                 }}
                 className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
               >
@@ -1583,54 +1827,107 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setShowActivityModal(true)} className="px-3 py-1 text-xs border rounded hover:bg-gray-50">Add New Activity</button>
-                <button className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">CSV</button>
-                <button className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600">EXCEL</button>
-                <button className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">PDF</button>
+                <button onClick={exportActivitiesCSV} className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">CSV</button>
+                <button onClick={exportActivitiesCSV} className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600">EXCEL</button>
+                <button onClick={exportActivitiesPDF} className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">PDF</button>
               </div>
             </div>
 
-            {/* Activity Table */}
-            <div className="border rounded overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-blue-600">
-                    <th className={thClass}>By</th>
-                    <th className={thClass}>Date</th>
-                    <th className={thClass}>Time</th>
-                    <th className={thClass}>Source</th>
-                    <th className={thClass}>Type</th>
-                    <th className={thClass}>Description</th>
-                    <th className={thClass}>Action to be Taken</th>
-                    <th className={thClass}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activities.length === 0 ? (
-                    <tr><td colSpan={8} className="px-3 py-8 text-center text-gray-400 text-xs">No activities found</td></tr>
-                  ) : (
-                    activities.map((activity: any, index: number) => (
-                      <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className={tdClass}>{activity.by}</td>
-                        <td className={`${tdClass} text-blue-600`}>{activity.date}</td>
-                        <td className={`${tdClass} text-blue-600`}>{activity.time}</td>
-                        <td className={`${tdClass} text-blue-600`}>{activity.source}</td>
-                        <td className={tdClass}>{activity.type}</td>
-                        <td className={`${tdClass} text-blue-600`}>{activity.description}</td>
-                        <td className={tdClass}>{activity.action_to_be_taken || '-'}</td>
-                        <td className={tdClass}>
-                          <button
-                            onClick={() => handleOpenActivityFollowUp(activity)}
-                            className="px-3 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
-                          >
-                            Follow-Up
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            {/* Activity Table - All Activity */}
+            {activitySubTab === 'all' && (
+              <div className="border rounded overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-blue-600">
+                      <th className={thClass}>By</th>
+                      <th className={thClass}>Date</th>
+                      <th className={thClass}>Time</th>
+                      <th className={thClass}>Source</th>
+                      <th className={thClass}>Type</th>
+                      <th className={thClass}>Description</th>
+                      <th className={thClass}>Action to be Taken</th>
+                      <th className={thClass}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activities.length === 0 ? (
+                      <tr><td colSpan={8} className="px-3 py-8 text-center text-gray-400 text-xs">No activities found</td></tr>
+                    ) : (
+                      activities.map((activity: any, index: number) => (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className={tdClass}>{activity.by}</td>
+                          <td className={`${tdClass} text-blue-600`}>{activity.date}</td>
+                          <td className={`${tdClass} text-blue-600`}>{activity.time}</td>
+                          <td className={`${tdClass} text-blue-600`}>{activity.source}</td>
+                          <td className={tdClass}>{activity.type}</td>
+                          <td className={`${tdClass} text-blue-600`}>{activity.description}</td>
+                          <td className={tdClass}>{activity.action_to_be_taken || '-'}</td>
+                          <td className={tdClass}>
+                            <button
+                              onClick={() => handleOpenActivityFollowUp(activity)}
+                              className="px-3 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                            >
+                              Follow-Up
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Activity Table - Activity Follow-Up */}
+            {activitySubTab === 'followup' && (
+              <div className="border rounded overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-blue-600">
+                      <th className={thClass}>Date</th>
+                      <th className={thClass}>Time</th>
+                      <th className={thClass}>Assigned To</th>
+                      <th className={thClass}>Created By</th>
+                      <th className={thClass}>Activity Type</th>
+                      <th className={thClass}>Priority</th>
+                      <th className={thClass}>Description</th>
+                      <th className={thClass}>Status</th>
+                      <th className={thClass}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activities.length === 0 ? (
+                      <tr><td colSpan={9} className="px-3 py-8 text-center text-gray-400 text-xs">No follow-up activities found</td></tr>
+                    ) : (
+                      activities.map((activity: any, index: number) => (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className={`${tdClass} text-blue-600`}>{activity.date}</td>
+                          <td className={`${tdClass} text-blue-600`}>{activity.time}</td>
+                          <td className={tdClass}>{activity.assigned_to || '-'}</td>
+                          <td className={tdClass}>{activity.by || '-'}</td>
+                          <td className={`${tdClass} text-blue-600`}>{activity.type || '-'}</td>
+                          <td className={tdClass}>{activity.priority || 'High'}</td>
+                          <td className={tdClass}>{activity.description || '-'}</td>
+                          <td className={tdClass}>
+                            <span className={activity.status === 'Closed' ? 'text-red-600' : 'text-green-600'}>
+                              {activity.status || 'Open'}
+                            </span>
+                          </td>
+                          <td className={tdClass}>
+                            <button
+                              onClick={() => handleCloseActivityFollowUp(activity)}
+                              className="px-3 py-1 text-xs border border-blue-600 text-blue-600 rounded hover:bg-blue-50"
+                            >
+                              Close
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
@@ -2482,7 +2779,80 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
   const [reqContacts, setReqContacts] = useState<any[]>([]);
   const [showReqPreviousActivities, setShowReqPreviousActivities] = useState(false);
 
-  // Questionnaire state
+  // Diligence Short Form (Pre-Demo Business Questionnaire) state
+  const [diligenceForm, setDiligenceForm] = useState<any>({});
+  const [diligenceLoading, setDiligenceLoading] = useState(false);
+  const [diligenceSaving, setDiligenceSaving] = useState(false);
+
+  // Meeting Calendar (Meeting Date & Time) state
+  const [meetingCalendar, setMeetingCalendar] = useState<any>({});
+  const [meetingCalendarLoading, setMeetingCalendarLoading] = useState(false);
+  const [countries, setCountries] = useState<any[]>([]);
+  const [states, setStates] = useState<any[]>([]);
+  const [cities, setCities] = useState<any[]>([]);
+
+  // Load diligence form data from API
+  useEffect(() => {
+    if (crId && reqSubTab === 'pre-demo-business-questionnaire') {
+      setDiligenceLoading(true);
+      api.getCRDiligenceShortForm(crId)
+        .then((data) => setDiligenceForm(data || {}))
+        .catch(() => setDiligenceForm({}))
+        .finally(() => setDiligenceLoading(false));
+    }
+  }, [crId, reqSubTab]);
+
+  // Load meeting calendar data from API
+  useEffect(() => {
+    if (crId && reqSubTab === 'meeting-date-time') {
+      setMeetingCalendarLoading(true);
+      api.getCRMeetingCalendar(crId)
+        .then(async (data) => {
+          setMeetingCalendar(data || {});
+          // Load location data for display
+          try {
+            const countriesData = await api.getCountries();
+            setCountries(countriesData || []);
+            if (data?.gi_country) {
+              const statesData = await api.getStates(data.gi_country);
+              setStates(statesData || []);
+            }
+            if (data?.gi_province) {
+              const citiesData = await api.getCities(data.gi_province);
+              setCities(citiesData || []);
+            }
+          } catch (e) {
+            // Location data not critical
+          }
+        })
+        .catch(() => setMeetingCalendar({}))
+        .finally(() => setMeetingCalendarLoading(false));
+    }
+  }, [crId, reqSubTab]);
+
+  const updateDiligence = (field: string, value: any) => {
+    setDiligenceForm((prev: any) => ({ ...prev, [field]: value }));
+  };
+
+  const toggleDiligenceCheckbox = (field: string, checked: boolean) => {
+    setDiligenceForm((prev: any) => ({ ...prev, [field]: checked }));
+  };
+
+  const handleSaveDiligenceForm = async () => {
+    if (!crId) return;
+    setDiligenceSaving(true);
+    try {
+      const updated = await api.updateCRDiligenceShortForm(crId, diligenceForm);
+      setDiligenceForm(updated);
+      alert('Pre-Demo Business Questionnaire saved successfully');
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'Failed to save questionnaire');
+    } finally {
+      setDiligenceSaving(false);
+    }
+  };
+
+  // Legacy questionnaire state (for backward compatibility with other sub-tabs)
   const [questionnaire, setQuestionnaire] = useState<any>(data?.questionnaire || {});
 
   useEffect(() => {
@@ -2685,9 +3055,14 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
                 ))}
               </select>
               <button
-                onClick={() => {
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   const selectedDocs = reqDocs.filter((d: any) => reqSelectedDocIds.includes(d.id));
-                  onOpenEmailModal && onOpenEmailModal('Requirement', '', reqEmailTemplates.find((t: any) => t.email_format === data?.email_format)?.id, selectedDocs);
+                  if (onOpenEmailModal) {
+                    onOpenEmailModal('Requirement', '', reqEmailTemplates.find((t: any) => t.email_format === data?.email_format)?.id, selectedDocs);
+                  }
                 }}
                 className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
               >
@@ -2831,209 +3206,391 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
           <div className="space-y-6">
             <h3 className={sectionTitle}>PRE-DEMO BUSINESS QUESTIONNAIRE</h3>
 
-            {/* 1. GENERAL INFORMATION */}
-            <div>
-              <h4 className={sectionTitle}>1. GENERAL INFORMATION</h4>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Company Name:</label>
-                  <input type="text" value={questionnaire.gen_company_name || ''} onChange={(e) => updateQ('gen_company_name', e.target.value)} className={fieldInputClass} placeholder="Name" />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-48 flex-shrink-0 mb-0`}>Key Person (Name):</label>
-                  <input type="text" value={questionnaire.gen_key_person || ''} onChange={(e) => updateQ('gen_key_person', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Designation:</label>
-                  <input type="text" value={questionnaire.gen_designation || ''} onChange={(e) => updateQ('gen_designation', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-48 flex-shrink-0 mb-0`}>Email:</label>
-                  <input type="email" value={questionnaire.gen_email || ''} onChange={(e) => updateQ('gen_email', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Phone:</label>
-                  <input type="text" value={questionnaire.gen_phone || ''} onChange={(e) => updateQ('gen_phone', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-48 flex-shrink-0 mb-0`}>Website:</label>
-                  <input type="text" value={questionnaire.gen_website || ''} onChange={(e) => updateQ('gen_website', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Address:</label>
-                  <input type="text" value={questionnaire.gen_address || ''} onChange={(e) => updateQ('gen_address', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-48 flex-shrink-0 mb-0`}>Postal Code:</label>
-                  <input type="text" value={questionnaire.gen_postal_code || ''} onChange={(e) => updateQ('gen_postal_code', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Country:</label>
-                  <input type="text" value={questionnaire.gen_country || ''} onChange={(e) => updateQ('gen_country', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-48 flex-shrink-0 mb-0`}>Years in Operation:</label>
-                  <input type="text" value={questionnaire.gen_years_operation || ''} onChange={(e) => updateQ('gen_years_operation', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>State/Province:</label>
-                  <input type="text" value={questionnaire.gen_state || ''} onChange={(e) => updateQ('gen_state', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-48 flex-shrink-0 mb-0`}>Branch Offices / Address(es):</label>
-                  <input type="text" value={questionnaire.gen_branch_offices || ''} onChange={(e) => updateQ('gen_branch_offices', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>City:</label>
-                  <input type="text" value={questionnaire.gen_city || ''} onChange={(e) => updateQ('gen_city', e.target.value)} className={fieldInputClass} />
-                </div>
-              </div>
-            </div>
-
-            {/* 2. ABOUT YOUR BUSINESS */}
-            <div>
-              <h4 className={sectionTitle}>2. ABOUT YOUR BUSINESS</h4>
-              <div className="grid grid-cols-2 gap-x-8">
-                {/* Left: Years in Operation, Company Size, Annual Revenue */}
-                <div className="space-y-4">
-                  <div>
-                    <p className={subSectionTitle}>Years in Operation:</p>
-                    {['1-5', '6-10', '11-20', '20+'].map((opt) => (
-                      <label key={opt} className="flex items-center mb-1 cursor-pointer">
-                        <input type="checkbox" checked={(questionnaire.biz_years_operation || []).includes(opt)} onChange={() => toggleCheckbox('biz_years_operation', opt)} className="w-3.5 h-3.5" />
-                        <span className={checkLabel}>{opt}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <div>
-                    <p className={subSectionTitle}>Company Size:</p>
-                    {['1-10', '11-50', '51-100', '100+'].map((opt) => (
-                      <label key={opt} className="flex items-center mb-1 cursor-pointer">
-                        <input type="checkbox" checked={(questionnaire.biz_company_size || []).includes(opt)} onChange={() => toggleCheckbox('biz_company_size', opt)} className="w-3.5 h-3.5" />
-                        <span className={checkLabel}>{opt}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <div>
-                    <p className={subSectionTitle}>Annual Revenue (Approx.):</p>
-                    {['Upto US$ 100,000', 'US$ 100,000 – 250,000', 'US$ 250,000 – 1,000,000', 'US$ 1,000,000 – 5,000,000', 'US$ 5,000,000 – 10,000,000', 'Above US$ 10,000,000'].map((opt) => (
-                      <label key={opt} className="flex items-center mb-1 cursor-pointer">
-                        <input type="checkbox" checked={(questionnaire.biz_annual_revenue || []).includes(opt)} onChange={() => toggleCheckbox('biz_annual_revenue', opt)} className="w-3.5 h-3.5" />
-                        <span className={checkLabel}>{opt}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                {/* Right: Industry Type, Markets Served, Company Legal Structure */}
-                <div className="space-y-4">
-                  <div>
-                    <p className={subSectionTitle}>Industry Type:</p>
-                    {['Trading (Buy & Sell Products)', 'Manufacturing (Produce Goods)', 'Services (Provide Services to Clients)', 'Distribution / Wholesale', 'Retail / POS', 'Projects / EPC', 'Consulting / Advisory'].map((opt) => (
-                      <label key={opt} className="flex items-center mb-1 cursor-pointer">
-                        <input type="checkbox" checked={(questionnaire.biz_industry_type || []).includes(opt)} onChange={() => toggleCheckbox('biz_industry_type', opt)} className="w-3.5 h-3.5" />
-                        <span className={checkLabel}>{opt}</span>
-                      </label>
-                    ))}
-                    <label className="flex items-center mb-1 cursor-pointer">
-                      <input type="checkbox" checked={(questionnaire.biz_industry_type || []).includes('Other')} onChange={() => toggleCheckbox('biz_industry_type', 'Other')} className="w-3.5 h-3.5" />
-                      <span className={checkLabel}>Other:</span>
-                      <input type="text" value={questionnaire.biz_industry_other || ''} onChange={(e) => updateQ('biz_industry_other', e.target.value)} className="ml-2 h-7 w-40 px-2 text-xs border border-gray-300 rounded" placeholder="Please specify" />
-                    </label>
-                  </div>
-                  <div>
-                    <p className={subSectionTitle}>Markets Served (Select all that apply):</p>
-                    {['Local', 'National', 'International'].map((opt) => (
-                      <label key={opt} className="flex items-center mb-1 cursor-pointer">
-                        <input type="checkbox" checked={(questionnaire.biz_markets_served || []).includes(opt)} onChange={() => toggleCheckbox('biz_markets_served', opt)} className="w-3.5 h-3.5" />
-                        <span className={checkLabel}>{opt}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <div>
-                    <p className={subSectionTitle}>Company Legal Structure:</p>
-                    {['Sole Proprietorship', 'Partnership', 'LLC (Limited Liability Company)'].map((opt) => (
-                      <label key={opt} className="flex items-center mb-1 cursor-pointer">
-                        <input type="checkbox" checked={(questionnaire.biz_legal_structure || []).includes(opt)} onChange={() => toggleCheckbox('biz_legal_structure', opt)} className="w-3.5 h-3.5" />
-                        <span className={checkLabel}>{opt}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 3 & 4 side by side */}
-            <div className="grid grid-cols-2 gap-x-8">
-              {/* 3. CURRENT SYSTEMS USED */}
-              <div>
-                <h4 className={sectionTitle}>3. CURRENT SYSTEMS USED</h4>
-                {['Paper / Excel Sheets', 'Accounting Software (Tally, QuickBooks, Zoho, etc.)', 'CRM Software', 'HRM Software', 'Inventory / Stock System', 'ERP System'].map((opt) => (
-                  <label key={opt} className="flex items-center mb-1 cursor-pointer">
-                    <input type="checkbox" checked={(questionnaire.current_systems || []).includes(opt)} onChange={() => toggleCheckbox('current_systems', opt)} className="w-3.5 h-3.5" />
-                    <span className={checkLabel}>{opt}</span>
-                  </label>
-                ))}
-                <label className="flex items-center mb-1 cursor-pointer">
-                  <input type="checkbox" checked={(questionnaire.current_systems || []).includes('Other')} onChange={() => toggleCheckbox('current_systems', 'Other')} className="w-3.5 h-3.5" />
-                  <span className={checkLabel}>Other:</span>
-                  <input type="text" value={questionnaire.current_systems_other || ''} onChange={(e) => updateQ('current_systems_other', e.target.value)} className="ml-2 h-7 w-40 px-2 text-xs border border-gray-300 rounded" placeholder="Please specify" />
-                </label>
-              </div>
-
-              {/* 4. KEY BUSINESS PRIORITIES */}
-              <div>
-                <h4 className={sectionTitle}>4. KEY BUSINESS PRIORITIES</h4>
-                {['Getting More Customers (Sales & CRM)', 'Managing Suppliers & Vendors Better', 'Faster Proposal / Quotation Process', 'Tracking Inventory & Stock Easily', 'Better Financial Control (Invoices, Payments, Reports)', 'Tracking Projects, Tasks, Timesheets', 'Managing Employees (HR & Payroll)', 'Easy Access to Documents (DMS)', 'Quick & Accurate Business Reports (Better Visibility of Data)', 'Smooth Integration Across Departments (Improved Workflow & Communication)', 'Multi-Currency Support', 'Reduce Manual Errors', 'Reduce Operational Costs'].map((opt) => (
-                  <label key={opt} className="flex items-center mb-1 cursor-pointer">
-                    <input type="checkbox" checked={(questionnaire.key_priorities || []).includes(opt)} onChange={() => toggleCheckbox('key_priorities', opt)} className="w-3.5 h-3.5" />
-                    <span className={checkLabel}>{opt}</span>
-                  </label>
-                ))}
-                <label className="flex items-center mb-1 cursor-pointer">
-                  <input type="checkbox" checked={(questionnaire.key_priorities || []).includes('Other')} onChange={() => toggleCheckbox('key_priorities', 'Other')} className="w-3.5 h-3.5" />
-                  <span className={checkLabel}>Other:</span>
-                  <input type="text" value={questionnaire.key_priorities_other || ''} onChange={(e) => updateQ('key_priorities_other', e.target.value)} className="ml-2 h-7 w-40 px-2 text-xs border border-gray-300 rounded" placeholder="Please specify" />
-                </label>
-              </div>
-            </div>
-
-            {/* 5. MAIN BUSINESS CHALLENGES */}
-            <div>
-              <h4 className={sectionTitle}>5. MAIN BUSINESS CHALLENGES</h4>
-              <div className="grid grid-cols-2 gap-x-8">
+            {diligenceLoading ? (
+              <div className="text-center py-8 text-gray-500">Loading questionnaire...</div>
+            ) : (
+              <>
+                {/* 1. GENERAL INFORMATION */}
                 <div>
-                  {['Too much manual work in Excel / Paper', 'Hard to track orders, stock, or shipments', 'Delays in sending Quotations / Invoices', 'No clear view of payments & collections', 'Inventory or supply chain management issues', 'Difficulty in managing suppliers/vendors', 'Employee leave, payroll, or performance issues', 'Lack of reports for decision making', 'Difficult to manage multiple currencies', 'Difficult to manage multiple branches/locations'].map((opt) => (
-                    <label key={opt} className="flex items-center mb-1 cursor-pointer">
-                      <input type="checkbox" checked={(questionnaire.main_challenges || []).includes(opt)} onChange={() => toggleCheckbox('main_challenges', opt)} className="w-3.5 h-3.5" />
-                      <span className={checkLabel}>{opt}</span>
-                    </label>
-                  ))}
-                  <label className="flex items-center mb-1 cursor-pointer">
-                    <input type="checkbox" checked={(questionnaire.main_challenges || []).includes('Other')} onChange={() => toggleCheckbox('main_challenges', 'Other')} className="w-3.5 h-3.5" />
-                    <span className={checkLabel}>Other:</span>
-                    <input type="text" value={questionnaire.main_challenges_other || ''} onChange={(e) => updateQ('main_challenges_other', e.target.value)} className="ml-2 h-7 w-40 px-2 text-xs border border-gray-300 rounded" placeholder="Please specify" />
-                  </label>
+                  <h4 className={sectionTitle}>1. GENERAL INFORMATION</h4>
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Company Name:</label>
+                      <input type="text" value={diligenceForm.company_name || ''} onChange={(e) => updateDiligence('company_name', e.target.value)} className={fieldInputClass} placeholder="Name" />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-48 flex-shrink-0 mb-0`}>Key Person (Name):</label>
+                      <input type="text" value={diligenceForm.key_person || ''} onChange={(e) => updateDiligence('key_person', e.target.value)} className={fieldInputClass} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Designation:</label>
+                      <input type="text" value={diligenceForm.designation || ''} onChange={(e) => updateDiligence('designation', e.target.value)} className={fieldInputClass} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-48 flex-shrink-0 mb-0`}>Email:</label>
+                      <input type="email" value={diligenceForm.email || ''} onChange={(e) => updateDiligence('email', e.target.value)} className={fieldInputClass} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Phone:</label>
+                      <input type="text" value={diligenceForm.phone || ''} onChange={(e) => updateDiligence('phone', e.target.value)} className={fieldInputClass} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-48 flex-shrink-0 mb-0`}>Website:</label>
+                      <input type="text" value={diligenceForm.website || ''} onChange={(e) => updateDiligence('website', e.target.value)} className={fieldInputClass} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Address:</label>
+                      <input type="text" value={diligenceForm.address || ''} onChange={(e) => updateDiligence('address', e.target.value)} className={fieldInputClass} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-48 flex-shrink-0 mb-0`}>Postal Code:</label>
+                      <input type="text" value={diligenceForm.postal_code || ''} onChange={(e) => updateDiligence('postal_code', e.target.value)} className={fieldInputClass} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Country:</label>
+                      <input type="text" value={diligenceForm.country || ''} onChange={(e) => updateDiligence('country', e.target.value)} className={fieldInputClass} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-48 flex-shrink-0 mb-0`}>Years in Operation:</label>
+                      <input type="text" value={diligenceForm.years_operation || ''} onChange={(e) => updateDiligence('years_operation', e.target.value)} className={fieldInputClass} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>State/Province:</label>
+                      <input type="text" value={diligenceForm.state || ''} onChange={(e) => updateDiligence('state', e.target.value)} className={fieldInputClass} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-48 flex-shrink-0 mb-0`}>Branch Offices / Address(es):</label>
+                      <input type="text" value={diligenceForm.branch_address || ''} onChange={(e) => updateDiligence('branch_address', e.target.value)} className={fieldInputClass} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>City:</label>
+                      <input type="text" value={diligenceForm.city || ''} onChange={(e) => updateDiligence('city', e.target.value)} className={fieldInputClass} />
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* 6. OTHER REQUIREMENTS / NOTES */}
-            <div>
-              <h4 className={sectionTitle}>6. OTHER REQUIREMENTS / NOTES</h4>
-              <p className="text-xs text-blue-500 mb-2 italic">Please mention any special features, compliance needs, or integrations you require</p>
-              <textarea
-                value={questionnaire.other_requirements || ''}
-                onChange={(e) => updateQ('other_requirements', e.target.value)}
-                className="w-full h-28 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-gray-50"
-                placeholder=""
-              />
-            </div>
+                {/* 2. ABOUT YOUR BUSINESS */}
+                <div>
+                  <h4 className={sectionTitle}>2. ABOUT YOUR BUSINESS</h4>
+                  <div className="grid grid-cols-2 gap-x-8">
+                    {/* Left: Years in Business, Company Size, Annual Revenue */}
+                    <div className="space-y-4">
+                      <div>
+                        <p className={subSectionTitle}>Years in Business:</p>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.years_1_5 || false} onChange={(e) => toggleDiligenceCheckbox('years_1_5', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>1-5 years</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.years_6_10 || false} onChange={(e) => toggleDiligenceCheckbox('years_6_10', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>6-10 years</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.years_11_50 || false} onChange={(e) => toggleDiligenceCheckbox('years_11_50', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>11-50 years</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.years_51_100 || false} onChange={(e) => toggleDiligenceCheckbox('years_51_100', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>51-100 years</span>
+                        </label>
+                      </div>
+                      <div>
+                        <p className={subSectionTitle}>Company Size (Employees):</p>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.size_1_5 || false} onChange={(e) => toggleDiligenceCheckbox('size_1_5', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>1-5</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.size_6_10 || false} onChange={(e) => toggleDiligenceCheckbox('size_6_10', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>6-10</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.size_11_50 || false} onChange={(e) => toggleDiligenceCheckbox('size_11_50', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>11-50</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.size_51_100 || false} onChange={(e) => toggleDiligenceCheckbox('size_51_100', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>51-100</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.size_100_plus || false} onChange={(e) => toggleDiligenceCheckbox('size_100_plus', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>100+</span>
+                        </label>
+                      </div>
+                      <div>
+                        <p className={subSectionTitle}>Annual Revenue (Approx.):</p>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.rev_100k || false} onChange={(e) => toggleDiligenceCheckbox('rev_100k', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>Upto US$ 100,000</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.rev_250k || false} onChange={(e) => toggleDiligenceCheckbox('rev_250k', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>US$ 100,000 - 250,000</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.rev_1m || false} onChange={(e) => toggleDiligenceCheckbox('rev_1m', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>US$ 250,000 - 1,000,000</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.rev_5m || false} onChange={(e) => toggleDiligenceCheckbox('rev_5m', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>US$ 1,000,000 - 5,000,000</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.rev_10m || false} onChange={(e) => toggleDiligenceCheckbox('rev_10m', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>US$ 5,000,000 - 10,000,000</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.rev_above_10m || false} onChange={(e) => toggleDiligenceCheckbox('rev_above_10m', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>Above US$ 10,000,000</span>
+                        </label>
+                      </div>
+                    </div>
+                    {/* Right: Industry Type, Markets Served, Company Legal Structure */}
+                    <div className="space-y-4">
+                      <div>
+                        <p className={subSectionTitle}>Industry Type:</p>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.industry_trading || false} onChange={(e) => toggleDiligenceCheckbox('industry_trading', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>Trading (Buy & Sell Products)</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.industry_manufacturing || false} onChange={(e) => toggleDiligenceCheckbox('industry_manufacturing', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>Manufacturing (Produce Goods)</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.industry_services || false} onChange={(e) => toggleDiligenceCheckbox('industry_services', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>Services (Provide Services to Clients)</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.industry_distribution || false} onChange={(e) => toggleDiligenceCheckbox('industry_distribution', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>Distribution / Wholesale</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.industry_retail || false} onChange={(e) => toggleDiligenceCheckbox('industry_retail', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>Retail / POS</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.industry_projects || false} onChange={(e) => toggleDiligenceCheckbox('industry_projects', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>Projects / EPC</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.industry_consulting || false} onChange={(e) => toggleDiligenceCheckbox('industry_consulting', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>Consulting / Advisory</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.industry_other_chk || false} onChange={(e) => toggleDiligenceCheckbox('industry_other_chk', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>Other:</span>
+                          <input type="text" value={diligenceForm.industry_other || ''} onChange={(e) => updateDiligence('industry_other', e.target.value)} className="ml-2 h-7 w-40 px-2 text-xs border border-gray-300 rounded" placeholder="Please specify" />
+                        </label>
+                      </div>
+                      <div>
+                        <p className={subSectionTitle}>Markets Served (Select all that apply):</p>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.market_local || false} onChange={(e) => toggleDiligenceCheckbox('market_local', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>Local</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.market_national || false} onChange={(e) => toggleDiligenceCheckbox('market_national', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>National</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.market_international || false} onChange={(e) => toggleDiligenceCheckbox('market_international', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>International</span>
+                        </label>
+                      </div>
+                      <div>
+                        <p className={subSectionTitle}>Company Legal Structure:</p>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.legal_sole || false} onChange={(e) => toggleDiligenceCheckbox('legal_sole', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>Sole Proprietorship</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.legal_partnership || false} onChange={(e) => toggleDiligenceCheckbox('legal_partnership', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>Partnership</span>
+                        </label>
+                        <label className="flex items-center mb-1 cursor-pointer">
+                          <input type="checkbox" checked={diligenceForm.legal_llc || false} onChange={(e) => toggleDiligenceCheckbox('legal_llc', e.target.checked)} className="w-3.5 h-3.5" />
+                          <span className={checkLabel}>LLC (Limited Liability Company)</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-            <div className="flex justify-center mt-4">
-              <button onClick={onSave} disabled={saving} className="px-6 py-1.5 text-sm font-medium text-white bg-green-500 rounded hover:bg-green-600 disabled:opacity-50">
-                {saving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
+                {/* 3 & 4 side by side */}
+                <div className="grid grid-cols-2 gap-x-8">
+                  {/* 3. CURRENT SYSTEMS USED */}
+                  <div>
+                    <h4 className={sectionTitle}>3. CURRENT SYSTEMS USED</h4>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.sys_paper || false} onChange={(e) => toggleDiligenceCheckbox('sys_paper', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Paper / Excel Sheets</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.sys_account || false} onChange={(e) => toggleDiligenceCheckbox('sys_account', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Accounting Software (Tally, QuickBooks, Zoho, etc.)</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.sys_crm || false} onChange={(e) => toggleDiligenceCheckbox('sys_crm', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>CRM Software</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.sys_hrm || false} onChange={(e) => toggleDiligenceCheckbox('sys_hrm', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>HRM Software</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.sys_inv || false} onChange={(e) => toggleDiligenceCheckbox('sys_inv', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Inventory / Stock System</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.sys_erp || false} onChange={(e) => toggleDiligenceCheckbox('sys_erp', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>ERP System</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.sys_other_chk || false} onChange={(e) => toggleDiligenceCheckbox('sys_other_chk', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Other:</span>
+                      <input type="text" value={diligenceForm.sys_other || ''} onChange={(e) => updateDiligence('sys_other', e.target.value)} className="ml-2 h-7 w-40 px-2 text-xs border border-gray-300 rounded" placeholder="Please specify" />
+                    </label>
+                  </div>
+
+                  {/* 4. KEY BUSINESS PRIORITIES */}
+                  <div>
+                    <h4 className={sectionTitle}>4. KEY BUSINESS PRIORITIES</h4>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.key_cust || false} onChange={(e) => toggleDiligenceCheckbox('key_cust', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Getting More Customers (Sales & CRM)</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.key_suppliers || false} onChange={(e) => toggleDiligenceCheckbox('key_suppliers', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Managing Suppliers & Vendors Better</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.key_proposal || false} onChange={(e) => toggleDiligenceCheckbox('key_proposal', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Faster Proposal / Quotation Process</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.key_inventory || false} onChange={(e) => toggleDiligenceCheckbox('key_inventory', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Tracking Inventory & Stock Easily</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.key_financial || false} onChange={(e) => toggleDiligenceCheckbox('key_financial', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Better Financial Control (Invoices, Payments, Reports)</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.key_projects || false} onChange={(e) => toggleDiligenceCheckbox('key_projects', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Tracking Projects, Tasks, Timesheets</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.key_employees || false} onChange={(e) => toggleDiligenceCheckbox('key_employees', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Managing Employees (HR & Payroll)</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.key_dms || false} onChange={(e) => toggleDiligenceCheckbox('key_dms', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Easy Access to Documents (DMS)</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.key_reports || false} onChange={(e) => toggleDiligenceCheckbox('key_reports', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Quick & Accurate Business Reports</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.key_integration || false} onChange={(e) => toggleDiligenceCheckbox('key_integration', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Smooth Integration Across Departments</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.key_multicurrency || false} onChange={(e) => toggleDiligenceCheckbox('key_multicurrency', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Multi-Currency Support</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.key_errors || false} onChange={(e) => toggleDiligenceCheckbox('key_errors', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Reduce Manual Errors</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.key_costs || false} onChange={(e) => toggleDiligenceCheckbox('key_costs', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Reduce Operational Costs</span>
+                    </label>
+                    <label className="flex items-center mb-1 cursor-pointer">
+                      <input type="checkbox" checked={diligenceForm.key_other_chk || false} onChange={(e) => toggleDiligenceCheckbox('key_other_chk', e.target.checked)} className="w-3.5 h-3.5" />
+                      <span className={checkLabel}>Other:</span>
+                      <input type="text" value={diligenceForm.key_other || ''} onChange={(e) => updateDiligence('key_other', e.target.value)} className="ml-2 h-7 w-40 px-2 text-xs border border-gray-300 rounded" placeholder="Please specify" />
+                    </label>
+                  </div>
+                </div>
+
+                {/* 5. MAIN BUSINESS CHALLENGES */}
+                <div>
+                  <h4 className={sectionTitle}>5. MAIN BUSINESS CHALLENGES</h4>
+                  <div className="grid grid-cols-2 gap-x-8">
+                    <div>
+                      <label className="flex items-center mb-1 cursor-pointer">
+                        <input type="checkbox" checked={diligenceForm.main_manual || false} onChange={(e) => toggleDiligenceCheckbox('main_manual', e.target.checked)} className="w-3.5 h-3.5" />
+                        <span className={checkLabel}>Too much manual work in Excel / Paper</span>
+                      </label>
+                      <label className="flex items-center mb-1 cursor-pointer">
+                        <input type="checkbox" checked={diligenceForm.main_tracking || false} onChange={(e) => toggleDiligenceCheckbox('main_tracking', e.target.checked)} className="w-3.5 h-3.5" />
+                        <span className={checkLabel}>Hard to track orders, stock, or shipments</span>
+                      </label>
+                      <label className="flex items-center mb-1 cursor-pointer">
+                        <input type="checkbox" checked={diligenceForm.main_delay || false} onChange={(e) => toggleDiligenceCheckbox('main_delay', e.target.checked)} className="w-3.5 h-3.5" />
+                        <span className={checkLabel}>Delays in sending Quotations / Invoices</span>
+                      </label>
+                      <label className="flex items-center mb-1 cursor-pointer">
+                        <input type="checkbox" checked={diligenceForm.main_payments || false} onChange={(e) => toggleDiligenceCheckbox('main_payments', e.target.checked)} className="w-3.5 h-3.5" />
+                        <span className={checkLabel}>No clear view of payments & collections</span>
+                      </label>
+                      <label className="flex items-center mb-1 cursor-pointer">
+                        <input type="checkbox" checked={diligenceForm.main_inventory || false} onChange={(e) => toggleDiligenceCheckbox('main_inventory', e.target.checked)} className="w-3.5 h-3.5" />
+                        <span className={checkLabel}>Inventory or supply chain issues</span>
+                      </label>
+                      <label className="flex items-center mb-1 cursor-pointer">
+                        <input type="checkbox" checked={diligenceForm.main_suppliers || false} onChange={(e) => toggleDiligenceCheckbox('main_suppliers', e.target.checked)} className="w-3.5 h-3.5" />
+                        <span className={checkLabel}>Difficulty in managing suppliers/vendors</span>
+                      </label>
+                    </div>
+                    <div>
+                      <label className="flex items-center mb-1 cursor-pointer">
+                        <input type="checkbox" checked={diligenceForm.main_hr || false} onChange={(e) => toggleDiligenceCheckbox('main_hr', e.target.checked)} className="w-3.5 h-3.5" />
+                        <span className={checkLabel}>Employee leave, payroll, or performance issues</span>
+                      </label>
+                      <label className="flex items-center mb-1 cursor-pointer">
+                        <input type="checkbox" checked={diligenceForm.main_reports || false} onChange={(e) => toggleDiligenceCheckbox('main_reports', e.target.checked)} className="w-3.5 h-3.5" />
+                        <span className={checkLabel}>Lack of reports for decision making</span>
+                      </label>
+                      <label className="flex items-center mb-1 cursor-pointer">
+                        <input type="checkbox" checked={diligenceForm.main_currency || false} onChange={(e) => toggleDiligenceCheckbox('main_currency', e.target.checked)} className="w-3.5 h-3.5" />
+                        <span className={checkLabel}>Difficult to manage multiple currencies</span>
+                      </label>
+                      <label className="flex items-center mb-1 cursor-pointer">
+                        <input type="checkbox" checked={diligenceForm.main_branches || false} onChange={(e) => toggleDiligenceCheckbox('main_branches', e.target.checked)} className="w-3.5 h-3.5" />
+                        <span className={checkLabel}>Difficult to manage multiple branches/locations</span>
+                      </label>
+                      <label className="flex items-center mb-1 cursor-pointer">
+                        <input type="checkbox" checked={diligenceForm.main_other_chk || false} onChange={(e) => toggleDiligenceCheckbox('main_other_chk', e.target.checked)} className="w-3.5 h-3.5" />
+                        <span className={checkLabel}>Other:</span>
+                        <input type="text" value={diligenceForm.main_other || ''} onChange={(e) => updateDiligence('main_other', e.target.value)} className="ml-2 h-7 w-40 px-2 text-xs border border-gray-300 rounded" placeholder="Please specify" />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 6. OTHER REQUIREMENTS / NOTES */}
+                <div>
+                  <h4 className={sectionTitle}>6. OTHER REQUIREMENTS / NOTES</h4>
+                  <p className="text-xs text-blue-500 mb-2 italic">Please mention any special features, compliance needs, or integrations you require</p>
+                  <textarea
+                    value={diligenceForm.other_notes || ''}
+                    onChange={(e) => updateDiligence('other_notes', e.target.value)}
+                    className="w-full h-28 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-gray-50"
+                    placeholder=""
+                  />
+                </div>
+
+                <div className="flex justify-center mt-4">
+                  <button onClick={handleSaveDiligenceForm} disabled={diligenceSaving} className="px-6 py-1.5 text-sm font-medium text-white bg-green-500 rounded hover:bg-green-600 disabled:opacity-50">
+                    {diligenceSaving ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -3042,129 +3599,122 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
           <div className="space-y-6">
             <h3 className={sectionTitle}>MEETING DATE & TIME</h3>
 
-            {/* GENERAL INFORMATION */}
-            <div>
-              <h4 className={sectionTitle}>GENERAL INFORMATION</h4>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Key Person&apos;s Name:</label>
-                  <input type="text" value={questionnaire.meet_key_person || ''} onChange={(e) => updateQ('meet_key_person', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Company Phone:</label>
-                  <input type="text" value={questionnaire.meet_company_phone || ''} onChange={(e) => updateQ('meet_company_phone', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Company Name:</label>
-                  <input type="text" value={questionnaire.meet_company_name || ''} onChange={(e) => updateQ('meet_company_name', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>EXT:</label>
-                  <input type="text" value={questionnaire.meet_ext || ''} onChange={(e) => updateQ('meet_ext', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Address:</label>
-                  <input type="text" value={questionnaire.meet_address || ''} onChange={(e) => updateQ('meet_address', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Fax:</label>
-                  <input type="text" value={questionnaire.meet_fax || ''} onChange={(e) => updateQ('meet_fax', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Country</label>
-                  <select value={questionnaire.meet_country || ''} onChange={(e) => updateQ('meet_country', e.target.value)} className={fieldSelectClass}>
-                    <option value="">Country</option>
-                    <option value="UAE">UAE</option>
-                    <option value="Saudi Arabia">Saudi Arabia</option>
-                    <option value="Qatar">Qatar</option>
-                    <option value="Bahrain">Bahrain</option>
-                    <option value="Kuwait">Kuwait</option>
-                    <option value="Oman">Oman</option>
-                    <option value="India">India</option>
-                    <option value="Pakistan">Pakistan</option>
-                    <option value="USA">USA</option>
-                    <option value="UK">UK</option>
-                  </select>
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Email:</label>
-                  <input type="email" value={questionnaire.meet_email || ''} onChange={(e) => updateQ('meet_email', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Province</label>
-                  <select value={questionnaire.meet_province || ''} onChange={(e) => updateQ('meet_province', e.target.value)} className={fieldSelectClass}>
-                    <option value="">Select State</option>
-                  </select>
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Website:</label>
-                  <input type="text" value={questionnaire.meet_website || ''} onChange={(e) => updateQ('meet_website', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>City</label>
-                  <select value={questionnaire.meet_city || ''} onChange={(e) => updateQ('meet_city', e.target.value)} className={fieldSelectClass}>
-                    <option value="">Select City</option>
-                  </select>
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Any Branch Office:</label>
-                  <input type="text" value={questionnaire.meet_branch_office || ''} onChange={(e) => updateQ('meet_branch_office', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Postal Code:</label>
-                  <input type="text" value={questionnaire.meet_postal_code || ''} onChange={(e) => updateQ('meet_postal_code', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Branch Address:</label>
-                  <input type="text" value={questionnaire.meet_branch_address || ''} onChange={(e) => updateQ('meet_branch_address', e.target.value)} className={fieldInputClass} />
-                </div>
-              </div>
-            </div>
-
-            {/* ARRANGE MEETING SESSION */}
-            <div>
-              <h4 className={sectionTitle}>ARRANGE MEETING SESSION</h4>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Preferred Date:</label>
-                  <input type="date" value={questionnaire.meet_preferred_date || ''} onChange={(e) => updateQ('meet_preferred_date', e.target.value)} className={fieldInputClass} />
-                </div>
-                <div className="flex items-center gap-4 mb-2">
-                  <div className="flex items-center gap-2 flex-1">
-                    <label className={`${subSectionTitle} w-20 flex-shrink-0 mb-0`}>Remark:</label>
-                    <input type="text" value={questionnaire.meet_remark || ''} onChange={(e) => updateQ('meet_remark', e.target.value)} className={fieldInputClass} />
+            {meetingCalendarLoading ? (
+              <div className="text-center py-8 text-gray-500">Loading meeting data...</div>
+            ) : (
+              <>
+                {/* Status Badge */}
+                {meetingCalendar.submit_status === 2 && (
+                  <div className="bg-green-100 border border-green-300 text-green-800 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    Customer has submitted the meeting schedule
                   </div>
-                  <div className="flex items-center gap-2 flex-1">
-                    <label className={`${subSectionTitle} w-20 flex-shrink-0 mb-0`}>Discuss</label>
+                )}
+                {meetingCalendar.submit_status === 1 && meetingCalendar.id && (
+                  <div className="bg-yellow-100 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-lg text-sm">
+                    Form saved as draft by customer
+                  </div>
+                )}
+                {!meetingCalendar.id && (
+                  <div className="bg-gray-100 border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm">
+                    No meeting schedule submitted yet. Share the form link with the customer.
+                  </div>
+                )}
+
+                {/* GENERAL INFORMATION */}
+                <div>
+                  <h4 className={sectionTitle}>GENERAL INFORMATION</h4>
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Key Person&apos;s Name:</label>
+                      <input type="text" value={meetingCalendar.gi_name || ''} readOnly className={`${fieldInputClass} bg-gray-100`} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Company Phone:</label>
+                      <input type="text" value={meetingCalendar.gi_phone || ''} readOnly className={`${fieldInputClass} bg-gray-100`} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Company Name:</label>
+                      <input type="text" value={meetingCalendar.gi_company || ''} readOnly className={`${fieldInputClass} bg-gray-100`} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>EXT:</label>
+                      <input type="text" value={meetingCalendar.gi_ext || ''} readOnly className={`${fieldInputClass} bg-gray-100`} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Address:</label>
+                      <input type="text" value={meetingCalendar.gi_address || ''} readOnly className={`${fieldInputClass} bg-gray-100`} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Fax:</label>
+                      <input type="text" value={meetingCalendar.gi_fax || ''} readOnly className={`${fieldInputClass} bg-gray-100`} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Country:</label>
+                      <input type="text" value={countries.find((c: any) => c.id === meetingCalendar.gi_country)?.name || ''} readOnly className={`${fieldInputClass} bg-gray-100`} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Email:</label>
+                      <input type="email" value={meetingCalendar.gi_email || ''} readOnly className={`${fieldInputClass} bg-gray-100`} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Province:</label>
+                      <input type="text" value={states.find((s: any) => s.id === meetingCalendar.gi_province)?.name || ''} readOnly className={`${fieldInputClass} bg-gray-100`} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Website:</label>
+                      <input type="text" value={meetingCalendar.gi_website || ''} readOnly className={`${fieldInputClass} bg-gray-100`} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>City:</label>
+                      <input type="text" value={cities.find((c: any) => c.id === meetingCalendar.gi_city)?.name || ''} readOnly className={`${fieldInputClass} bg-gray-100`} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Any Branch Office:</label>
+                      <input type="text" value={meetingCalendar.gi_branch_office || ''} readOnly className={`${fieldInputClass} bg-gray-100`} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Postal Code:</label>
+                      <input type="text" value={meetingCalendar.gi_postal || ''} readOnly className={`${fieldInputClass} bg-gray-100`} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Branch Address:</label>
+                      <input type="text" value={meetingCalendar.gi_branch_address || ''} readOnly className={`${fieldInputClass} bg-gray-100`} />
+                    </div>
                   </div>
                 </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Preferred Time:</label>
-                  <input type="time" value={questionnaire.meet_preferred_time || ''} onChange={(e) => updateQ('meet_preferred_time', e.target.value)} className={fieldInputClass} step="1" />
-                </div>
-                <div className={rowClass}>
-                  <label className={`${subSectionTitle} w-20 flex-shrink-0 mb-0`}>TimeZone:</label>
-                  <select value={questionnaire.meet_timezone || ''} onChange={(e) => updateQ('meet_timezone', e.target.value)} className={fieldSelectClass}>
-                    <option value="">Select Timezone</option>
-                    <option value="Asia/Aden (+03:00)">Asia/Aden (+03:00)</option>
-                    <option value="Asia/Dubai (+04:00)">Asia/Dubai (+04:00)</option>
-                    <option value="Asia/Karachi (+05:00)">Asia/Karachi (+05:00)</option>
-                    <option value="Asia/Kolkata (+05:30)">Asia/Kolkata (+05:30)</option>
-                    <option value="Asia/Riyadh (+03:00)">Asia/Riyadh (+03:00)</option>
-                    <option value="Asia/Qatar (+03:00)">Asia/Qatar (+03:00)</option>
-                    <option value="Europe/London (+00:00)">Europe/London (+00:00)</option>
-                    <option value="America/New_York (-05:00)">America/New_York (-05:00)</option>
-                    <option value="America/Los_Angeles (-08:00)">America/Los_Angeles (-08:00)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
 
-            <div className="flex justify-center mt-4">
-              <button onClick={onSave} disabled={saving} className="px-6 py-1.5 text-sm font-medium text-white bg-green-500 rounded hover:bg-green-600 disabled:opacity-50">
-                {saving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
+                {/* ARRANGE MEETING SESSION */}
+                <div>
+                  <h4 className={sectionTitle}>ARRANGE MEETING SESSION (Customer Submitted)</h4>
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Preferred Date:</label>
+                      <input type="text" value={meetingCalendar.prefered_date2 || 'Not specified'} readOnly className={`${fieldInputClass} bg-blue-50 font-medium`} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Remark:</label>
+                      <input type="text" value={meetingCalendar.gi_remark2 || ''} readOnly className={`${fieldInputClass} bg-blue-50`} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>Preferred Time:</label>
+                      <input type="text" value={meetingCalendar.prefered_time2 || 'Not specified'} readOnly className={`${fieldInputClass} bg-blue-50 font-medium`} />
+                    </div>
+                    <div className={rowClass}>
+                      <label className={`${subSectionTitle} w-36 flex-shrink-0 mb-0`}>TimeZone:</label>
+                      <input type="text" value={meetingCalendar.timezone2 ? `Timezone ID: ${meetingCalendar.timezone2}` : 'Not specified'} readOnly className={`${fieldInputClass} bg-blue-50`} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Last Updated Info */}
+                {meetingCalendar.updated_at && (
+                  <div className="text-xs text-gray-500 text-right">
+                    Last updated: {new Date(meetingCalendar.updated_at).toLocaleString()}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
@@ -3176,6 +3726,50 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
           const arrowLeft = <div className="flex items-center mx-1"><svg width="24" height="12" viewBox="0 0 24 12"><line x1="6" y1="6" x2="24" y2="6" stroke="#6366f1" strokeWidth="2"/><polygon points="6,1 0,6 6,11" fill="#6366f1"/></svg></div>;
           const arrowBoth = <div className="flex items-center mx-1"><svg width="28" height="12" viewBox="0 0 28 12"><line x1="6" y1="6" x2="22" y2="6" stroke="#6366f1" strokeWidth="2"/><polygon points="6,1 0,6 6,11" fill="#6366f1"/><polygon points="22,1 28,6 22,11" fill="#6366f1"/></svg></div>;
           const colTitle = "text-sm font-bold text-blue-600 mb-3 text-center uppercase tracking-wide";
+
+          // Generate Process Flow PDF
+          const generateProcessFlowPDF = () => {
+            const doc = new jsPDF('portrait', 'mm', 'a4');
+            doc.setFontSize(18);
+            doc.setTextColor(37, 99, 235);
+            doc.text('Process Flow Diagram', 105, 20, { align: 'center' });
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Generated: ${new Date().toLocaleString()}`, 105, 28, { align: 'center' });
+
+            let yPos = 40;
+            const lineHeight = 6;
+            const sectionGap = 10;
+
+            const addSection = (title: string, items: string[]) => {
+              if (yPos > 260) { doc.addPage(); yPos = 20; }
+              doc.setFontSize(12);
+              doc.setTextColor(37, 99, 235);
+              doc.text(title, 20, yPos);
+              yPos += lineHeight + 2;
+              doc.setFontSize(9);
+              doc.setTextColor(60, 60, 60);
+              items.forEach((item, idx) => {
+                if (yPos > 270) { doc.addPage(); yPos = 20; }
+                doc.text(`${idx + 1}. ${item}`, 25, yPos);
+                yPos += lineHeight;
+              });
+              yPos += sectionGap;
+            };
+
+            addSection('CUSTOMER', ['Pre-Lead', 'Lead', 'Quality Lead', 'Customer', 'Customer Master', 'Campaign', 'Customer Survey']);
+            addSection('ORDERS', ['Customer Inquiry', 'Supplier Inquiry', 'Supplier Quotation', 'Customer Quotation', 'Customer Order', 'Supplier Purchase Order', 'Order Priority', 'Order Pick-Pack', 'Order Shipping', 'Order Tracking']);
+            addSection('SUPPLIER', ['Supplier Master', 'Vendor Master', 'Manufacturer Master', 'Price List']);
+            addSection('PROJECT', ['Task Management', 'Project Management', 'Timesheet']);
+            addSection('INVENTORY', ['Item Master', 'Shipping Instruction', 'Order Receiving', 'Inventory', 'Return Receive', 'Return Authorization']);
+            addSection('FINANCIAL', ['Supplier Invoice', 'Supplier Payment', 'Sales Invoice', 'Customer Payment', 'Employee Payroll', 'Salary Payment', 'Tax Payment', 'Bank Reconciliation', 'Journal Ledger', 'Ledger', 'Fixed Asset', 'Account Statements', 'Tax Return', 'Budget']);
+            addSection('E-COMMERCE', ['E-Commerce', 'Credit Card Payment']);
+            addSection('HRM', ['Recruitment', 'Employee Master', 'Leave Management', 'Employee Assessment', 'Bonus - Increment', 'Holiday Master']);
+            addSection('DOCUMENT MANAGEMENT', ['Inquiry', 'Quotation', 'Order', 'Customer', 'Supplier', 'Accounts', 'Order Fulfillment', 'Return']);
+
+            doc.save(`process-flow-${new Date().toISOString().split('T')[0]}.pdf`);
+          };
+
           return (
           <div className="space-y-8 overflow-x-auto pb-4">
             {/* Row 1: CUSTOMER, ORDERS, SUPPLIER, PROJECT */}
@@ -3376,7 +3970,7 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
 
             {/* Generate PDF Button */}
             <div className="flex justify-center mt-6">
-              <button className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">
+              <button onClick={generateProcessFlowPDF} className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">
                 Generate PDF
               </button>
             </div>
@@ -4316,6 +4910,7 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
                 ))}
               </select>
               <button
+                type="button"
                 onClick={() => onOpenEmailModal && onOpenEmailModal('Presentation', '', presEmailTemplates.find((t: any) => t.email_format === data?.pres_email_format)?.id)}
                 className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
               >
@@ -4700,7 +5295,7 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
 
             {/* Generate PDF Button */}
             <div className="flex justify-center mt-6">
-              <button className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">
+              <button onClick={() => crId && api.generateCRPDF(crId, 'presentation').catch(() => alert('Failed to generate PDF'))} className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">
                 Generate PDF
               </button>
             </div>
@@ -5767,6 +6362,7 @@ function DemoForm({ data, setData, crId, leadId, demos, refreshData, onOpenEmail
                 ))}
               </select>
               <button
+                type="button"
                 onClick={() => {
                   const selectedDocs = demoDocs.filter((d: any) => demoSelectedDocIds.includes(d.id));
                   onOpenEmailModal && onOpenEmailModal('Demo', demoFormData.contact_email, demoEmailTemplates.find((t: any) => t.email_format === demoFormData.email_format_type)?.id, selectedDocs);
@@ -6425,7 +7021,7 @@ function DemoForm({ data, setData, crId, leadId, demos, refreshData, onOpenEmail
 
             {/* Generate PDF Button */}
             <div className="flex justify-center mt-6">
-              <button className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">
+              <button onClick={() => crId && api.generateCRPDF(crId, 'demo').catch(() => alert('Failed to generate PDF'))} className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">
                 Generate PDF
               </button>
             </div>
@@ -7622,6 +8218,7 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
                 ))}
               </select>
               <button
+                type="button"
                 onClick={() => {
                   const selectedDocs = proposalDocs.filter((d: any) => proposalSelectedDocIds.includes(d.id));
                   onOpenEmailModal && onOpenEmailModal('Proposal', proposalFormData.contact_email, proposalEmailTemplates.find((t: any) => t.email_format === proposalFormData.email_format_type)?.id, selectedDocs);
@@ -8121,7 +8718,7 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
               </div>
             </div>
             <div className="flex justify-center mt-6">
-              <button className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">Generate PDF</button>
+              <button onClick={() => crId && api.generateCRPDF(crId, 'proposal').catch(() => alert('Failed to generate PDF'))} className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">Generate PDF</button>
             </div>
           </div>
         );
@@ -8194,7 +8791,7 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
             <button className="px-5 py-1.5 text-sm font-medium text-white bg-green-500 rounded hover:bg-green-600 transition-colors">
               Save
             </button>
-            <button className="px-5 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors">
+            <button onClick={() => crId && api.generateCRPDF(crId, 'proposal').catch(() => alert('Failed to generate PDF'))} className="px-5 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors">
               Generate PDF
             </button>
             <button onClick={() => setProposalContent(getProposalTemplate())} className="px-5 py-1.5 text-sm font-medium text-white bg-gray-600 rounded hover:bg-gray-700 transition-colors">
@@ -9016,9 +9613,12 @@ function AgreementForm({ data, crId, leadId, refreshData, onOpenEmailModal, emai
 
   // Generate agreement PDF
   const handleGenerateAgreementPDF = async () => {
+    if (!crId) {
+      alert('Please save the customer requirement first');
+      return;
+    }
     try {
-      // TODO: API call to generate PDF
-      alert('PDF generation initiated');
+      await api.generateCRPDF(crId, 'agreement');
     } catch (err: any) {
       alert(err?.response?.data?.detail || 'Failed to generate PDF');
     }
@@ -9161,6 +9761,7 @@ function AgreementForm({ data, crId, leadId, refreshData, onOpenEmailModal, emai
                 ))}
               </select>
               <button
+                type="button"
                 onClick={() => onOpenEmailModal && onOpenEmailModal('Agreement', agreementFormData.contact_email, agreementEmailTemplates.find((t: any) => t.email_format === agreementFormData.email_format_type)?.id)}
                 className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
               >
@@ -10142,6 +10743,7 @@ function InitiationForm({ data, crId, leadId, refreshData, onOpenEmailModal, ema
                 ))}
               </select>
               <button
+                type="button"
                 onClick={() => onOpenEmailModal && onOpenEmailModal('Initiation', initiationFormData.contact_email, initiationEmailTemplates.find((t: any) => t.email_format === initiationFormData.email_format_type)?.id)}
                 className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
               >
@@ -10535,7 +11137,7 @@ function InitiationForm({ data, crId, leadId, refreshData, onOpenEmailModal, ema
       {initiationSubTab === 'communication' && (
         <div className="space-y-3">
           <div className="flex justify-end">
-            <button className="px-4 py-1.5 text-xs font-medium text-white bg-gray-600 rounded hover:bg-gray-700">Generate PDF</button>
+            <button onClick={() => crId && api.generateCRPDF(crId, 'initiation').catch(() => alert('Failed to generate PDF'))} className="px-4 py-1.5 text-xs font-medium text-white bg-gray-600 rounded hover:bg-gray-700">Generate PDF</button>
           </div>
           <div className="border rounded overflow-hidden">
             <div className="overflow-x-auto">
@@ -11604,6 +12206,142 @@ function DocumentsSection({ documents, onUpload, onDelete, crId, refreshData }: 
   );
 }
 
+// ============== Links Section ==============
+function LinksSection({ leadId, companyName }: { leadId: number; companyName: string }) {
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
+  const links = [
+    {
+      id: 'diligence',
+      title: 'Pre-Demo Business Questionnaire',
+      description: 'Send this link to the customer to fill out the pre-demo questionnaire form',
+      url: `${baseUrl}/diligence_short_form/${leadId}`,
+      color: 'blue',
+    },
+    {
+      id: 'diligence-alt',
+      title: 'Pre-Demo Business Questionnaire (Alt)',
+      description: 'Alternative link for the pre-demo questionnaire form',
+      url: `${baseUrl}/forms/diligence/${leadId}`,
+      color: 'indigo',
+    },
+    {
+      id: 'meeting-calendar',
+      title: 'Meeting Date & Time',
+      description: 'Send this link to the customer to schedule a meeting/demo session',
+      url: `${baseUrl}/meeting_calender_form/${leadId}`,
+      color: 'green',
+    },
+    {
+      id: 'presentation-meeting',
+      title: 'Demo Date & Time',
+      description: 'Send this link to the customer to schedule a presentation/demo session',
+      url: `${baseUrl}/presentation_meeting_form/${leadId}`,
+      color: 'purple',
+    },
+  ];
+
+  const copyToClipboard = async (url: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(id);
+      setTimeout(() => setCopied(null), 2000);
+    } catch (err) {
+      alert('Failed to copy link');
+    }
+  };
+
+  const openInNewTab = (url: string) => {
+    window.open(url, '_blank');
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center mb-6">
+        <h2 className="text-lg font-semibold text-gray-800">Public Form Links</h2>
+        <p className="text-sm text-gray-500 mt-1">Share these links with customers to collect information</p>
+        {companyName && <p className="text-xs text-blue-600 mt-1">Company: {companyName}</p>}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        {links.map((link) => (
+          <div
+            key={link.id}
+            className={`bg-white border-2 border-${link.color}-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow`}
+          >
+            <div className="flex items-start gap-3">
+              <div className={`p-2 bg-${link.color}-100 rounded-lg`}>
+                <Link2 className={`w-6 h-6 text-${link.color}-600`} />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-800">{link.title}</h3>
+                <p className="text-xs text-gray-500 mt-1">{link.description}</p>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <div className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200">
+                <input
+                  type="text"
+                  value={link.url}
+                  readOnly
+                  className="flex-1 text-xs bg-transparent border-none outline-none text-gray-600"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => copyToClipboard(link.url, link.id)}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  copied === link.id
+                    ? 'bg-green-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {copied === link.id ? (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    Copy Link
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => openInNewTab(link.url)}
+                className={`flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-${link.color}-600 rounded-lg hover:bg-${link.color}-700 transition-colors`}
+              >
+                <ExternalLink className="w-4 h-4" />
+                Open
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Instructions */}
+      <div className="max-w-4xl mx-auto mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <h4 className="font-semibold text-yellow-800 flex items-center gap-2">
+          <MessageSquare className="w-4 h-4" />
+          How to use these links
+        </h4>
+        <ul className="mt-2 text-sm text-yellow-700 space-y-1 list-disc list-inside">
+          <li>Copy the link and share it with the customer via email or message</li>
+          <li>The customer can fill out the form without logging in</li>
+          <li>Once submitted, the data will appear in the Requirement tab</li>
+          <li>The form can be saved as draft and completed later</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 // ============== Memos Section ==============
 function MemosSection({ memos, onAdd, onEdit, onDelete }: any) {
   return (
@@ -11960,6 +12698,7 @@ function PlanningForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
                 ))}
               </select>
               <button
+                type="button"
                 onClick={() => onOpenEmailModal && onOpenEmailModal('Planning', planningFormData.contact_email, planningEmailTemplates.find((t: any) => t.email_format === planningFormData.email_format_type)?.id)}
                 className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
               >
@@ -13853,6 +14592,7 @@ function ConfigurationForm({ data, crId, leadId, refreshData, onOpenEmailModal, 
                 ))}
               </select>
               <button
+                type="button"
                 onClick={() => onOpenEmailModal && onOpenEmailModal('Configuration', configFormData.contact_email, configEmailTemplates.find((t: any) => t.email_format === configFormData.email_format_type)?.id)}
                 className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
               >
@@ -14834,6 +15574,7 @@ function TrainingForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
                 ))}
               </select>
               <button
+                type="button"
                 onClick={() => onOpenEmailModal && onOpenEmailModal('Training', trainingFormData.contact_email, trainingEmailTemplates.find((t: any) => t.email_format === trainingFormData.email_format_type)?.id)}
                 className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
               >
@@ -15910,6 +16651,7 @@ function UATForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHisto
                 ))}
               </select>
               <button
+                type="button"
                 onClick={() => onOpenEmailModal && onOpenEmailModal('UAT', uatFormData.contact_email, uatEmailTemplates.find((t: any) => t.email_format === uatFormData.email_format_type)?.id)}
                 className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
               >
@@ -16768,6 +17510,7 @@ function DataMigrationForm({ data, crId, leadId, refreshData, onOpenEmailModal, 
                 ))}
               </select>
               <button
+                type="button"
                 onClick={() => onOpenEmailModal && onOpenEmailModal('Data Migration', dmFormData.contact_email, dmEmailTemplates.find((t: any) => t.email_format === dmFormData.email_format_type)?.id)}
                 className="w-10 h-8 flex items-center justify-center bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-blue-600"
               >
@@ -17757,6 +18500,7 @@ function GoLiveForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHi
                 ))}
               </select>
               <button
+                type="button"
                 onClick={() => {
                   const selectedDocs = glDocs.filter((d: any) => glSelectedDocIds.includes(d.id));
                   onOpenEmailModal && onOpenEmailModal('Go Live', glFormData.contact_email, glEmailTemplates.find((t: any) => t.email_format === glFormData.email_format_type)?.id, selectedDocs);
@@ -18846,6 +19590,7 @@ function SupportForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailH
                 ))}
               </select>
               <button
+                type="button"
                 onClick={() => {
                   const selectedDocs = supportDocs.filter((d: any) => supportSelectedDocIds.includes(d.id));
                   onOpenEmailModal && onOpenEmailModal('Support', supportFormData.contact_email, supportEmailTemplates.find((t: any) => t.email_format === supportFormData.email_format_type)?.id, selectedDocs);
@@ -19202,7 +19947,7 @@ function SupportForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailH
                 <option value="Closed">Closed</option>
               </select>
             </div>
-            <button onClick={() => alert('Generate PDF functionality')} className="h-8 px-4 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700">
+            <button onClick={() => crId && api.generateCRPDF(crId, 'support').catch(() => alert('Failed to generate PDF'))} className="h-8 px-4 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700">
               Generate PDF
             </button>
           </div>
@@ -20133,7 +20878,8 @@ function CallLogModal({ isOpen, onClose, crId, editingItem, refreshData }: any) 
 }
 
 // ============== Email Modal ==============
-function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, templateId, companyName, onSuccess, attachments = [] }: any) {
+function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, contactName, templateId, companyName, onSuccess, attachments = [] }: any) {
+  const { user } = useAuthStore();
   const [formData, setFormData] = useState({
     to: contactEmail || '',
     cc: '',
@@ -20149,6 +20895,7 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, template
   const [loadingTemplate, setLoadingTemplate] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const editorRef = React.useRef<HTMLDivElement>(null);
+
 
   // Update selectedAttachments when attachments prop changes
   useEffect(() => {
@@ -20171,6 +20918,80 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, template
     }
   }, [contactEmail]);
 
+  // Function to load template content with placeholder replacements
+  const processTemplateContent = (template: any) => {
+    // Replace placeholders with actual values
+    let bodyContent = template.email_template || '';
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
+    // User and contact placeholders
+    const placeholders: Record<string, string> = {
+      // Contact and company info
+      CONTACT_NAME: contactName || 'Valued Customer',
+      COMPANY_NAME: companyName || '',
+      // User info
+      USER_FIRST_NAME: user?.first_name || user?.name?.split(' ')[0] || '',
+      USER_LAST_NAME: user?.last_name || user?.name?.split(' ').slice(1).join(' ') || '',
+      USER_TITLE: user?.title || user?.role || 'Sales Representative',
+      USER_EXT: user?.ext || user?.extension || '100',
+      USER_EMAIL: user?.email || '',
+      // Form URLs - these will only appear if the template contains the placeholder
+      DUE_DILIGENCE_LINK: `<a href="${baseUrl}/forms/diligence/${leadId}" target="_blank" style="color:#0070C0;">Due Diligence Questionnaire</a>`,
+      DUE_DILIGENCE_SHORT_LINK: `<a href="${baseUrl}/forms/diligence/${leadId}" target="_blank" style="color:#0070C0;">Pre-Demo Business Questionnaire</a>`,
+      ECOMMERCE_QUESTIONNAIRE_LINK: `<a href="${baseUrl}/forms/ecommerce/${leadId}" target="_blank" style="color:#0070C0;">E-commerce Questionnaire</a>`,
+      UAT_LINK: `<a href="${baseUrl}/forms/uat/${leadId}" target="_blank" style="color:#0070C0;">UAT Form</a>`,
+      DATA_MIGRATION_LINK: `<a href="${baseUrl}/forms/data-migration/${leadId}" target="_blank" style="color:#0070C0;">Data Migration Form</a>`,
+      PRESENTATION_FORM_LINK: `<a href="${baseUrl}/forms/presentation/${leadId}" target="_blank" style="color:#0070C0;">Presentation Form</a>`,
+      DEMO_FORM_LINK: `<a href="${baseUrl}/forms/demo/${leadId}" target="_blank" style="color:#0070C0;">Demo Form</a>`,
+      CONFIGURATION_FORM: `<a href="${baseUrl}/forms/configuration/${leadId}" target="_blank" style="color:#0070C0;">Configuration Form</a>`,
+      DATA_MIGRATION_FORM: `<a href="${baseUrl}/forms/data-migration/${leadId}" target="_blank" style="color:#0070C0;">Data Migration Form</a>`,
+      MEETING_CALENDAR_LINK: `<a href="${baseUrl}/forms/meeting/${leadId}" target="_blank" style="color:#0070C0;">Schedule Meeting</a>`,
+      DEMO_DATE_TIME: `<a href="${baseUrl}/forms/demo-schedule/${leadId}" target="_blank" style="color:#0070C0;">Demo Schedule</a>`,
+      DEMO_VIDEO_LINK: '',
+      ECO_LINKS: '',
+      // Generate attachments HTML if there are selected attachments
+      ATTACHMENTS: (() => {
+        if (!selectedAttachments || selectedAttachments.length === 0) return '';
+        const attachmentCount = selectedAttachments.length;
+        const headerText = attachmentCount === 1
+          ? 'Here is your attachment:'
+          : `Here are your attachments:`;
+        let html = `<div style="margin-top: 8px;"><strong>${headerText}</strong></div>`;
+        selectedAttachments.forEach((att: any, index: number) => {
+          const attName = att.description || att.notes || att.file_name || 'Attachment';
+          const attUrl = att.file_url || att.url || '#';
+          html += `<div style="margin-left: 10px;"><a target="_blank" href="${attUrl}" style="color:#0070C0;">${index + 1}. ${attName}</a></div>`;
+        });
+        return html;
+      })(),
+    };
+
+    // Replace all placeholders
+    Object.entries(placeholders).forEach(([key, value]) => {
+      const placeholder = `[#${key}#]`;
+      bodyContent = bodyContent.split(placeholder).join(value);
+    });
+
+    return {
+      subject: template.subject || '',
+      body: bodyContent,
+    };
+  };
+
+  // Load template into form state
+  const loadTemplateContent = (template: any) => {
+    setLoadingTemplate(true);
+    try {
+      setSelectedTemplate(template);
+      const { subject, body } = processTemplateContent(template);
+      setFormData(prev => ({ ...prev, subject, body }));
+    } catch (err) {
+      console.error('Failed to load template:', err);
+    } finally {
+      setLoadingTemplate(false);
+    }
+  };
+
   // Load template content when templateId changes or when selected from dropdown
   useEffect(() => {
     if (templateId && templates.length > 0) {
@@ -20179,23 +21000,8 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, template
         loadTemplateContent(template);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateId, templates]);
-
-  const loadTemplateContent = async (template: any) => {
-    setLoadingTemplate(true);
-    try {
-      setSelectedTemplate(template);
-      setFormData(prev => ({
-        ...prev,
-        subject: template.subject || '',
-        body: template.email_template || '',
-      }));
-    } catch (err) {
-      console.error('Failed to load template:', err);
-    } finally {
-      setLoadingTemplate(false);
-    }
-  };
 
   const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const templateIdVal = parseInt(e.target.value);
@@ -20278,7 +21084,7 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, template
   const tabTitle = tab ? tab.charAt(0).toUpperCase() + tab.slice(1).replace(/-/g, ' ') : 'Lead Request';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60">
       <div className="bg-white shadow-2xl w-[950px] max-h-[90vh] overflow-hidden flex flex-col border border-gray-400">
         {/* Header - Dark background like screenshot */}
         <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white">
@@ -20532,6 +21338,13 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, template
               className="min-h-[350px] p-4 focus:outline-none text-sm"
               dangerouslySetInnerHTML={{ __html: formData.body }}
               onBlur={(e) => setFormData({ ...formData, body: e.currentTarget.innerHTML })}
+              onClick={(e) => {
+                // Prevent links in email body from navigating
+                const target = e.target as HTMLElement;
+                if (target.tagName === 'A') {
+                  e.preventDefault();
+                }
+              }}
               style={{ lineHeight: '1.6' }}
             />
           )}

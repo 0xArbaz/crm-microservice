@@ -16,7 +16,8 @@ from app.api.v1.endpoints import (
     customer_requirements,
     option_master,
     location,
-    cri_email_template
+    cri_email_template,
+    public_forms
 )
 
 api_router = APIRouter()
@@ -71,3 +72,6 @@ api_router.include_router(location.router, prefix="/location", tags=["Location"]
 
 # CRI Email Templates
 api_router.include_router(cri_email_template.router, prefix="/cri-email-templates", tags=["CRI Email Templates"])
+
+# Public Forms (no authentication required)
+api_router.include_router(public_forms.router, prefix="/public/forms", tags=["Public Forms"])

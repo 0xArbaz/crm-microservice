@@ -14,7 +14,7 @@ from app.models.customer_requirement import (
     CRDemo, CRProposal, CRAgreement, CRInitiation, CRPlanning,
     CRConfiguration, CRTraining, CRUAT, CRDataMigration, CRGoLive,
     CRSupport, CRCallLog, CRDocument, CRActivity, CRMemo, CRStatusHistory,
-    CREmailHistory
+    CREmailHistory, CRDiligenceShortForm, CRMeetingCalendar
 )
 from app.schemas.customer_requirement import (
     CustomerRequirementCreate, CustomerRequirementUpdate, CustomerRequirementResponse,
@@ -28,7 +28,8 @@ from app.schemas.customer_requirement import (
     CRActivityCreate, CRActivityUpdate, CRActivityResponse,
     CRMemoCreate, CRMemoUpdate, CRMemoResponse,
     CRCallLogCreate, CRCallLogUpdate, CRCallLogResponse,
-    CREmailHistoryCreate, CREmailHistoryResponse, SendEmailRequest
+    CREmailHistoryCreate, CREmailHistoryResponse, SendEmailRequest,
+    CRDiligenceShortFormCreate, CRDiligenceShortFormUpdate, CRDiligenceShortFormResponse
 )
 import json
 from app.core.permissions import check_permission
@@ -843,3 +844,291 @@ def delete_email_history(
     db.commit()
 
     return {"message": "Email record deleted successfully"}
+
+
+# ============== Diligence Short Form (Pre-Demo Business Questionnaire) ==============
+
+@router.get("/{cr_id}/diligence-short-form", response_model=CRDiligenceShortFormResponse)
+def get_diligence_short_form(
+    cr_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get diligence short form (Pre-Demo Business Questionnaire) data"""
+    form = db.query(CRDiligenceShortForm).filter(
+        CRDiligenceShortForm.customer_requirement_id == cr_id
+    ).first()
+
+    if not form:
+        # Auto-create with default values
+        form = CRDiligenceShortForm(customer_requirement_id=cr_id, created_by=current_user.id)
+        db.add(form)
+        db.commit()
+        db.refresh(form)
+
+    return form
+
+
+@router.put("/{cr_id}/diligence-short-form", response_model=CRDiligenceShortFormResponse)
+def update_diligence_short_form(
+    cr_id: int,
+    data: CRDiligenceShortFormUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update diligence short form (Pre-Demo Business Questionnaire) data"""
+    form = db.query(CRDiligenceShortForm).filter(
+        CRDiligenceShortForm.customer_requirement_id == cr_id
+    ).first()
+
+    if not form:
+        form = CRDiligenceShortForm(customer_requirement_id=cr_id, created_by=current_user.id)
+        db.add(form)
+
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(form, field, value)
+
+    db.commit()
+    db.refresh(form)
+
+    return form
+
+
+@router.post("/{cr_id}/diligence-short-form", response_model=CRDiligenceShortFormResponse, status_code=status.HTTP_201_CREATED)
+def create_diligence_short_form(
+    cr_id: int,
+    data: CRDiligenceShortFormCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Create diligence short form (Pre-Demo Business Questionnaire) data"""
+    # Check if form already exists
+    existing = db.query(CRDiligenceShortForm).filter(
+        CRDiligenceShortForm.customer_requirement_id == cr_id
+    ).first()
+
+    if existing:
+        # Update existing form instead of creating new one
+        for field, value in data.model_dump(exclude_unset=True).items():
+            setattr(existing, field, value)
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    form = CRDiligenceShortForm(customer_requirement_id=cr_id, **data.model_dump(), created_by=current_user.id)
+    db.add(form)
+    db.commit()
+    db.refresh(form)
+
+    return form
+
+
+# ============== Meeting Calendar (Meeting Date & Time) ==============
+
+@router.get("/{cr_id}/meeting-calendar")
+def get_meeting_calendar(
+    cr_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get meeting calendar (Meeting Date & Time) data"""
+    # Get customer requirement for auto-fill data
+    cr = db.query(CustomerRequirement).filter(CustomerRequirement.id == cr_id).first()
+    if not cr:
+        raise HTTPException(status_code=404, detail="Customer requirement not found")
+
+    form = db.query(CRMeetingCalendar).filter(
+        CRMeetingCalendar.customer_requirement_id == cr_id
+    ).first()
+
+    if not form:
+        # Auto-create with default values from customer requirement
+        form = CRMeetingCalendar(
+            customer_requirement_id=cr_id,
+            gi_name=cr.contact_name,
+            gi_company=cr.company_name,
+            gi_address=cr.address_line1,
+            gi_country=cr.country_id,
+            gi_province=cr.state_id,
+            gi_city=cr.city_id,
+            gi_postal=cr.zip_code,
+            gi_phone=cr.phone_no,
+            gi_ext=cr.phone_ext,
+            gi_fax=cr.fax,
+            gi_email=cr.contact_email,
+            gi_website=cr.website,
+            gi_branch_office=cr.branch_office,
+            timezone=cr.timezone_id,
+            timezone2=cr.timezone_id,
+            created_by=current_user.id
+        )
+        db.add(form)
+        db.commit()
+        db.refresh(form)
+
+    # Return data with auto-filled general information from CR
+    return {
+        "id": form.id,
+        "customer_requirement_id": form.customer_requirement_id,
+        # General Information - always from CustomerRequirement (auto-filled)
+        "gi_name": cr.contact_name,
+        "gi_company": cr.company_name,
+        "gi_address": cr.address_line1,
+        "gi_country": cr.country_id,
+        "gi_province": cr.state_id,
+        "gi_city": cr.city_id,
+        "gi_postal": cr.zip_code,
+        "gi_phone": cr.phone_no,
+        "gi_ext": cr.phone_ext,
+        "gi_fax": cr.fax,
+        "gi_email": cr.contact_email,
+        "gi_website": cr.website,
+        "gi_branch_office": cr.branch_office,
+        "gi_branch_address": form.gi_branch_address,
+        # Meeting Session - from form
+        "prefered_date": form.prefered_date,
+        "prefered_time": form.prefered_time,
+        "gi_remark": form.gi_remark,
+        "timezone": form.timezone or cr.timezone_id,
+        "prefered_date2": form.prefered_date2,
+        "prefered_time2": form.prefered_time2,
+        "gi_remark2": form.gi_remark2,
+        "timezone2": form.timezone2 or cr.timezone_id,
+        # Status
+        "submit_status": form.submit_status,
+        "created_at": form.created_at,
+        "updated_at": form.updated_at,
+    }
+
+
+# ============== PDF Generation ==============
+from fastapi.responses import FileResponse
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.units import inch
+from io import BytesIO
+import tempfile
+
+
+@router.get("/{cr_id}/generate-pdf/{tab_name}")
+def generate_pdf(
+    cr_id: int,
+    tab_name: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Generate PDF for a specific tab (agreement, proposal, requirement, etc.)"""
+    if not check_permission(current_user.role, "leads", "read"):
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    # Get customer requirement
+    cr = db.query(CustomerRequirement).filter(CustomerRequirement.id == cr_id).first()
+    if not cr:
+        raise HTTPException(status_code=404, detail="Customer requirement not found")
+
+    # Get lead info
+    lead = db.query(Lead).filter(Lead.id == cr.lead_id).first()
+
+    # Create PDF
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+    doc = SimpleDocTemplate(temp_file.name, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=18, spaceAfter=30, alignment=1)
+    heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading2'], fontSize=14, spaceAfter=12)
+    normal_style = styles['Normal']
+
+    story = []
+
+    # Header
+    company_name = cr.company_name or (lead.company_name if lead else "N/A")
+    story.append(Paragraph(f"Customer Requirement - {tab_name.title()}", title_style))
+    story.append(Paragraph(f"Company: {company_name}", normal_style))
+    story.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", normal_style))
+    story.append(Spacer(1, 20))
+
+    # Tab-specific content
+    if tab_name == "agreement":
+        agreement = db.query(CRAgreement).filter(CRAgreement.customer_requirement_id == cr_id).first()
+        if agreement:
+            story.append(Paragraph("Agreement Details", heading_style))
+            story.append(Paragraph(f"Agreement Type: {agreement.agreement_type or 'N/A'}", normal_style))
+            story.append(Paragraph(f"Status: {agreement.status or 'N/A'}", normal_style))
+            if agreement.content:
+                story.append(Spacer(1, 10))
+                story.append(Paragraph("Content:", heading_style))
+                # Strip HTML tags for PDF
+                import re
+                clean_content = re.sub('<[^<]+?>', '', agreement.content or '')
+                story.append(Paragraph(clean_content[:2000], normal_style))
+
+    elif tab_name == "proposal":
+        proposal = db.query(CRProposal).filter(CRProposal.customer_requirement_id == cr_id).first()
+        if proposal:
+            story.append(Paragraph("Proposal Details", heading_style))
+            story.append(Paragraph(f"Status: {proposal.status or 'N/A'}", normal_style))
+            story.append(Paragraph(f"Proposal Date: {proposal.proposal_date or 'N/A'}", normal_style))
+            if proposal.content:
+                story.append(Spacer(1, 10))
+                import re
+                clean_content = re.sub('<[^<]+?>', '', proposal.content or '')
+                story.append(Paragraph(clean_content[:2000], normal_style))
+
+    elif tab_name == "requirement":
+        requirement = db.query(CRRequirement).filter(CRRequirement.customer_requirement_id == cr_id).first()
+        if requirement:
+            story.append(Paragraph("Requirement Details", heading_style))
+            if requirement.requirements_json:
+                try:
+                    reqs = json.loads(requirement.requirements_json) if isinstance(requirement.requirements_json, str) else requirement.requirements_json
+                    if isinstance(reqs, list):
+                        for i, req in enumerate(reqs[:20], 1):
+                            if isinstance(req, dict):
+                                story.append(Paragraph(f"{i}. {req.get('title', req.get('name', 'N/A'))}", normal_style))
+                except:
+                    pass
+
+    elif tab_name == "introduction":
+        intro = db.query(CRIntroduction).filter(CRIntroduction.customer_requirement_id == cr_id).first()
+        if intro:
+            story.append(Paragraph("Introduction Details", heading_style))
+            story.append(Paragraph(f"Contact Person: {intro.contact_person or 'N/A'}", normal_style))
+            story.append(Paragraph(f"Email: {intro.email or 'N/A'}", normal_style))
+            story.append(Paragraph(f"Phone: {intro.phone or 'N/A'}", normal_style))
+            if intro.notes:
+                story.append(Spacer(1, 10))
+                story.append(Paragraph(f"Notes: {intro.notes}", normal_style))
+
+    elif tab_name == "demo":
+        demo = db.query(CRDemo).filter(CRDemo.customer_requirement_id == cr_id).first()
+        if demo:
+            story.append(Paragraph("Demo Details", heading_style))
+            story.append(Paragraph(f"Demo Date: {demo.demo_date or 'N/A'}", normal_style))
+            story.append(Paragraph(f"Status: {demo.status or 'N/A'}", normal_style))
+            if demo.notes:
+                story.append(Paragraph(f"Notes: {demo.notes}", normal_style))
+
+    elif tab_name == "presentation":
+        pres = db.query(CRPresentation).filter(CRPresentation.customer_requirement_id == cr_id).first()
+        if pres:
+            story.append(Paragraph("Presentation Details", heading_style))
+            story.append(Paragraph(f"Status: {pres.status or 'N/A'}", normal_style))
+            if pres.notes:
+                story.append(Paragraph(f"Notes: {pres.notes}", normal_style))
+
+    else:
+        story.append(Paragraph(f"PDF generation for '{tab_name}' tab", normal_style))
+
+    # Build PDF
+    doc.build(story)
+
+    # Return file
+    filename = f"CR_{cr_id}_{tab_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    return FileResponse(
+        temp_file.name,
+        media_type='application/pdf',
+        filename=filename,
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

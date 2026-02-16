@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.api.v1.router import api_router
 from app.core.database import engine, Base
+import os
 
 # Create database tables (for development - use Alembic in production)
 # Base.metadata.create_all(bind=engine)
@@ -27,6 +29,12 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(api_router, prefix="/api/v1")
+
+# Mount uploads directory for static file serving (documents, images, etc.)
+uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
+if not os.path.exists(uploads_dir):
+    os.makedirs(uploads_dir)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 
 @app.get("/")

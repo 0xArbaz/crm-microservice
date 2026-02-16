@@ -23,7 +23,7 @@ from app.models.customer_requirement import (
     CRDemo, CRProposal, CRAgreement, CRInitiation, CRPlanning,
     CRConfiguration, CRTraining, CRUAT, CRDataMigration, CRGoLive,
     CRSupport, CRCallLog, CRDocument, CRActivity, CRMemo, CRStatusHistory,
-    CREmailHistory
+    CREmailHistory, CRDiligenceShortForm, CRMeetingCalendar, CRPresentationMeeting
 )
 from app.models.option_master import Option, OptionDropdown
 from app.models.location import Country, State, City
@@ -75,6 +75,9 @@ __all__ = [
     "CRMemo",
     "CRStatusHistory",
     "CREmailHistory",
+    "CRDiligenceShortForm",
+    "CRMeetingCalendar",
+    "CRPresentationMeeting",
     "Option",
     "OptionDropdown",
     "Country",

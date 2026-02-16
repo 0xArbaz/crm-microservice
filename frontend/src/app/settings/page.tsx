@@ -206,6 +206,16 @@ export default function SettingsPage() {
                 </div>
               </a>
               <a
+                href="/settings/email-templates"
+                className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <Mail className="w-8 h-8 text-orange-500" />
+                <div>
+                  <p className="font-medium">Email Templates</p>
+                  <p className="text-sm text-gray-500">Configure email formats</p>
+                </div>
+              </a>
+              <a
                 href="/webhooks"
                 className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
               >
