@@ -28,6 +28,11 @@ export const allEmailTemplates: EmailTemplateConfig[] = [
   ...implementationTemplates,
 ];
 
+// Debug: Log available planning templates on module load
+if (typeof window !== 'undefined') {
+  console.log('Email Templates Loaded - Planning templates:', allEmailTemplates.filter(t => t.tab === 'planning').map(t => ({ id: t.id, name: t.name })));
+}
+
 // ============================================================================
 // TEMPLATE LOOKUP FUNCTIONS
 // ============================================================================
@@ -36,7 +41,13 @@ export const allEmailTemplates: EmailTemplateConfig[] = [
  * Get email template by ID (email_format_option_value)
  */
 export function getEmailTemplateById(id: string): EmailTemplateConfig | undefined {
-  return allEmailTemplates.find(t => t.id === id);
+  const template = allEmailTemplates.find(t => t.id === id);
+  // Debug: log available template IDs for planning tab
+  if (!template && id) {
+    console.log('getEmailTemplateById - Template not found for ID:', id);
+    console.log('getEmailTemplateById - Available planning IDs:', allEmailTemplates.filter(t => t.tab === 'planning').map(t => t.id));
+  }
+  return template;
 }
 
 /**
@@ -94,8 +105,13 @@ export function generateEmailHtml(templateId: string, data: Partial<EmailPlaceho
     ecomid: data.ecomid || '',
     url: data.url || '',
     url1: data.url1 || '',
+    url2: data.url2 || '',
     url3: data.url3 || '',
     url4: data.url4 || '',
+    url8: data.url8 || '',
+    config_url_warehouse: data.config_url_warehouse || '',
+    config_url_impex: data.config_url_impex || '',
+    config_url_service: data.config_url_service || '',
     attachments: data.attachments || [],
     ...data,
   };
@@ -202,7 +218,12 @@ export const defaultPlaceholderData: EmailPlaceholderData = {
   ecomid: '',
   url: '',
   url1: '',
+  url2: '',
   url3: '',
   url4: '',
+  url8: '',
+  config_url_warehouse: '',
+  config_url_impex: '',
+  config_url_service: '',
   attachments: [],
 };

@@ -73,7 +73,7 @@ export const agreement2: EmailTemplateConfig = {
   id: 'agreement-2',
   name: 'Agreement Email 2 - Follow-up',
   tab: 'agreement',
-  subject: 'Following Up on Agreement - Axiever',
+  subject: 'Follow-Up: Request for Signed Agreement for our ERP solution',
 
   getBody: (data: EmailPlaceholderData) => {
     const content = `
@@ -81,18 +81,31 @@ export const agreement2: EmailTemplateConfig = {
       ${getGreeting(data.contact_name)}
 
       <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
-        I wanted to follow up on the agreement I sent for your review. I hope you had a chance to go through the terms and conditions.
+        I am writing to follow up on the Agreement that we previously sent over for your review and signature. We believe you had ample time to review the agreement thoroughly.
       </div>
 
       <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
-        If you have any questions, concerns, or if there are any terms you would like to discuss, please let me know. We are flexible and open to addressing any specific requirements you may have.
+        However, as we move forward with the next steps of our collaboration, we kindly request that you please sign and return the agreement at your earliest convenience. Your signature on the agreement would be the final step in formalizing our proposed ERP solution.
       </div>
 
       <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
-        Once the agreement is signed, we can begin the onboarding process immediately. Our team is ready to ensure a smooth transition for your organization.
+        If you have any questions or concerns regarding the content of the agreement, please do not hesitate to contact us.
+      </div>
+
+      <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        Alternatively, we have set up an automatic meeting calendar. Simply click the link below, choose a date and time that suits you best, and provide a brief purpose for the meeting. We will take care of the rest by arranging for the appropriate person to join.
       </div>
 
       ${getFormLinksSection(data)}
+
+      <div style="margin:8pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        To expedite the signing process, you can simply sign the document electronically through the given link below. Alternatively, you may print, sign, and scan it back to us. Your prompt attention to this matter would be greatly appreciated, as it will allow us to initiate the next steps in our collaboration without delay.
+      </div>
+
+      <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        Looking forward to receiving the signed agreement.
+      </div>
+
       ${getAttachmentsSection(data.attachments)}
       ${getFooter()}
       ${getSignature(data)}
@@ -104,14 +117,14 @@ export const agreement2: EmailTemplateConfig = {
 };
 
 // ============================================================================
-// AGREEMENT-3: Agreement Signed Confirmation
+// AGREEMENT-3: Agreement Signed Confirmation (Counter-Signed Agreement)
 // ============================================================================
 
 export const agreement3: EmailTemplateConfig = {
   id: 'agreement-3',
   name: 'Agreement Email 3 - Signed Confirmation',
   tab: 'agreement',
-  subject: 'Agreement Received - Welcome to Axiever!',
+  subject: 'Counter-Signed Agreement',
 
   getBody: (data: EmailPlaceholderData) => {
     const content = `
@@ -119,26 +132,27 @@ export const agreement3: EmailTemplateConfig = {
       ${getGreeting(data.contact_name)}
 
       <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
-        Thank you for signing the agreement! We are thrilled to welcome you as our valued partner.
+        On behalf of <strong>Axiever</strong>, we want to express our sincere gratitude for choosing us as your solution provider for the implementation of our ERP solution at <strong>${data.company_name || ''}</strong>.
+      </div>
+
+      <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        I am pleased to inform you that we have received the signed Agreement, which will be counter-signed by our authorized representative.
       </div>
 
       <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
-        Here is what happens next:
-      </div>
-
-      <ol style="margin: 4pt 0 0 20px; padding: 0; font-family: Calibri, sans-serif; font-size: 11px;">
-        <li style="margin-bottom: 2pt;">Our implementation team will reach out within the next 24-48 hours</li>
-        <li style="margin-bottom: 2pt;">We will schedule a kickoff meeting to discuss the project timeline</li>
-        <li style="margin-bottom: 2pt;">You will receive access to our project portal for tracking progress</li>
-        <li style="margin-bottom: 2pt;">We will begin the initial configuration based on your requirements</li>
-      </ol>
-
-      <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
-        In the meantime, please review the attached onboarding materials to help your team prepare for the implementation.
+        Acknowledgment of Commitment:
       </div>
 
       <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
-        We are excited to embark on this journey with you!
+        Your commitment to collaborate with us for your ERP software needs is a testament to the confidence you have in our capabilities. We are dedicated to delivering a solution that meets all your business requirements.
+      </div>
+
+      <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        Please find attached the counter-signed agreement for your records. If there are any additional documents or information you require, please let us know.
+      </div>
+
+      <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        Looking forward to a fruitful collaboration and a successful implementation of our ERP solution.
       </div>
 
       ${getFormLinksSection(data)}
@@ -153,14 +167,14 @@ export const agreement3: EmailTemplateConfig = {
 };
 
 // ============================================================================
-// AGREEMENT-4: Payment Terms
+// AGREEMENT-4: Advance Payment Request
 // ============================================================================
 
 export const agreement4: EmailTemplateConfig = {
   id: 'agreement-4',
   name: 'Agreement Email 4 - Payment Terms',
   tab: 'agreement',
-  subject: 'Payment Terms and Invoice - Axiever',
+  subject: 'Request for Advance Payment - Invoice Attached',
 
   getBody: (data: EmailPlaceholderData) => {
     const content = `
@@ -168,26 +182,23 @@ export const agreement4: EmailTemplateConfig = {
       ${getGreeting(data.contact_name)}
 
       <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
-        Following the signed agreement, please find attached the invoice with payment details.
+        Thank you for choosing Axiever as your solution provider.
       </div>
 
       <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
-        Payment Details:
+        We kindly request you process advance payment by the terms outlined in the agreement. Attached to this email, you will find the invoice detailing the amount and payment instructions.
       </div>
 
-      <ul style="margin: 4pt 0 0 20px; padding: 0; font-family: Calibri, sans-serif; font-size: 11px;">
-        <li>Invoice Number: [Invoice Number]</li>
-        <li>Amount Due: [Amount]</li>
-        <li>Due Date: [Due Date]</li>
-        <li>Payment Method: Bank Transfer / Credit Card</li>
-      </ul>
-
-      <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
-        Upon receipt of payment, we will begin the implementation process as outlined in our agreement.
+      <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        This will enable us to proceed with the necessary preparations and allocation of resources for the successful execution of the project promptly.
       </div>
 
-      <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
-        If you have any questions regarding the invoice or payment terms, please do not hesitate to reach out.
+      <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        Should you require any further clarification or assistance regarding the invoice or payment process, please do not hesitate to reach out to me directly.
+      </div>
+
+      <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        We sincerely appreciate your prompt attention to this matter and your continued trust in Axiever.
       </div>
 
       ${getFormLinksSection(data)}
@@ -202,14 +213,14 @@ export const agreement4: EmailTemplateConfig = {
 };
 
 // ============================================================================
-// AGREEMENT-5: Agreement Amendment
+// AGREEMENT-5: Payment Follow-up
 // ============================================================================
 
 export const agreement5: EmailTemplateConfig = {
   id: 'agreement-5',
-  name: 'Agreement Email 5 - Amendment',
+  name: 'Agreement Email 5 - Payment Follow-up',
   tab: 'agreement',
-  subject: 'Agreement Amendment - Axiever',
+  subject: 'Follow-Up: Request for Advance Payment for proposed ERP solution',
 
   getBody: (data: EmailPlaceholderData) => {
     const content = `
@@ -217,24 +228,31 @@ export const agreement5: EmailTemplateConfig = {
       ${getGreeting(data.contact_name)}
 
       <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
-        Based on our recent discussions, please find attached the amended agreement with the requested changes.
+        I want to follow up regarding the advance payment request to implement our proposed ERP solution at <strong>${data.company_name || ''}</strong>.
       </div>
 
-      <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
-        Key amendments include:
+      <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        As outlined in our previous communication and the signed agreement, an advance payment is required to facilitate the necessary preparations and resources for the smooth implementation process.
       </div>
 
-      <ul style="margin: 4pt 0 0 20px; padding: 0; font-family: Calibri, sans-serif; font-size: 11px;">
-        <li>[Amendment 1 description]</li>
-        <li>[Amendment 2 description]</li>
-        <li>[Amendment 3 description]</li>
-      </ul>
+      <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        Attaching the invoice to this email again, detailing the amount due for the advance payment. We kindly request that you process this payment at your earliest convenience to allow us to proceed with the implementation process promptly.
+      </div>
 
-      <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
-        All other terms remain unchanged from the original agreement. Please review and sign the amended document to proceed.
+      <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        Should you require any further clarification regarding the invoice or payment process, please do not hesitate to contact us.
+      </div>
+
+      <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        Alternatively, we have set up an automatic meeting calendar. Simply click the link below, choose a date and time that suits you best, and provide a brief purpose for the meeting. We will take care of the rest by arranging for the appropriate person to join.
       </div>
 
       ${getFormLinksSection(data)}
+
+      <div style="margin:8pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        Thank you for your attention to this matter and your continued trust in Axiever.
+      </div>
+
       ${getAttachmentsSection(data.attachments)}
       ${getFooter()}
       ${getSignature(data)}

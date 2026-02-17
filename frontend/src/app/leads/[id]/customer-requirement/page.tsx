@@ -13,6 +13,7 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/stores/auth';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getEmailTemplateById, EmailPlaceholderData } from '@/lib/emailTemplates';
 
 // Tab configuration with icons
 const mainTabs = [
@@ -20904,10 +20905,10 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, contactN
     }
   }, [attachments]);
 
-  // Load templates for the tab
+  // Load templates for the tab (convert to lowercase to match database)
   useEffect(() => {
     if (tab) {
-      api.getCRIEmailTemplates(tab).then(setTemplates).catch(() => setTemplates([]));
+      api.getCRIEmailTemplates(tab.toLowerCase()).then(setTemplates).catch(() => setTemplates([]));
     }
   }, [tab]);
 
@@ -20920,60 +20921,79 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, contactN
 
   // Function to load template content with placeholder replacements
   const processTemplateContent = (template: any) => {
-    // Replace placeholders with actual values
-    let bodyContent = template.email_template || '';
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    let bodyContent = '';
+    let subjectContent = template.subject || '';
 
-    // User and contact placeholders
-    const placeholders: Record<string, string> = {
-      // Contact and company info
-      CONTACT_NAME: contactName || 'Valued Customer',
-      COMPANY_NAME: companyName || '',
-      // User info
-      USER_FIRST_NAME: user?.first_name || user?.name?.split(' ')[0] || '',
-      USER_LAST_NAME: user?.last_name || user?.name?.split(' ').slice(1).join(' ') || '',
-      USER_TITLE: user?.title || user?.role || 'Sales Representative',
-      USER_EXT: user?.ext || user?.extension || '100',
-      USER_EMAIL: user?.email || '',
-      // Form URLs - these will only appear if the template contains the placeholder
-      DUE_DILIGENCE_LINK: `<a href="${baseUrl}/forms/diligence/${leadId}" target="_blank" style="color:#0070C0;">Due Diligence Questionnaire</a>`,
-      DUE_DILIGENCE_SHORT_LINK: `<a href="${baseUrl}/forms/diligence/${leadId}" target="_blank" style="color:#0070C0;">Pre-Demo Business Questionnaire</a>`,
-      ECOMMERCE_QUESTIONNAIRE_LINK: `<a href="${baseUrl}/forms/ecommerce/${leadId}" target="_blank" style="color:#0070C0;">E-commerce Questionnaire</a>`,
-      UAT_LINK: `<a href="${baseUrl}/forms/uat/${leadId}" target="_blank" style="color:#0070C0;">UAT Form</a>`,
-      DATA_MIGRATION_LINK: `<a href="${baseUrl}/forms/data-migration/${leadId}" target="_blank" style="color:#0070C0;">Data Migration Form</a>`,
-      PRESENTATION_FORM_LINK: `<a href="${baseUrl}/forms/presentation/${leadId}" target="_blank" style="color:#0070C0;">Presentation Form</a>`,
-      DEMO_FORM_LINK: `<a href="${baseUrl}/forms/demo/${leadId}" target="_blank" style="color:#0070C0;">Demo Form</a>`,
-      CONFIGURATION_FORM: `<a href="${baseUrl}/forms/configuration/${leadId}" target="_blank" style="color:#0070C0;">Configuration Form</a>`,
-      DATA_MIGRATION_FORM: `<a href="${baseUrl}/forms/data-migration/${leadId}" target="_blank" style="color:#0070C0;">Data Migration Form</a>`,
-      MEETING_CALENDAR_LINK: `<a href="${baseUrl}/forms/meeting/${leadId}" target="_blank" style="color:#0070C0;">Schedule Meeting</a>`,
-      DEMO_DATE_TIME: `<a href="${baseUrl}/forms/demo-schedule/${leadId}" target="_blank" style="color:#0070C0;">Demo Schedule</a>`,
-      DEMO_VIDEO_LINK: '',
-      ECO_LINKS: '',
-      // Generate attachments HTML if there are selected attachments
-      ATTACHMENTS: (() => {
-        if (!selectedAttachments || selectedAttachments.length === 0) return '';
-        const attachmentCount = selectedAttachments.length;
-        const headerText = attachmentCount === 1
-          ? 'Here is your attachment:'
-          : `Here are your attachments:`;
-        let html = `<div style="margin-top: 8px;"><strong>${headerText}</strong></div>`;
-        selectedAttachments.forEach((att: any, index: number) => {
-          const attName = att.description || att.notes || att.file_name || 'Attachment';
-          const attUrl = att.file_url || att.url || '#';
-          html += `<div style="margin-left: 10px;"><a target="_blank" href="${attUrl}" style="color:#0070C0;">${index + 1}. ${attName}</a></div>`;
-        });
-        return html;
-      })(),
-    };
+    // Debug logging
+    console.log('processTemplateContent - template:', template);
+    console.log('processTemplateContent - email_format_option_values:', template.email_format_option_values);
 
-    // Replace all placeholders
-    Object.entries(placeholders).forEach(([key, value]) => {
-      const placeholder = `[#${key}#]`;
-      bodyContent = bodyContent.split(placeholder).join(value);
-    });
+    // Try to use frontend template - use email_format_option_values which contains ID like 'agreement-1'
+    const frontendTemplate = getEmailTemplateById(template.email_format_option_values);
+    console.log('processTemplateContent - frontendTemplate found:', !!frontendTemplate, frontendTemplate?.id);
+
+    if (frontendTemplate && frontendTemplate.getBody) {
+      // Use frontend template with getBody function
+      const placeholderData: EmailPlaceholderData = {
+        contact_name: contactName || 'Valued Customer',
+        company_name: companyName || '',
+        contact_email: contactEmail || '',
+        contact_phone: '',
+        lead_id: leadId?.toString() || '',
+        user_name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(),
+        user_email: user?.email || '',
+        user_title: user?.title || user?.role || 'Sales Representative',
+        user_ext: user?.ext || user?.extension || '100',
+        user_first_name: user?.first_name || user?.name?.split(' ')[0] || '',
+        user_last_name: user?.last_name || user?.name?.split(' ').slice(1).join(' ') || '',
+        date: new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString(),
+        meeting_date: '',
+        meeting_time: '',
+        form_link: `${baseUrl}/forms/diligence/${leadId}`,
+        form_links: [],
+        portal_link: `${baseUrl}/portal`,
+        dueid: 0,
+        dueshortid: 0,
+        ecomid: '',
+        url: `${baseUrl}/forms/meeting/${leadId}`,
+        url1: `${baseUrl}/forms/ecommerce/${leadId}`,
+        url2: `${baseUrl}/forms/data-migration/${leadId}`,
+        url3: `${baseUrl}/forms/configuration/${leadId}`,
+        url4: `${baseUrl}/forms/diligence/${leadId}`,
+        url8: `${baseUrl}/forms/poc/${leadId}`,
+        config_url_warehouse: '',
+        config_url_impex: '',
+        config_url_service: '',
+        attachments: selectedAttachments.map((att: any, index: number) => ({
+          id: att.id || index,
+          name: att.file_name || att.original_filename || 'Attachment',
+          url: att.file_url || att.url || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/${att.file_path}`,
+          notes: att.description || att.notes || att.file_name || 'Attachment',
+        })),
+      };
+      bodyContent = frontendTemplate.getBody(placeholderData);
+      subjectContent = frontendTemplate.subject || subjectContent;
+    } else if (template.email_template) {
+      // Fallback to database template with placeholder replacements
+      bodyContent = template.email_template;
+      const placeholders: Record<string, string> = {
+        CONTACT_NAME: contactName || 'Valued Customer',
+        COMPANY_NAME: companyName || '',
+        USER_FIRST_NAME: user?.first_name || user?.name?.split(' ')[0] || '',
+        USER_LAST_NAME: user?.last_name || user?.name?.split(' ').slice(1).join(' ') || '',
+        USER_TITLE: user?.title || user?.role || 'Sales Representative',
+        USER_EXT: user?.ext || user?.extension || '100',
+        USER_EMAIL: user?.email || '',
+      };
+      Object.entries(placeholders).forEach(([key, value]) => {
+        bodyContent = bodyContent.split(`[#${key}#]`).join(value);
+      });
+    }
 
     return {
-      subject: template.subject || '',
+      subject: subjectContent,
       body: bodyContent,
     };
   };

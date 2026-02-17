@@ -43,8 +43,15 @@ export interface EmailPlaceholderData {
   // URLs
   url: string;
   url1: string;
+  url2: string;
   url3: string;
   url4: string;
+  url8: string;
+
+  // Configuration Form URLs
+  config_url_warehouse: string;
+  config_url_impex: string;
+  config_url_service: string;
 
   // Attachments
   attachments: Attachment[];
