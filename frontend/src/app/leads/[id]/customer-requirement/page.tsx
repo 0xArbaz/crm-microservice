@@ -20908,7 +20908,15 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, contactN
   // Load templates for the tab (convert to lowercase to match database)
   useEffect(() => {
     if (tab) {
-      api.getCRIEmailTemplates(tab.toLowerCase()).then(setTemplates).catch(() => setTemplates([]));
+      console.log('EmailModal - Loading templates for tab:', tab.toLowerCase());
+      api.getCRIEmailTemplates(tab.toLowerCase()).then((data) => {
+        console.log('EmailModal - Templates loaded:', data?.length, 'templates');
+        console.log('EmailModal - First template:', data?.[0]);
+        setTemplates(data);
+      }).catch((err) => {
+        console.error('EmailModal - Failed to load templates:', err);
+        setTemplates([]);
+      });
     }
   }, [tab]);
 
@@ -21004,6 +21012,8 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, contactN
     try {
       setSelectedTemplate(template);
       const { subject, body } = processTemplateContent(template);
+      console.log('EmailModal - loadTemplateContent, subject:', subject?.substring(0, 50));
+      console.log('EmailModal - loadTemplateContent, body length:', body?.length, 'body preview:', body?.substring(0, 100));
       setFormData(prev => ({ ...prev, subject, body }));
     } catch (err) {
       console.error('Failed to load template:', err);
@@ -21014,10 +21024,14 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, contactN
 
   // Load template content when templateId changes or when selected from dropdown
   useEffect(() => {
+    console.log('EmailModal - useEffect triggered, templateId:', templateId, 'templates.length:', templates.length);
     if (templateId && templates.length > 0) {
       const template = templates.find((t: any) => t.id === templateId);
+      console.log('EmailModal - Found template by ID:', template?.id, template?.title, template?.email_format_option_values);
       if (template) {
         loadTemplateContent(template);
+      } else {
+        console.log('EmailModal - Template not found! Available IDs:', templates.map((t: any) => t.id));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -21025,8 +21039,10 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, contactN
 
   const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const templateIdVal = parseInt(e.target.value);
+    console.log('EmailModal - handleTemplateChange, selected ID:', templateIdVal);
     if (templateIdVal) {
       const template = templates.find((t: any) => t.id === templateIdVal);
+      console.log('EmailModal - handleTemplateChange, found template:', template?.title, template?.email_format_option_values);
       if (template) {
         loadTemplateContent(template);
       }

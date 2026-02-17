@@ -24,19 +24,74 @@ export const introduction1: EmailTemplateConfig = {
   id: 'introduction-1',
   name: 'Introduction Email 1 - Oil & Gas Industry',
   tab: 'introduction',
-  subject: 'Simplify Your Oil & Gas Trading Operations with Axiever ERP',
+  subject: 'Streamline Operations with Smart Cloud Business Management Software (ERP)',
 
   getBody: (data: EmailPlaceholderData) => {
+    // Parse ecomid to determine which resource links to show
+    const ecomidArray = data.ecomid ? data.ecomid.split(',').map(id => parseInt(id.trim())) : [];
+
+    // Build resource links conditionally based on ecomid
+    let resourceLinks = '';
+    if (ecomidArray.includes(32)) {
+      resourceLinks += `<a style="line-height: 1.3; font-family: Calibri, sans-serif; font-size: 11px;" target="_blank" href="${RESOURCE_LINKS.companyProfile}">Company Profile</a><br>`;
+    }
+    if (ecomidArray.includes(15)) {
+      resourceLinks += `<div><a target="_blank" href="${RESOURCE_LINKS.videoGeneral}">Axiever Video</a></div>`;
+    }
+    if (ecomidArray.includes(16)) {
+      resourceLinks += `<div><a target="_blank" href="${RESOURCE_LINKS.videoBenefits}">Problems & Solutions Video</a></div>`;
+    }
+    if (ecomidArray.includes(17)) {
+      resourceLinks += `<div><a target="_blank" href="${RESOURCE_LINKS.pptProblems}">Problems & Solutions Presentation</a></div>`;
+    }
+
+    // Build form links based on dueid
+    let formLinks = '';
+    if (data.dueid === 2 && data.url) {
+      formLinks += `<a target="_blank" href="${data.url}">UAT Link</a>`;
+    } else if (data.dueid === 3 && data.url) {
+      formLinks += `<a class="btn btn-primary" target="_blank" href="${data.url}">Data Migration</a>`;
+    } else if (data.dueid === 4 && data.url) {
+      formLinks += `<a class="btn btn-primary" target="_blank" href="${data.url}">Due Diligence Questionnaire</a>`;
+    } else if (data.dueid === 'presentation' && data.url) {
+      formLinks += `<a class="btn btn-primary" target="_blank" href="${data.url}">Presentation Form</a>`;
+    } else if (data.dueid === 'demo' && data.url) {
+      formLinks += `<a class="btn btn-primary" target="_blank" href="${data.url}">Demo Form</a>`;
+    }
+
+    // Build attachments section
+    let attachmentsHtml = '';
+    if (data.attachments && data.attachments.length > 0) {
+      const verb = data.attachments.length === 1 ? 'is' : 'are';
+      const noun = data.attachments.length === 1 ? 'attachment' : 'attachments';
+      attachmentsHtml = `
+        <div style="margin-top: 8px;">
+          <strong>Here ${verb} your ${noun}:</strong>
+        </div>`;
+      data.attachments.forEach((doc, index) => {
+        attachmentsHtml += `
+          <div style="margin-left: 10px;">
+            <a target="_blank" href="${doc.url}">${index + 1}. ${doc.notes || doc.name}</a>
+          </div>`;
+      });
+    }
+
     const content = `
-      ${getHeader()}
-      ${getGreeting(data.contact_name)}
+      <div style="margin:0pt 0 0 0; font-family:Calibri, sans-serif; font-size:12px;">
+        <strong style="color:#0070C0;">"We give progressive business. Big Automation"</strong><br>
+        <strong style="color:#0070C0;">"Automate. Simplify. Grow - Smarter, Affordable ERP with Robotic Process Automation & Artificial Intelligence"</strong>
+      </div>
+
+      <div style="margin:8pt 0 0 0; font-family: Calibri, sans-serif; font-size: 11px; line-height: 1.7; color: #000000; padding-top:6px;">
+        <strong>Dear ${data.contact_name || '[#CONTACT_NAME#]'},</strong>
+      </div>
 
       <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
         Managing trading and operational workflows of industrial products primarily to the oil, gas, and petrochemical industry can be challenging - especially with manual processes and disconnected systems of handling multiple RFQS, Supplier Quotations, Price Comparison, and Customer Quotations. Also handling Customer Orders, Supplier Orders, and deliveries from multiple suppliers.
       </div>
 
       <div style="margin:0pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
-        That is where Axiever helps; the software has it all and handles the entire process flawlessly, with a Streamlined Process, Artificial Intelligence, and Robotic Process Automation.
+        That's where Axiever helps; the software has it all and handles the entire process flawlessly, with a Streamlined Process, Artificial Intelligence, and Robotic Process Automation.
       </div>
 
       <div style="margin:0pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
@@ -48,9 +103,9 @@ export const introduction1: EmailTemplateConfig = {
           <span style="color: #000;">Automates workflows:</span>
           <div style="margin: 0pt 0 0 20px; padding: 0; font-family: Calibri, sans-serif; font-size: 11px;">
             <div><span style="color: #000;">- From Customer RFQ to Supplier selection and Inquiry</span></div>
-            <div><span style="color: #000;">- Suppliers Quotation to Price comparison and Customer Quotation,</span></div>
+            <div><span style="color: #000;">- Suppliers' Quotation to Price comparison and Customer Quotation,</span></div>
             <div><span style="color: #000;">- Customer Order to Supplier Purchase Order</span></div>
-            <div><span style="color: #000;">- Supplier delivery to the customer warehouse</span></div>
+            <div><span style="color: #000;">- Supplier delivery to the customer's warehouse</span></div>
           </div>
         </li>
       </ul>
@@ -83,12 +138,52 @@ export const introduction1: EmailTemplateConfig = {
         Want to see how this works? Click on the links below:
       </div>
 
-      ${getResourceLinksSection([32, 15, 16, 17])}
-      ${getFormLinksSection(data)}
-      ${getAttachmentsSection(data.attachments)}
-      ${getFooter()}
-      ${getSignature(data)}
-      ${getConfidentialityNotice()}
+      <div class="mlft_10" style="margin:4px 0 0 0; line-height: 1.3; font-family: Calibri, sans-serif; font-size: 11px;">
+        ${resourceLinks}
+      </div>
+
+      <div style="line-height: 1.3; font-family: Calibri, sans-serif; font-size: 11px;">
+        ${formLinks}
+        ${attachmentsHtml}
+      </div>
+
+      <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        Best regards,<br>
+        <strong style="color:#0070C0;">Axiever</strong><br>
+        <em style="color:#0070C0;">Smart. Simple. Affordable.</em><br>
+        <em style="color:#0070C0;">A Canadian-headquartered company helping businesses grow faster with AI-powered simplicity.</em>
+      </div>
+
+      <table style="margin:4px 0 0 0;" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="border: none; vertical-align: top; border-right: 1.5px solid #0f0f0f; padding-right: 10px;">
+            <a href="${BRAND.websiteUrl}" target="_blank">
+              <img src="${BRAND.logoUrl}" width="75" alt="Axiever Logo" style="display: block; border: none;">
+            </a>
+          </td>
+          <td style="font-size: 11px; font-family: Calibri, sans-serif; padding-left: 15px;">
+            <strong>${data.user_first_name || '[#USER_FIRST_NAME#]'} ${data.user_last_name || '[#USER_LAST_NAME#]'}</strong><br>
+            <span style="color: #0070C0;">${data.user_title || '[#USER_TITLE#]'}</span><br>
+            <a href="tel:+19059974044" style="color: #0070C0; text-decoration: none;">
+              <img src="${ICONS.phone}" alt="Phone Icon" width="14" style="vertical-align: middle; margin-right: 5px;">
+              +1 (905) 997-4044 ext. ${data.user_ext || '[#USER_EXT#]'}
+            </a><br>
+            <a href="mailto:${data.user_email || '[#USER_EMAIL#]'}" style="color: #0070C0; text-decoration: none;">
+              <img src="${ICONS.email}" alt="Mail Icon" width="14" style="vertical-align: middle; margin-right: 5px;">
+              ${data.user_email || '[#USER_EMAIL#]'}
+            </a><br>
+            <a href="${BRAND.websiteUrl}" style="color: #0070C0; text-decoration: none;">
+              <img src="${ICONS.website}" alt="Website Icon" width="14" style="vertical-align: middle; margin-right: 5px;">
+              www.axiever.com
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <div style="margin:10px 0 0 0; font-size:11px; color:#666; padding-top:10px; font-family:Calibri, sans-serif;">
+        <em>This email and any attachments are confidential and may be privileged.
+          If you are not the intended recipient, please notify the sender immediately and delete this email.</em>
+      </div>
     `;
 
     return wrapEmail(content);
@@ -103,14 +198,93 @@ export const introduction2: EmailTemplateConfig = {
   id: 'introduction-2',
   name: 'Introduction Email 2 - Follow-up',
   tab: 'introduction',
-  subject: 'Follow-up: Affordable ERP Solution for Your Business',
+  subject: 'Follow-Up: Introduction to ERP Software Solution',
 
   getBody: (data: EmailPlaceholderData) => {
+    // Build form links based on dueid
+    let formLinks = '';
+    if (data.dueid === 2 && data.url) {
+      formLinks += `
+        <div>
+          <a class="email-button" target="_blank" href="${data.url}"
+            style="font-family: Calibri, sans-serif; font-size: 11px; line-height: 1.3;
+              text-decoration: none; color: #0056b3;">
+            UAT Link
+          </a>
+        </div>`;
+    } else if (data.dueid === 3 && data.url) {
+      formLinks += `
+        <div>
+          <a class="email-button" target="_blank" href="${data.url}"
+            style="display: inline-block; padding: 6px 12px; font-family: Calibri, sans-serif;
+              font-size: 11px; color: #ffffff; background-color: #0056b3;
+              text-decoration: none; border-radius: 4px;">
+            Data Migration
+          </a>
+        </div>`;
+    } else if (data.dueid === 4 && data.url) {
+      formLinks += `
+        <div>
+          <a class="email-button" target="_blank" href="${data.url}"
+            style="display: inline-block; padding: 6px 12px; font-family: Calibri, sans-serif;
+              font-size: 11px; color: #ffffff; background-color: #0056b3;
+              text-decoration: none; border-radius: 4px;">
+            Due Diligence Questionnaire
+          </a>
+        </div>`;
+    } else if (data.dueid === 'presentation' && data.url) {
+      formLinks += `
+        <div>
+          <a class="email-button" target="_blank" href="${data.url}"
+            style="display: inline-block; padding: 6px 12px; font-family: Calibri, sans-serif;
+              font-size: 11px; color: #ffffff; background-color: #0056b3;
+              text-decoration: none; border-radius: 4px;">
+            Presentation Form
+          </a>
+        </div>`;
+    } else if (data.dueid === 'demo' && data.url) {
+      formLinks += `
+        <div>
+          <a class="email-button" target="_blank" href="${data.url}"
+            style="display: inline-block; padding: 6px 12px; font-family: Calibri, sans-serif;
+              font-size: 11px; color: #ffffff; background-color: #0056b3;
+              text-decoration: none; border-radius: 4px;">
+            Demo Form
+          </a>
+        </div>`;
+    }
+
+    // Build attachments section
+    let attachmentsHtml = '';
+    if (data.attachments && data.attachments.length > 0) {
+      const verb = data.attachments.length === 1 ? 'is' : 'are';
+      const noun = data.attachments.length === 1 ? 'attachment' : 'attachments';
+      attachmentsHtml = `
+        <div style="margin-top: 10px;">
+          <strong style="font-family: Calibri, sans-serif; font-size: 11px;">
+            Here ${verb} your ${noun}:
+          </strong>
+        </div>`;
+      data.attachments.forEach((doc, index) => {
+        attachmentsHtml += `
+          <div>
+            <a class="email-button" target="_blank" href="${doc.url}"
+              style="font-family: Calibri, sans-serif; font-size: 11px; line-height: 1.3;
+                text-decoration: none; color: #007bff;">
+              ${index + 1}. ${doc.notes || doc.name}
+            </a>
+          </div>`;
+      });
+    }
+
     const content = `
-      ${getHeader()}
+      <div style="margin:0pt 0 0 0; font-family:Calibri, sans-serif; font-size:12px;">
+        <strong style="color:#0070C0;">"We give progressive business. Big Automation"</strong><br>
+        <strong style="color:#0070C0;">"Automate. Simplify. Grow - Smarter, Affordable ERP with Robotic Process Automation & Artificial Intelligence"</strong>
+      </div>
 
       <div style="margin:8pt 0 0 0; font-family: Calibri, sans-serif; font-size: 11px; line-height: 1.7; color: #000000; padding-bottom:8px;">
-        <strong>Dear ${data.contact_name || '{{contact_name}}'},</strong>
+        <strong>Dear ${data.contact_name || '[#CONTACT_NAME#]'},</strong>
       </div>
 
       <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px; padding-bottom:8px;">
@@ -118,7 +292,7 @@ export const introduction2: EmailTemplateConfig = {
       </div>
 
       <div style="margin:0pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
-        As we have not heard back from you yet, we wanted to reiterate the value proposition of our ERP solution and highlight some key benefits:
+        As we haven't heard back from you yet, we wanted to reiterate the value proposition of our ERP solution and highlight some key benefits:
       </div>
 
       <ul style="margin: 0pt 0 0 20px; padding: 0; font-family: Calibri, sans-serif; font-size: 11px;">
@@ -138,7 +312,7 @@ export const introduction2: EmailTemplateConfig = {
       <ul style="margin: 0pt 0 0 20px; padding: 0; font-family: Calibri, sans-serif; font-size: 11px;">
         <li>
           <span style="color: #0070C0; font-weight: bold;">Scalability:</span>
-          <span style="color: #000;"> Designed to grow with your client businesses, our ERP solution ensures scalability without compromising performance.</span>
+          <span style="color: #000;"> Designed to grow with your clients' businesses, our ERP solution ensures scalability without compromising performance.</span>
         </li>
       </ul>
 
@@ -189,8 +363,10 @@ export const introduction2: EmailTemplateConfig = {
         Looking forward to hearing from you soon!
       </div>
 
-      ${getFormLinksSection(data)}
-      ${getAttachmentsSection(data.attachments)}
+      <div class="mlft_5" style="margin:4pt 0 0 0; font-family: Calibri, sans-serif; font-size: 11px; line-height: 1.3;">
+        ${formLinks}
+        ${attachmentsHtml}
+      </div>
 
       <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px; padding-top:8px;">
         Best regards,<br>
@@ -199,8 +375,36 @@ export const introduction2: EmailTemplateConfig = {
         <em style="color:#0070C0;">A Canadian-headquartered company helping businesses grow faster with AI-powered simplicity.</em>
       </div>
 
-      ${getSignature(data)}
-      ${getConfidentialityNotice()}
+      <table style="margin:4px 0 0 0;" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="border: none; vertical-align: top; border-right: 1.5px solid #0f0f0f; padding-right: 10px;">
+            <a href="${BRAND.websiteUrl}" target="_blank">
+              <img src="${BRAND.logoUrl}" width="75" alt="Axiever Logo" style="display: block; border: none;">
+            </a>
+          </td>
+          <td style="font-size: 11px; font-family: Calibri, sans-serif; padding-left: 15px;">
+            <strong>${data.user_first_name || '[#USER_FIRST_NAME#]'} ${data.user_last_name || '[#USER_LAST_NAME#]'}</strong><br>
+            <span style="color: #0070C0;">${data.user_title || '[#USER_TITLE#]'}</span><br>
+            <a href="tel:+19059974044" style="color: #0070C0; text-decoration: none;">
+              <img src="${ICONS.phone}" alt="Phone Icon" width="14" style="vertical-align: middle; margin-right: 5px;">
+              +1 (905) 997-4044 ext. ${data.user_ext || '[#USER_EXT#]'}
+            </a><br>
+            <a href="mailto:${data.user_email || '[#USER_EMAIL#]'}" style="color: #0070C0; text-decoration: none;">
+              <img src="${ICONS.email}" alt="Mail Icon" width="14" style="vertical-align: middle; margin-right: 5px;">
+              ${data.user_email || '[#USER_EMAIL#]'}
+            </a><br>
+            <a href="${BRAND.websiteUrl}" style="color: #0070C0; text-decoration: none;">
+              <img src="${ICONS.website}" alt="Website Icon" width="14" style="vertical-align: middle; margin-right: 5px;">
+              www.axiever.com
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <div style="margin:10px 0 0 0; font-size:11px; color:#666; padding-top:10px; font-family:Calibri, sans-serif;">
+        <em>This email and any attachments are confidential and may be privileged.
+          If you are not the intended recipient, please notify the sender immediately and delete this email.</em>
+      </div>
     `;
 
     return wrapEmail(content);
@@ -1101,6 +1305,203 @@ export const introduction8: EmailTemplateConfig = {
   },
 };
 
+export const introduction9: EmailTemplateConfig = {
+  id: 'introduction-9',
+  name: 'Introduction Email 9 - LinkedIn Profile Outreach',
+  tab: 'introduction',
+  subject: 'Streamline Your Operations with AI-Powered ERP - Axiever',
+
+  getBody: (data: EmailPlaceholderData) => {
+    // Parse ecomid to determine which resource links to show
+    const ecomidArray = data.ecomid ? data.ecomid.split(',').map(id => parseInt(id.trim())) : [];
+
+    // Build resource links conditionally based on ecomid
+    let resourceLinks = '';
+    if (ecomidArray.includes(32)) {
+      resourceLinks += `<a style="line-height: 1.3; font-family: Calibri, sans-serif; font-size: 11px;" target="_blank" href="${RESOURCE_LINKS.companyProfile}">Company Profile</a><br>`;
+    }
+    if (ecomidArray.includes(15)) {
+      resourceLinks += `<a style="line-height: 1.3; font-family: Calibri, sans-serif; font-size: 11px;" target="_blank" href="${RESOURCE_LINKS.videoGeneral}">Axiever Video</a><br>`;
+    }
+    if (ecomidArray.includes(16)) {
+      resourceLinks += `<a style="line-height: 1.3; font-family: Calibri, sans-serif; font-size: 11px;" target="_blank" href="${RESOURCE_LINKS.videoBenefits}">Problems & Solutions Video</a><br>`;
+    }
+    if (ecomidArray.includes(17)) {
+      resourceLinks += `<a style="line-height: 1.3; font-family: Calibri, sans-serif; font-size: 11px;" target="_blank" href="${RESOURCE_LINKS.pptProblems}">Problems & Solutions Presentation</a><br>`;
+    }
+
+    // Build form links based on dueid
+    let formLinks = '';
+    if (data.dueid === 2 && data.url) {
+      formLinks += `<a style="line-height: 1.3; font-family: Calibri, sans-serif; font-size: 11px;" target="_blank" href="${data.url}">Uat Link</a>`;
+    } else if (data.dueid === 3 && data.url) {
+      formLinks += `<a style="line-height: 1.3; font-family: Calibri, sans-serif; font-size: 11px;" target="_blank" href="${data.url}">Data Migration</a>`;
+    } else if (data.dueid === 4 && data.url) {
+      formLinks += `<a style="line-height: 1.3; font-family: Calibri, sans-serif; font-size: 11px;" target="_blank" href="${data.url}">Due Diligence Questionnaire</a>`;
+    } else if (data.dueid === 'presentation' && data.url) {
+      formLinks += `<a style="line-height: 1.3; font-family: Calibri, sans-serif; font-size: 11px;" target="_blank" href="${data.url}">Presentation Form</a>`;
+    } else if (data.dueid === 'demo' && data.url) {
+      formLinks += `<a style="line-height: 1.3; font-family: Calibri, sans-serif; font-size: 11px;" target="_blank" href="${data.url}">Demo Form</a>`;
+    }
+
+    // Build attachments section
+    let attachmentsHtml = '';
+    if (data.attachments && data.attachments.length > 0) {
+      const verb = data.attachments.length === 1 ? 'is' : 'are';
+      const noun = data.attachments.length === 1 ? 'attachment' : 'attachments';
+      attachmentsHtml = `<h5>Here ${verb} your ${noun}</h5>`;
+      data.attachments.forEach((doc, index) => {
+        attachmentsHtml += `<a style="line-height: 1.3; font-family: Calibri, sans-serif; font-size: 11px;" target="_blank" href="${doc.url}">${index + 1}. ${doc.notes || doc.name}</a>`;
+        if (index < data.attachments.length - 1) {
+          attachmentsHtml += ',<br>';
+        } else {
+          attachmentsHtml += '<br>';
+        }
+      });
+    }
+
+    const content = `
+      <div style="margin:0pt 0 0 0; font-family:Calibri, sans-serif; font-size:12px;">
+        <strong style="color:#0070C0;">"We give progressive business. Big Automation"</strong><br>
+        <strong style="color:#0070C0;">"Automate. Simplify. Grow - Smarter, Affordable ERP with Robotic Process Automation & Artificial Intelligence"</strong>
+      </div>
+
+      <div style="margin:8pt 0 0 0; font-family: Calibri, sans-serif; font-size: 11px; line-height: 1.7; color: #000000; padding-top:6px;">
+        <strong>Dear ${data.contact_name || '[#CONTACT_NAME#]'},</strong>
+      </div>
+
+      <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        I came across your profile and reviewed your experience at <strong>${data.company_name || '[#COMPANY_NAME#]'}</strong>, particularly in driving growth and managing complex operations.
+      </div>
+
+      <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        That is why I want to introduce Axiever - Business Management Solution (ERP system) - an AI + RPA driven platform designed to transform business operations:
+      </div>
+
+      <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        In an increasingly competitive landscape, leveraging automation is no longer just an advantage; it is becoming essential for long-term business resilience and survival.
+      </div>
+
+      <div style="margin:4pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        Axiever is a cloud-native software designed specifically to future-proof your operations.
+      </div>
+
+      <h3 style="margin:8pt 0 0 0; font-family:Calibri, sans-serif; font-size: 11px; margin: 4px 0; color: #0070C0; padding-top:10px; padding-left: 2px;">Why This Matters</h3>
+
+      <table cellpadding="8" cellspacing="0" border="1" style="border-collapse: collapse; font-size: 11px; font-family: Calibri, sans-serif; color: #000;">
+        <thead style="background-color: #2F4FEC; color: #fff;">
+          <tr>
+            <th align="left" style="background-color: #2F4FEC; color: #ffffff; font-family: Calibri, sans-serif; font-size: 11px;">
+              Feature
+            </th>
+            <th align="left" style="background-color: #2F4FEC; color: #ffffff; font-family: Calibri, sans-serif; font-size: 11px;">
+              Benefit
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-size: 11px; color: #0070C0;">
+              <strong style="font-size: 11px;">AI + RPA Automation</strong>
+            </td>
+            <td style="font-size: 11px; color: #0070C0;">
+              Eliminates repetitive tasks and manual errors
+            </td>
+          </tr>
+          <tr>
+            <td style="font-size: 11px; color: #0070C0;">
+              <strong style="font-size: 11px;">Remote Team Tracking</strong>
+            </td>
+            <td style="font-size: 11px; color: #0070C0;">
+              Visibility & accountability across remote/hybrid setups
+            </td>
+          </tr>
+          <tr>
+            <td style="font-size: 11px; color: #0070C0;">
+              <strong style="font-size: 11px;">Cloud Infrastructure</strong>
+            </td>
+            <td style="font-size: 11px; color: #0070C0;">
+              No servers or IT upkeep, accessible anywhere
+            </td>
+          </tr>
+          <tr>
+            <td style="font-size: 11px; color: #0070C0;">
+              <strong style="font-size: 11px;">AI Onboarding System</strong>
+            </td>
+            <td style="font-size: 11px; color: #0070C0;">
+              With Axiever Academy, staff trained in hours, not months
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin:8px 0 0 0; font-family:Calibri, sans-serif; font-size:11px; padding-top:10px;">
+        On average, our clients reduce admin work by 68% and see efficiency gains of up to 30% in the first 60 days. Most see full ROI in 3-6 months - after which the software pays for itself and generates ongoing cost savings.
+      </div>
+
+      <div style="margin:4px 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        Happy to walk you through a quick 15-30 minute session to see how we can simplify operations and free your team to focus on growth?
+      </div>
+
+      <div style="margin:4px 0 0 0; font-family:Calibri, sans-serif; font-size:11px;">
+        Want to see how this works? Click on the links below:
+      </div>
+
+      <div style="margin:4px 0 0 0; margin-left: 4px;">
+        <div>
+          ${resourceLinks}
+        </div>
+      </div>
+
+      <div>
+        ${formLinks}
+        ${attachmentsHtml}
+      </div>
+
+      <div style="margin:5px 0 0 0; font-family:Calibri, sans-serif; font-size:11px; padding-top:5px;">
+        Best regards,<br>
+        <strong style="color:#0070C0;">Axiever</strong><br>
+        <em style="color:#0070C0;">Smart. Simple. Affordable.</em><br>
+        <em style="color:#0070C0;">A Canadian-headquartered company helping businesses grow faster with AI-powered simplicity.</em>
+      </div>
+
+      <!-- Signature block -->
+      <table cellpadding="0" cellspacing="0" style="margin:8pt 0 0 0; padding-top:5px;">
+        <tr>
+          <td style="border: none; vertical-align: top; border-right: 1.5px solid #0f0f0f; padding-right: 10px;">
+            <a href="${BRAND.websiteUrl}" target="_blank">
+              <img src="${BRAND.logoUrl}" width="75" alt="Axiever Logo" style="display: block; border: none;">
+            </a>
+          </td>
+          <td style="font-size: 11px; font-family: Calibri, sans-serif; padding-left: 15px;">
+            <strong>${data.user_first_name || '[#USER_FIRST_NAME#]'} ${data.user_last_name || '[#USER_LAST_NAME#]'}</strong><br>
+            <span style="color: #0070C0;">${data.user_title || '[#USER_TITLE#]'}</span><br>
+            <a href="tel:+19059974044" style="color: #0070C0; text-decoration: none;">
+              <img src="${ICONS.phone}" alt="Phone Icon" width="14" style="vertical-align: middle; margin-right: 5px;">
+              +1 (905) 997-4044 ext. ${data.user_ext || '[#USER_EXT#]'}
+            </a><br>
+            <a href="mailto:${data.user_email || '[#USER_EMAIL#]'}" style="color: #0070C0; text-decoration: none;">
+              <img src="${ICONS.email}" alt="Mail Icon" width="14" style="vertical-align: middle; margin-right: 5px;">
+              ${data.user_email || '[#USER_EMAIL#]'}
+            </a><br>
+            <a href="${BRAND.websiteUrl}" style="color: #0070C0; text-decoration: none;">
+              <img src="${ICONS.website}" alt="Website Icon" width="14" style="vertical-align: middle; margin-right: 5px;">
+              www.axiever.com
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <div style="margin:8pt 0 0 0; font-size:11px; color:#666; padding-top:10px; font-family:Calibri, sans-serif;">
+        <em>This email and any attachments are confidential and may be privileged.
+          If you are not the intended recipient, please notify the sender immediately and delete this email.</em>
+      </div>
+    `;
+
+    return wrapEmail(content);
+  },
+};
+
 // Export all introduction templates
 export const introductionTemplates: EmailTemplateConfig[] = [
   introduction1,
@@ -1111,4 +1512,5 @@ export const introductionTemplates: EmailTemplateConfig[] = [
   introduction6,
   introduction7,
   introduction8,
+  introduction9,
 ];

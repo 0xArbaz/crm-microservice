@@ -2021,6 +2021,109 @@ export const training6: EmailTemplateConfig = {
 // UAT TEMPLATES
 // ============================================================================
 
+export const training7: EmailTemplateConfig = {
+  id: 'training-7',
+  name: 'UAT Email - UAT Acceptance',
+  tab: 'uat',
+  subject: 'Upcoming Training Program',
+
+  getBody: (data: EmailPlaceholderData) => {
+    // Build attachments section
+    let attachmentsSection = '';
+    if (data.attachments && data.attachments.length > 0) {
+      const attachmentWord = data.attachments.length === 1 ? 'attachment' : 'attachments';
+      const verb = data.attachments.length === 1 ? 'is' : 'are';
+
+      attachmentsSection = `
+        <h5>Here ${verb} your ${attachmentWord}</h5>
+        ${data.attachments.map((doc, index) => `
+          <a class="email-button" target="_blank" href="${doc.url}"
+            style="display: inline-block; padding: 6px 12px; font-family: Calibri, sans-serif;
+              font-size: 11px; color: #ffffff; background-color: #0056b3;
+              text-decoration: none; border-radius: 4px; margin-bottom: 4px;">
+            ${index + 1}. ${doc.notes || doc.name}
+          </a>${index < data.attachments.length - 1 ? ',<br>' : '<br>'}
+        `).join('')}
+      `;
+    }
+
+    const content = `
+    <div style="margin:0pt 0 0 0; font-family:Calibri, sans-serif; font-size:12px; ">
+        <strong style="color:#0070C0;">"We give progressive business. Big Automation"</strong><br>
+        <strong style="color:#0070C0;">"Automate. Simplify. Grow – Smarter, Affordable ERP with Robotic Process
+            Automation & Artificial Intelligence"</strong>
+    </div>
+    <div
+        style="margin:8pt 0 0 0; font-family: Calibri, sans-serif; font-size: 11px; line-height: 1.7; color: #000000; padding-top:6px;">
+        <strong>Dear ${data.contact_name || ''},</strong>
+    </div>
+    <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px; ">
+        Please find attached the UAT Acceptance document for the Axiever ERP Implementation project.
+    </div>
+    <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px; ">
+        ${attachmentsSection}
+    </div>
+    <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px; ">
+        This document formalizes the acceptance of the Axiever ERP system by (Customer Name) following the successful
+        completion of the User Acceptance Testing (UAT) phase. It confirms that the system meets the agreed business
+        requirements and that all critical issues identified have been addressed satisfactorily.
+    </div>
+    <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px; ">
+        Kindly review the document, sign it on your official letterhead, and send a scanned copy back to us at your
+        earliest convenience.
+    </div>
+    <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px; ">
+        Please feel free to reach out if you have any questions or require further clarification.
+    </div>
+    <div style="margin:2pt 0 0 0; font-family:Calibri, sans-serif; font-size:11px; ">
+        Thank you for your continued cooperation.
+    </div>
+    <div style="margin:4px 0 0 0; font-family:Calibri, sans-serif; font-size:11px; ">
+        Best regards,<br>
+        <strong style="color:#0070C0;">Axiever</strong><br>
+        <em style="color:#0070C0;">Smart. Simple. Affordable.</em><br>
+        <em style="color:#0070C0;">A Canadian-headquartered company helping businesses grow faster with AI-powered
+            simplicity.</em>
+    </div>
+    <table style="margin:4px 0 0 0; margin-top:10px;" cellpadding="0" cellspacing="0">
+        <tr>
+            <td style="border: none; vertical-align: top; border-right: 1.5px solid #0f0f0f; padding-right: 10px;">
+                <a href="https://www.axiever.com" target="_blank">
+                    <img src="https://axiever.com/wp-content/themes/twentytwenty/assets/images/Axiever.png"
+                        width="75" alt="Axiever Logo" style="display: block; border: none;">
+                </a>
+            </td>
+            <td style="font-size: 11px; font-family: Calibri, sans-serif; padding-left: 15px;">
+                <strong>${data.user_first_name || ''} ${data.user_last_name || ''}</strong><br>
+                <span style="color: #0070C0;">${data.user_title || ''}</span><br>
+                <a href="tel:+19059974044" style="color: #0070C0; text-decoration: none;">
+                    <img src="https://cdn-icons-png.flaticon.com/512/724/724664.png" alt="Phone Icon" width="14"
+                        style="vertical-align: middle; margin-right: 5px;">
+                    +1 (905) 997-4044 ext. ${data.user_ext || ''}
+                </a><br>
+                <a href="mailto:${data.user_email || ''}" style="color: #0070C0; text-decoration: none;">
+                    <img src="https://cdn-icons-png.flaticon.com/512/561/561127.png" alt="Mail Icon" width="14"
+                        style="vertical-align: middle; margin-right: 5px;">
+                    ${data.user_email || ''}
+                </a><br>
+                <a href="https://www.axiever.com" style="color: #0070C0; text-decoration: none;">
+                    <img src="https://cdn-icons-png.flaticon.com/512/535/535239.png" alt="Website Icon" width="14"
+                        style="vertical-align: middle; margin-right: 5px;">
+                    www.axiever.com
+                </a>
+            </td>
+        </tr>
+    </table>
+    <div style="margin:10px 0 0 0; font-size:11px; color:#666; padding-top:10px; font-family:Calibri, sans-serif; ">
+        <em>This email and any attachments are confidential and may be privileged.
+            If you are not the intended recipient, please notify the sender immediately and delete this email.</em>
+    </div>
+    `;
+
+    return wrapEmail(content);
+  },
+};
+
 export const uat1: EmailTemplateConfig = {
   id: 'uat-1',
   name: 'UAT Email 1 - UAT Instructions',
@@ -2247,6 +2350,7 @@ export const implementationTemplates: EmailTemplateConfig[] = [
   training4,
   training5,
   training6,
+  training7,
   uat1,
   uat2,
   dataMigration1,

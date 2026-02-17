@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import distinct
+from sqlalchemy import distinct, func
 
 from app.api.deps import get_db, get_current_user
 from app.models.cri_email_template import CRIEmailTemplate
@@ -51,7 +51,8 @@ def get_cri_email_templates(
     query = db.query(CRIEmailTemplate)
 
     if tab:
-        query = query.filter(CRIEmailTemplate.tab == tab)
+        # Case-insensitive tab comparison
+        query = query.filter(func.lower(CRIEmailTemplate.tab) == tab.lower())
     if company_id:
         query = query.filter(CRIEmailTemplate.company_id == company_id)
 

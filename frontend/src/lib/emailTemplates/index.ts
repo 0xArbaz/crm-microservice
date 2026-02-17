@@ -42,10 +42,13 @@ if (typeof window !== 'undefined') {
  */
 export function getEmailTemplateById(id: string): EmailTemplateConfig | undefined {
   const template = allEmailTemplates.find(t => t.id === id);
-  // Debug: log available template IDs for planning tab
+  // Debug: log available template IDs if not found
   if (!template && id) {
     console.log('getEmailTemplateById - Template not found for ID:', id);
-    console.log('getEmailTemplateById - Available planning IDs:', allEmailTemplates.filter(t => t.tab === 'planning').map(t => t.id));
+    console.log('getEmailTemplateById - Available introduction IDs:', allEmailTemplates.filter(t => t.tab === 'introduction').map(t => t.id));
+    console.log('getEmailTemplateById - Available requirement IDs:', allEmailTemplates.filter(t => t.tab === 'requirement').map(t => t.id));
+    console.log('getEmailTemplateById - Available presentation IDs:', allEmailTemplates.filter(t => t.tab === 'presentation').map(t => t.id));
+    console.log('getEmailTemplateById - Available demo IDs:', allEmailTemplates.filter(t => t.tab === 'demo').map(t => t.id));
   }
   return template;
 }
