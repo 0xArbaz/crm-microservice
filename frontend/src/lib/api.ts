@@ -104,6 +104,11 @@ class ApiService {
     return response.data;
   }
 
+  async getUsers(params?: { skip?: number; limit?: number; role?: string; is_active?: boolean }): Promise<User[]> {
+    const response = await this.client.get<User[]>('/users', { params });
+    return response.data;
+  }
+
   logout(): void {
     this.clearToken();
   }
@@ -512,6 +517,7 @@ class ApiService {
   // Contacts
   async getContacts(params?: {
     page?: number;
+    page_size?: number;
     lead_id?: number;
     customer_id?: number;
   }): Promise<PaginatedResponse<Contact>> {
@@ -674,6 +680,43 @@ class ApiService {
 
   async getWhatsAppTemplates(): Promise<{ templates: any[] }> {
     const response = await this.client.get('/marketing/whatsapp/templates');
+    return response.data;
+  }
+
+  // Advanced Bulk Email
+  async sendBulkEmailAdvanced(data: {
+    leads: { lead_id: number; contact_email: string; contact_name: string }[];
+    subject: string;
+    body: string;
+    cc?: string;
+    bcc?: string;
+    attachment_ids?: number[];
+    template_id?: string;
+  }): Promise<{ total_recipients: number; queued: number; message: string }> {
+    const response = await this.client.post('/marketing/bulk-email/advanced', data);
+    return response.data;
+  }
+
+  async getBulkEmailDocuments(): Promise<any[]> {
+    const response = await this.client.get('/marketing/bulk-email/documents');
+    return response.data;
+  }
+
+  async uploadBulkEmailDocument(file: File): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.client.post('/marketing/bulk-email/documents', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async deleteBulkEmailDocument(docId: number): Promise<void> {
+    await this.client.delete(`/marketing/bulk-email/documents/${docId}`);
+  }
+
+  async getBulkEmailHistory(): Promise<any[]> {
+    const response = await this.client.get('/marketing/bulk-email/history');
     return response.data;
   }
 

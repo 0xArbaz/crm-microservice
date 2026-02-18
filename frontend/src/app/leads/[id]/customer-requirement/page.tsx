@@ -4643,7 +4643,7 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
 
   // Questions state
   const [questionsForm, setQuestionsForm] = useState({
-    presentation_date: '', presentation_by: '', attended_by: []
+    presentation_date: '', presentation_by: '', attended_by: [] as string[]
   });
   const [questionRow, setQuestionRow] = useState({
     date: '', added_by: '', question: '', category: '', asked_by: '', answered: ''
@@ -20968,12 +20968,12 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, contactN
         contact_email: contactEmail || '',
         contact_phone: '',
         lead_id: leadId?.toString() || '',
-        user_name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(),
+        user_name: user?.full_name || '',
         user_email: user?.email || '',
-        user_title: user?.title || user?.role || 'Sales Representative',
-        user_ext: user?.ext || user?.extension || '100',
-        user_first_name: user?.first_name || user?.name?.split(' ')[0] || '',
-        user_last_name: user?.last_name || user?.name?.split(' ').slice(1).join(' ') || '',
+        user_title: (user as any)?.title || user?.role || 'Sales Representative',
+        user_ext: (user as any)?.ext || (user as any)?.extension || '100',
+        user_first_name: user?.full_name?.split(' ')[0] || '',
+        user_last_name: user?.full_name?.split(' ').slice(1).join(' ') || '',
         date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString(),
         meeting_date: '',
@@ -21008,10 +21008,10 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, contactN
       const placeholders: Record<string, string> = {
         CONTACT_NAME: contactName || 'Valued Customer',
         COMPANY_NAME: companyName || '',
-        USER_FIRST_NAME: user?.first_name || user?.name?.split(' ')[0] || '',
-        USER_LAST_NAME: user?.last_name || user?.name?.split(' ').slice(1).join(' ') || '',
-        USER_TITLE: user?.title || user?.role || 'Sales Representative',
-        USER_EXT: user?.ext || user?.extension || '100',
+        USER_FIRST_NAME: user?.full_name?.split(' ')[0] || '',
+        USER_LAST_NAME: user?.full_name?.split(' ').slice(1).join(' ') || '',
+        USER_TITLE: (user as any)?.title || user?.role || 'Sales Representative',
+        USER_EXT: (user as any)?.ext || (user as any)?.extension || '100',
         USER_EMAIL: user?.email || '',
       };
       Object.entries(placeholders).forEach(([key, value]) => {

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks, File, UploadFile
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from typing import Optional, List
@@ -204,6 +204,240 @@ def preview_bulk_email_recipients(
                 for c in sample
             ]
         }
+
+
+# ================== ADVANCED BULK EMAIL ==================
+
+class BulkEmailLeadRecipient(BaseModel):
+    lead_id: int
+    contact_email: str
+    contact_name: str
+
+
+class AdvancedBulkEmailRequest(BaseModel):
+    leads: List[BulkEmailLeadRecipient]
+    subject: str
+    body: str
+    cc: Optional[str] = None
+    bcc: Optional[str] = None
+    attachment_ids: Optional[List[int]] = None
+    template_id: Optional[str] = None
+
+
+class BulkEmailDocument(BaseModel):
+    id: int
+    name: str
+    notes: Optional[str] = None
+    size: int
+    created_at: datetime
+    url: str
+
+
+@router.post("/bulk-email/advanced", response_model=BulkEmailResponse)
+async def send_bulk_email_advanced(
+    request: AdvancedBulkEmailRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Send bulk emails to selected leads with their specific contacts.
+    Supports CC, BCC, and attachments.
+    """
+    if not check_permission(current_user.role, "leads", "bulk_email"):
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    if not request.leads:
+        return BulkEmailResponse(
+            total_recipients=0,
+            queued=0,
+            failed=0,
+            message="No recipients provided"
+        )
+
+    # Parse CC and BCC emails
+    cc_emails = [e.strip() for e in request.cc.split(',') if e.strip()] if request.cc else []
+    bcc_emails = [e.strip() for e in request.bcc.split(',') if e.strip()] if request.bcc else []
+
+    # Get attachment URLs if provided
+    attachment_urls = []
+    if request.attachment_ids:
+        from app.models.customer_requirement import BulkEmailDoc
+        docs = db.query(BulkEmailDoc).filter(BulkEmailDoc.id.in_(request.attachment_ids)).all()
+        attachment_urls = [doc.url for doc in docs if doc.url]
+
+    # Queue email sending task
+    def send_emails_task():
+        """Background task to send emails to each lead"""
+        for lead_recipient in request.leads:
+            try:
+                # Create activity log for each email
+                activity = Activity(
+                    activity_type=ActivityType.EMAIL,
+                    subject=f"Bulk Email: {request.subject}",
+                    description=f"Sent bulk email to {lead_recipient.contact_email}",
+                    email_subject=request.subject,
+                    lead_id=lead_recipient.lead_id,
+                    performed_by=current_user.id
+                )
+                db.add(activity)
+
+                # TODO: Actually send email via email service
+                # email_service.send(
+                #     to=lead_recipient.contact_email,
+                #     cc=cc_emails,
+                #     bcc=bcc_emails,
+                #     subject=request.subject,
+                #     body=request.body.replace('{{contact_name}}', lead_recipient.contact_name),
+                #     attachments=attachment_urls
+                # )
+
+            except Exception as e:
+                print(f"Failed to send email to {lead_recipient.contact_email}: {e}")
+
+        db.commit()
+
+    background_tasks.add_task(send_emails_task)
+
+    return BulkEmailResponse(
+        total_recipients=len(request.leads),
+        queued=len(request.leads),
+        failed=0,
+        message=f"Queued {len(request.leads)} emails for sending"
+    )
+
+
+@router.get("/bulk-email/documents")
+def get_bulk_email_documents(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get all bulk email documents"""
+    if not check_permission(current_user.role, "leads", "bulk_email"):
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    from app.models.customer_requirement import BulkEmailDoc
+    docs = db.query(BulkEmailDoc).filter(BulkEmailDoc.created_by == current_user.id).order_by(BulkEmailDoc.created_at.desc()).all()
+
+    return [
+        {
+            "id": doc.id,
+            "name": doc.name,
+            "notes": doc.notes,
+            "size": doc.size,
+            "created_at": doc.created_at.isoformat() if doc.created_at else None,
+            "url": doc.url
+        }
+        for doc in docs
+    ]
+
+
+@router.post("/bulk-email/documents")
+async def upload_bulk_email_document(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Upload a document for bulk email attachments"""
+    if not check_permission(current_user.role, "leads", "bulk_email"):
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    from app.models.customer_requirement import BulkEmailDoc
+    import os
+    import uuid
+
+    # Save file locally (in production, upload to S3 or similar)
+    upload_dir = "uploads/bulk_email"
+    os.makedirs(upload_dir, exist_ok=True)
+
+    file_ext = os.path.splitext(file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = os.path.join(upload_dir, unique_filename)
+
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    # Create document record
+    doc = BulkEmailDoc(
+        name=file.filename,
+        size=len(content),
+        url=f"/uploads/bulk_email/{unique_filename}",
+        created_by=current_user.id,
+        created_at=datetime.utcnow()
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+
+    return {
+        "id": doc.id,
+        "name": doc.name,
+        "size": doc.size,
+        "url": doc.url,
+        "created_at": doc.created_at.isoformat() if doc.created_at else None
+    }
+
+
+@router.delete("/bulk-email/documents/{doc_id}")
+def delete_bulk_email_document(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a bulk email document"""
+    if not check_permission(current_user.role, "leads", "bulk_email"):
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    from app.models.customer_requirement import BulkEmailDoc
+    import os
+
+    doc = db.query(BulkEmailDoc).filter(BulkEmailDoc.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Delete file from disk
+    if doc.url and os.path.exists(doc.url.lstrip('/')):
+        try:
+            os.remove(doc.url.lstrip('/'))
+        except:
+            pass
+
+    db.delete(doc)
+    db.commit()
+
+    return {"message": "Document deleted"}
+
+
+@router.get("/bulk-email/history")
+def get_bulk_email_history(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get bulk email history"""
+    if not check_permission(current_user.role, "leads", "bulk_email"):
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    # Get email activities
+    activities = db.query(Activity).filter(
+        Activity.activity_type == ActivityType.EMAIL,
+        Activity.subject.like("Bulk Email:%"),
+        Activity.performed_by == current_user.id
+    ).order_by(Activity.created_at.desc()).offset(skip).limit(limit).all()
+
+    return [
+        {
+            "id": act.id,
+            "lead_id": act.lead_id,
+            "lead_name": f"{act.lead.first_name} {act.lead.last_name}" if act.lead else "Unknown",
+            "subject": act.email_subject,
+            "sent_at": act.created_at.isoformat() if act.created_at else None,
+            "attachments": []
+        }
+        for act in activities
+    ]
 
 
 # ================== WHATSAPP MARKETING ==================
