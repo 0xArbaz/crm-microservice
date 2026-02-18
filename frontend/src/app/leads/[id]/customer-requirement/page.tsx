@@ -13,7 +13,7 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/stores/auth';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getEmailTemplateById, EmailPlaceholderData } from '@/lib/emailTemplates';
+import { getEmailTemplateById, getEmailTemplatesByTab, EmailPlaceholderData } from '@/lib/emailTemplates';
 
 // Tab configuration with icons
 const mainTabs = [
@@ -20905,17 +20905,36 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, contactN
     }
   }, [attachments]);
 
-  // Load templates for the tab (convert to lowercase to match database)
+  // Load templates for the tab (normalize: lowercase and replace spaces with hyphens)
+  // Use frontend templates as fallback when database is empty
   useEffect(() => {
     if (tab) {
-      console.log('EmailModal - Loading templates for tab:', tab.toLowerCase());
-      api.getCRIEmailTemplates(tab.toLowerCase()).then((data) => {
+      // Normalize tab name: "Go Live" -> "go-live", "Data Migration" -> "data-migration"
+      const normalizedTab = tab.toLowerCase().replace(/\s+/g, '-');
+      console.log('EmailModal - Loading templates for tab:', normalizedTab);
+
+      // Get frontend templates for fallback
+      const frontendTemplates = getEmailTemplatesByTab(normalizedTab);
+      const convertedFrontendTemplates = frontendTemplates.map((t, index) => ({
+        id: index + 1,
+        title: t.name,
+        tab: t.tab,
+        email_format: t.id,
+        email_format_option_values: t.id,
+        subject: t.subject,
+      }));
+
+      api.getCRIEmailTemplates(normalizedTab).then((data) => {
         console.log('EmailModal - Templates loaded:', data?.length, 'templates');
-        console.log('EmailModal - First template:', data?.[0]);
-        setTemplates(data);
+        if (data && data.length > 0) {
+          setTemplates(data);
+        } else {
+          console.log('EmailModal - Using frontend templates as fallback');
+          setTemplates(convertedFrontendTemplates);
+        }
       }).catch((err) => {
-        console.error('EmailModal - Failed to load templates:', err);
-        setTemplates([]);
+        console.error('EmailModal - Failed to load templates, using frontend:', err);
+        setTemplates(convertedFrontendTemplates);
       });
     }
   }, [tab]);
