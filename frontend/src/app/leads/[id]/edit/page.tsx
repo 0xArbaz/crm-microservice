@@ -349,6 +349,22 @@ export default function EditLeadPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Helper to extract error message from API response
+  const getErrorMessage = (err: any, fallback: string): string => {
+    const detail = err?.response?.data?.detail;
+    if (!detail) return fallback;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+      return detail.map((e: any) => {
+        if (typeof e === 'string') return e;
+        if (e && typeof e === 'object' && e.msg) return e.msg;
+        return JSON.stringify(e);
+      }).join(', ');
+    }
+    if (typeof detail === 'object' && detail.msg) return detail.msg;
+    return fallback;
+  };
+
   // Data states
   const [leadData, setLeadData] = useState<Lead | null>(null);
   const [contacts, setContacts] = useState<LeadContact[]>([]);
@@ -446,6 +462,10 @@ export default function EditLeadPage() {
   // Watch for country/state changes to fetch cascading data
   const selectedCountryId = watch('country_id');
   const selectedStateId = watch('state_id');
+
+  // Track if it's the initial load to avoid resetting city on first render
+  const isInitialLoadRef = React.useRef(true);
+  const prevCountryIdRef = React.useRef<string | undefined>(undefined);
 
   // Fetch Lead Data
   const fetchLeadData = useCallback(async () => {
@@ -624,28 +644,39 @@ export default function EditLeadPage() {
           } else {
             setStateOptions([{ value: '', label: 'No states available' }]);
           }
+          // Only reset city options if this is a user change (not initial load)
+          if (prevCountryIdRef.current !== undefined && prevCountryIdRef.current !== selectedCountryId) {
+            setCityOptions([{ value: '', label: 'Select City' }]);
+          }
+          prevCountryIdRef.current = selectedCountryId;
         } catch (err) {
           console.error('Failed to fetch states:', err);
           setStateOptions([{ value: '', label: 'Select State' }]);
         }
       } else {
         setStateOptions([{ value: '', label: 'Select State' }]);
+        setCityOptions([{ value: '', label: 'Select City' }]);
+        prevCountryIdRef.current = selectedCountryId;
       }
-      setCityOptions([{ value: '', label: 'Select City' }]);
     };
     fetchStates();
   }, [selectedCountryId]);
 
   // Fetch cities when state changes
+  const selectedCityId = watch('city_id');
   useEffect(() => {
     const fetchCities = async () => {
       if (selectedStateId) {
         try {
           const cities = await api.getCities(parseInt(selectedStateId));
           if (cities && cities.length > 0) {
-            const activeCities = cities.filter((c: any) => c.status === 'Active');
-            const options = activeCities.map((c: any) => ({ value: c.id.toString(), label: c.name }));
+            // Include all cities, not just active ones, to ensure saved city appears
+            const options = cities.map((c: any) => ({ value: c.id.toString(), label: c.name }));
             setCityOptions([{ value: '', label: 'Select City' }, ...options]);
+            // Mark initial load as complete after cities are loaded
+            if (isInitialLoadRef.current) {
+              isInitialLoadRef.current = false;
+            }
           } else {
             setCityOptions([{ value: '', label: 'No cities available' }]);
           }
@@ -683,16 +714,30 @@ export default function EditLeadPage() {
         region_id: data.region_id ? parseInt(data.region_id) : undefined,
         lead_score: data.lead_score ? parseInt(data.lead_score) : undefined,
         expected_value: data.expected_value ? parseFloat(data.expected_value) : undefined,
+        // Form 'status' field maps to 'lead_status' in database (string field like 'new', 'contacted', etc.)
+        lead_status: data.status || undefined,
+        assigned_to: data.assigned_to ? parseInt(data.assigned_to) : undefined,
+        // Convert empty email strings to undefined for Pydantic EmailStr validation
+        email: data.email?.trim() || undefined,
+        customer_email: data.customer_email?.trim() || undefined,
       };
 
       delete apiData.from_timings;
       delete apiData.to_timings;
+      delete apiData.status; // We mapped this to lead_status above
+
+      // Remove empty strings and convert to undefined for proper API validation
+      Object.keys(apiData).forEach(key => {
+        if (apiData[key] === '' || apiData[key] === null) {
+          delete apiData[key];
+        }
+      });
 
       await api.updateLead(leadId, apiData as Partial<Lead>);
       setSuccess('Lead updated successfully!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to update lead');
+      setError(getErrorMessage(err, 'Failed to update lead'));
     } finally {
       setIsSubmitting(false);
     }
@@ -791,7 +836,7 @@ export default function EditLeadPage() {
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       console.error('Save contact error:', err);
-      setError(err.response?.data?.detail || 'Failed to save contact');
+      setError(getErrorMessage(err, 'Failed to save contact'));
     }
   };
 
@@ -804,7 +849,7 @@ export default function EditLeadPage() {
       setSuccess('Contact deleted!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete contact');
+      setError(getErrorMessage(err, 'Failed to delete contact'));
     }
   };
 
@@ -839,7 +884,7 @@ export default function EditLeadPage() {
       setSuccess('Social media links updated successfully!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to update social media links');
+      setError(getErrorMessage(err, 'Failed to update social media links'));
     }
   };
 
@@ -919,7 +964,7 @@ export default function EditLeadPage() {
       setSuccess('Activity saved!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save activity');
+      setError(getErrorMessage(err, 'Failed to save activity'));
     }
   };
 
@@ -932,7 +977,7 @@ export default function EditLeadPage() {
       setSuccess('Activity deleted!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete activity');
+      setError(getErrorMessage(err, 'Failed to delete activity'));
     }
   };
 
@@ -983,7 +1028,7 @@ export default function EditLeadPage() {
       setSuccess('Memo saved!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save memo');
+      setError(getErrorMessage(err, 'Failed to save memo'));
     }
   };
 
@@ -996,7 +1041,7 @@ export default function EditLeadPage() {
       setSuccess('Memo deleted!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete memo');
+      setError(getErrorMessage(err, 'Failed to delete memo'));
     }
   };
 
@@ -1013,7 +1058,7 @@ export default function EditLeadPage() {
       setSuccess('Document uploaded!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to upload document');
+      setError(getErrorMessage(err, 'Failed to upload document'));
     }
   };
 
@@ -1026,7 +1071,7 @@ export default function EditLeadPage() {
       setSuccess('Document deleted!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete document');
+      setError(getErrorMessage(err, 'Failed to delete document'));
     }
   };
 
@@ -1055,7 +1100,7 @@ export default function EditLeadPage() {
       setSuccess('Status changed!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to change status');
+      setError(getErrorMessage(err, 'Failed to change status'));
     }
   };
 
@@ -1119,7 +1164,7 @@ export default function EditLeadPage() {
       setSuccess('Profile saved!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save profile');
+      setError(getErrorMessage(err, 'Failed to save profile'));
     }
   };
 
@@ -1161,7 +1206,7 @@ export default function EditLeadPage() {
       setSuccess('Qualified profile saved successfully!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save qualified profile');
+      setError(getErrorMessage(err, 'Failed to save qualified profile'));
     }
   };
 
@@ -1174,7 +1219,7 @@ export default function EditLeadPage() {
       setSuccess('Profile deleted!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete profile');
+      setError(getErrorMessage(err, 'Failed to delete profile'));
     }
   };
 

@@ -32,11 +32,13 @@ interface Lead {
   lead_source_name?: string;
   lead_source?: string;  // Alternative field name from API
   source?: string;  // Alternative field name from API
+  source_details?: string;  // Detailed source info
   status: string;
   lead_status?: string;  // Alternative field name from API
   sales_rep_id: number;
   sales_rep_name?: string;
   sales_rep?: string;  // Alternative field name from API
+  assigned_to?: number;  // User ID of assigned sales rep
   contacts?: any[];
 }
 
@@ -134,6 +136,7 @@ export default function BulkEmailPage() {
   });
   const [sending, setSending] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
+  const initialLoadDone = useRef(false);
 
   // Email History
   const [emailHistory, setEmailHistory] = useState<EmailHistory[]>([]);
@@ -144,18 +147,28 @@ export default function BulkEmailPage() {
     Promise.all([
       loadFilterOptions().catch(e => console.error('Filter options error:', e)),
       loadDocuments().catch(e => console.error('Documents error:', e)),
-      loadAllContacts().catch(e => console.error('Contacts error:', e)),
-    ]).then(() => {
-      loadLeads();
+      loadAllContacts().catch(e => {
+        console.error('Contacts error:', e);
+        return [];
+      }),
+    ]).then((results) => {
+      // Pass contacts directly to loadLeads since state might not be updated yet
+      const contacts = results[2] || [];
+      loadLeads(contacts);
+      initialLoadDone.current = true;
     }).catch(e => {
       console.error('Initial load error:', e);
       setLoading(false);
+      initialLoadDone.current = true;
     });
   }, []);
 
-  // Load leads when filters or pagination change
+  // Load leads when filters or pagination change (after initial load)
   useEffect(() => {
-    loadLeads();
+    // Skip initial load - it's handled by the above useEffect
+    if (initialLoadDone.current) {
+      loadLeads();
+    }
   }, [filters, perPage, currentPage]);
 
   const loadEmailTemplates = (tab: string = selectedTab) => {
@@ -285,7 +298,7 @@ export default function BulkEmailPage() {
     }
   };
 
-  const loadLeads = async () => {
+  const loadLeads = async (contactsOverride?: any[]) => {
     setLoading(true);
     try {
       const params: any = {
@@ -316,9 +329,10 @@ export default function BulkEmailPage() {
         return c.id || c.first_name || c.email || c.work_email || c.personal_email;
       };
 
-      // Group contacts by lead_id
+      // Group contacts by lead_id - use contactsOverride if provided, otherwise use state
       const contactsByLead: { [key: number]: any[] } = {};
-      const validContacts = Array.isArray(allContacts) ? allContacts.filter(isValidContact) : [];
+      const contactsToUse = contactsOverride !== undefined ? contactsOverride : allContacts;
+      const validContacts = Array.isArray(contactsToUse) ? contactsToUse.filter(isValidContact) : [];
       validContacts.forEach((contact: any) => {
         const leadId = contact.lead_id;
         if (leadId) {
@@ -329,9 +343,24 @@ export default function BulkEmailPage() {
         }
       });
 
-      // Merge contacts into leads
+      // Helper to sanitize lead properties - convert error objects to null
+      const sanitizeLead = (lead: any) => {
+        const sanitized: any = {};
+        for (const key in lead) {
+          const val = lead[key];
+          // If value is an error object, set to null
+          if (val && typeof val === 'object' && 'type' in val && 'loc' in val && 'msg' in val) {
+            sanitized[key] = null;
+          } else {
+            sanitized[key] = val;
+          }
+        }
+        return sanitized;
+      };
+
+      // Merge contacts into leads and sanitize
       const leadsWithContacts = leadsData.map((lead: any) => ({
-        ...lead,
+        ...sanitizeLead(lead),
         contacts: contactsByLead[lead.id] || [],
       }));
 
@@ -976,6 +1005,78 @@ export default function BulkEmailPage() {
                               return '';
                             };
 
+                            // Helper to safely get string value
+                            const safeString = (val: any): string => {
+                              if (val === null || val === undefined) return '';
+                              if (typeof val === 'string') return val;
+                              if (typeof val === 'number') return String(val);
+                              return '';
+                            };
+
+                            // Helper to look up names from filter options
+                            const getCountryName = (): string => {
+                              // First check if string field has value
+                              if (typeof lead.country === 'string' && lead.country) return lead.country;
+                              // Fall back to looking up by ID
+                              if (!lead.country_id) return '';
+                              const country = countries.find((c: any) => c.id === lead.country_id);
+                              return safeString(country?.name);
+                            };
+                            const getStateName = (): string => {
+                              // First check if string field has value
+                              if (typeof lead.state === 'string' && lead.state) return lead.state;
+                              // Fall back to looking up by ID
+                              if (!lead.state_id) return '';
+                              const state = states.find((s: any) => s.id === lead.state_id);
+                              return safeString(state?.name);
+                            };
+                            const getCityName = (): string => {
+                              // First check if string field has value
+                              if (typeof lead.city === 'string' && lead.city) return lead.city;
+                              // Fall back to looking up by ID
+                              if (!lead.city_id) return '';
+                              const city = cities.find((c: any) => c.id === lead.city_id);
+                              return safeString(city?.name);
+                            };
+                            const getGroupName = (): string => {
+                              if (!lead.group_id) return '';
+                              const group = groups.find((g: any) => g.id === lead.group_id);
+                              return safeString(group?.name);
+                            };
+                            const getIndustryName = (): string => {
+                              if (typeof lead.industry === 'string' && lead.industry) return lead.industry;
+                              if (!lead.industry_id) return '';
+                              const industry = industries.find((i: any) => i.id === lead.industry_id);
+                              return safeString(industry?.name);
+                            };
+                            // Get sales rep name from assigned_to user ID
+                            const getSalesRepName = (): string => {
+                              // First check if string field has value
+                              if (typeof lead.sales_rep === 'string' && lead.sales_rep) return lead.sales_rep;
+                              // Fall back to looking up by assigned_to user ID
+                              const repId = (lead as any).assigned_to || lead.sales_rep_id;
+                              if (!repId) return '';
+                              const rep = salesReps.find((s: any) => s.id === repId);
+                              return safeString(rep?.full_name) || safeString(rep?.email);
+                            };
+                            // Get lead source from source enum or lead_source string
+                            const getLeadSourceName = (): string => {
+                              // First check lead_source string field
+                              if (typeof lead.lead_source === 'string' && lead.lead_source) return lead.lead_source;
+                              // Check source_details
+                              const details = (lead as any).source_details;
+                              if (typeof details === 'string' && details) {
+                                const match = details.match(/-\s*(.+)$/);
+                                if (match) return match[1].trim();
+                                return details;
+                              }
+                              // Check source enum field (capitalize it)
+                              if (typeof lead.source === 'string' && lead.source) {
+                                return lead.source.charAt(0).toUpperCase() + lead.source.slice(1).toLowerCase().replace(/_/g, ' ');
+                              }
+                              return '';
+                            };
+
                             // Check if lead has contacts with valid emails (filter out error objects)
                             const validContacts = (lead.contacts || []).filter((c: any) => {
                               if (!c || typeof c !== 'object') return false;
@@ -1078,13 +1179,13 @@ export default function BulkEmailPage() {
                                     </select>
                                   )}
                                 </td>
-                                <td className="px-3 py-2 text-gray-600">{typeof lead.country === 'string' ? lead.country : ''}</td>
-                                <td className="px-3 py-2 text-gray-600">{typeof lead.state === 'string' ? lead.state : ''}</td>
-                                <td className="px-3 py-2 text-gray-600">{typeof lead.city === 'string' ? lead.city : ''}</td>
-                                <td className="px-3 py-2 text-gray-600">{typeof lead.group_id === 'number' ? lead.group_id : ''}</td>
-                                <td className="px-3 py-2 text-gray-600">{typeof lead.industry === 'string' ? lead.industry : ''}</td>
-                                <td className="px-3 py-2 text-gray-600">{typeof lead.sales_rep === 'string' ? lead.sales_rep : ''}</td>
-                                <td className="px-3 py-2 text-gray-600">{typeof lead.lead_source === 'string' ? lead.lead_source : (typeof lead.source === 'string' ? lead.source : '')}</td>
+                                <td className="px-3 py-2 text-gray-600">{getCountryName()}</td>
+                                <td className="px-3 py-2 text-gray-600">{getStateName()}</td>
+                                <td className="px-3 py-2 text-gray-600">{getCityName()}</td>
+                                <td className="px-3 py-2 text-gray-600">{getGroupName()}</td>
+                                <td className="px-3 py-2 text-gray-600">{getIndustryName()}</td>
+                                <td className="px-3 py-2 text-gray-600">{getSalesRepName()}</td>
+                                <td className="px-3 py-2 text-gray-600">{getLeadSourceName()}</td>
                                 <td className="px-3 py-2">{typeof lead.lead_status === 'string' ? lead.lead_status : ''}</td>
                                 <td className="px-3 py-2 text-center">
                                   <a

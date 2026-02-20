@@ -683,6 +683,85 @@ class ApiService {
     return response.data;
   }
 
+  // WhatsApp Marketing Advanced
+  async sendWhatsAppAdvanced(data: {
+    recipients: { number: string; lead_id: number; name: string; company: string }[];
+    template_key: string;
+    documents?: { link: string }[];
+    custom_message?: string;
+  }): Promise<{ status: string; message: string }> {
+    const response = await this.client.post('/marketing/whatsapp/send', data);
+    return response.data;
+  }
+
+  async getWhatsAppDocuments(): Promise<any[]> {
+    const response = await this.client.get('/marketing/whatsapp/documents');
+    return response.data;
+  }
+
+  async uploadWhatsAppDocument(file: File): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.client.post('/marketing/whatsapp/documents', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async deleteWhatsAppDocument(docId: number): Promise<void> {
+    await this.client.post('/marketing/whatsapp/documents/delete', { doc_id: docId });
+  }
+
+  async getWhatsAppSentMessages(): Promise<any[]> {
+    const response = await this.client.get('/marketing/whatsapp/sent-messages');
+    return response.data;
+  }
+
+  async getWhatsAppReceivedMessages(): Promise<any[]> {
+    const response = await this.client.get('/marketing/whatsapp/received-messages');
+    return response.data;
+  }
+
+  async getWhatsAppConversation(phoneNumber: string): Promise<any[]> {
+    const response = await this.client.get(`/marketing/whatsapp/conversation/${encodeURIComponent(phoneNumber)}`);
+    return response.data;
+  }
+
+  async sendWhatsAppConversationMessage(phoneNumber: string, messageBody: string): Promise<any> {
+    const response = await this.client.post('/marketing/whatsapp/conversation/send', {
+      phone_number: phoneNumber,
+      message_body: messageBody,
+    });
+    return response.data;
+  }
+
+  async getWhatsAppAuditLog(): Promise<any[]> {
+    const response = await this.client.get('/marketing/whatsapp/audit-log');
+    return response.data;
+  }
+
+  async getWhatsAppLeads(params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    country_id?: number;
+    state_id?: number;
+    city_id?: number;
+    group_id?: number;
+    industry_id?: number;
+    sales_rep?: number;
+    lead_source?: string;
+    lead_status?: string;
+  }): Promise<any> {
+    const response = await this.client.get('/marketing/whatsapp/leads', { params });
+    return response.data;
+  }
+
+  async getLeadContactsForWhatsApp(leadId: number): Promise<{ contacts: any[] }> {
+    const response = await this.client.get(`/marketing/whatsapp/lead/${leadId}/contacts`);
+    return response.data;
+  }
+
   // Advanced Bulk Email
   async sendBulkEmailAdvanced(data: {
     leads: { lead_id: number; contact_email: string; contact_name: string }[];
