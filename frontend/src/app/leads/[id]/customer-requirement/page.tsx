@@ -1830,25 +1830,27 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
       </div>
 
       {/* Sub-tabs Section */}
-      <div className="border-t pt-4">
-        <div className="flex gap-4 mb-4">
-          {['Activity', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'].map((tab) => {
-            const tabKey = tab.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-');
-            const isActive = introSubTab === tabKey;
-            return (
-              <button
-                key={tab}
-                onClick={() => setIntroSubTab(tabKey)}
-                className={`px-2 py-1 text-xs font-medium border-b-2 ${
-                  isActive
-                    ? 'border-blue-600 text-blue-600 bg-blue-50 rounded-t'
-                    : 'border-transparent text-orange-500 hover:text-orange-600'
-                }`}
-              >
-                {tab}
-              </button>
-            );
-          })}
+      <div className="pt-4">
+        <div className="flex gap-1 border-b border-gray-200 overflow-x-auto mb-4">
+          {[
+            { id: 'activity', label: 'Activity' },
+            { id: 'follow-up', label: 'Follow-Up' },
+            { id: 'memo', label: 'Memo' },
+            { id: 'upload-file', label: 'Upload File' },
+            { id: 'workflow-audit-trail', label: 'Workflow & Audit Trail' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setIntroSubTab(tab.id)}
+              className={`px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors ${
+                introSubTab === tab.id
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Activity Section */}
@@ -3229,25 +3231,30 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
       </div>
 
       {/* Sub-tabs Section */}
-      <div className="border-t pt-4">
-        <div className="flex gap-4 mb-4">
-          {reqSubTabs.map((tab) => {
-            const tabKey = tab.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-');
-            const isActive = reqSubTab === tabKey;
-            return (
-              <button
-                key={tab}
-                onClick={() => setReqSubTab(tabKey)}
-                className={`px-2 py-1 text-xs font-medium border-b-2 ${
-                  isActive
-                    ? 'border-blue-600 text-blue-600 bg-blue-50 rounded-t'
-                    : 'border-transparent text-orange-500 hover:text-orange-600'
-                }`}
-              >
-                {tab}
-              </button>
-            );
-          })}
+      <div className="pt-4">
+        <div className="flex gap-1 border-b border-gray-200 overflow-x-auto mb-4">
+          {[
+            { id: 'pre-demo-business-questionnaire', label: 'Pre-Demo Business Questionnaire' },
+            { id: 'meeting-date-time', label: 'Meeting Date & Time' },
+            { id: 'process-flow', label: 'Process Flow' },
+            { id: 'analysis', label: 'Analysis' },
+            { id: 'follow-up', label: 'Follow-Up' },
+            { id: 'memo', label: 'Memo' },
+            { id: 'upload-file', label: 'Upload File' },
+            { id: 'workflow-audit-trail', label: 'Workflow & Audit Trail' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setReqSubTab(tab.id)}
+              className={`px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors ${
+                reqSubTab === tab.id
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Pre-Demo Business Questionnaire */}
@@ -5067,7 +5074,7 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
 
       {/* Sub-tabs Section */}
       <div className="border-t pt-4">
-        <div className="flex gap-4 mb-4">
+        <div className="flex gap-1 border-b border-gray-200 overflow-x-auto mb-4">
           {presSubTabs.map((tab) => {
             const tabKey = tab.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-');
             const isActive = presSubTab === tabKey;
@@ -5075,10 +5082,10 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
               <button
                 key={tab}
                 onClick={() => setPresSubTab(tabKey)}
-                className={`px-2 py-1 text-xs font-medium border-b-2 ${
+                className={`px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors ${
                   isActive
-                    ? 'border-blue-600 text-blue-600 bg-blue-50 rounded-t'
-                    : 'border-transparent text-orange-500 hover:text-orange-600'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
                 {tab}

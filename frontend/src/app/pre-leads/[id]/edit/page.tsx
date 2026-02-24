@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Plus, Calendar, ArrowRight, Pencil, Trash2, X, Link2, Upload } from 'lucide-react';
+import { Plus, Calendar, ArrowRight, Pencil, Trash2, X, Link2, Upload, List, AlignLeft, AlignRight } from 'lucide-react';
 import api from '@/lib/api';
 import { PreLead } from '@/types';
 
@@ -1044,117 +1044,190 @@ export default function EditPreLeadPage() {
           {/* ============== TAB 2: Contacts ============== */}
           {activeTab === 'contacts' && (
             <div>
-              {/* Filter */}
-              <div className="flex items-center gap-4 mb-4">
-                <label className="text-sm text-blue-600">Contact Type</label>
+              {/* Contact Type Filter - Centered */}
+              <div className="flex items-center justify-center gap-4 mb-4">
+                <label className="text-sm text-blue-600 font-medium">Contact type</label>
                 <select
                   value={contactFilter}
                   onChange={(e) => setContactFilter(e.target.value)}
-                  className={`${selectClass} w-48`}
+                  className="w-64 h-9 px-3 text-sm border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
                   {contactTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
               </div>
 
               {/* Contacts Table */}
-              <div className="bg-white border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-3 py-2 text-left">Contact</th>
-                      <th className="px-3 py-2 text-left">Title</th>
-                      <th className="px-3 py-2 text-left">First Name</th>
-                      <th className="px-3 py-2 text-left">Last Name</th>
-                      <th className="px-3 py-2 text-left">Designation</th>
-                      <th className="px-3 py-2 text-left">Work Email</th>
-                      <th className="px-3 py-2 text-left">Work Phone</th>
-                      <th className="px-3 py-2 text-left">Ext.</th>
-                      <th className="px-3 py-2 text-left">Fax</th>
-                      <th className="px-3 py-2 text-left">Cell Phone</th>
-                      <th className="px-3 py-2 text-center">Status</th>
-                      <th className="px-3 py-2 text-center">Action</th>
+              <div className="bg-white border rounded-lg overflow-hidden overflow-x-auto">
+                <table className="w-full text-sm min-w-[1200px]">
+                  {/* Blue Header Row */}
+                  <thead>
+                    <tr className="bg-blue-600 text-white">
+                      <th className="px-2 py-2.5 text-left text-xs font-medium">Contact</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium">Title</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium">First Name</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium">Last Name</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium">Designation</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium">Work Email</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium">Work Phone</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium">Ext.</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium">Fax</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium">Cell Phone</th>
+                      <th className="px-2 py-2.5 text-center text-xs font-medium">Status</th>
+                      <th className="px-2 py-2.5 text-center text-xs font-medium">Action</th>
                     </tr>
-                    {/* Add Row */}
-                    {showContactForm && (
-                      <tr className="bg-blue-50">
-                        <td className="px-2 py-2">
-                          <select value={contactForm.contact_type} onChange={e => setContactForm({...contactForm, contact_type: e.target.value})} className={`${selectClass} w-full text-xs`}>
-                            {contactTypeOptions.filter(o => o.value !== 'all').map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                          </select>
-                        </td>
-                        <td className="px-2 py-2">
-                          <select value={contactForm.title} onChange={e => setContactForm({...contactForm, title: e.target.value})} className={`${selectClass} w-full text-xs`}>
-                            {titleOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                          </select>
-                        </td>
-                        <td className="px-2 py-2"><input value={contactForm.first_name} onChange={e => setContactForm({...contactForm, first_name: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="First Name" /></td>
-                        <td className="px-2 py-2"><input value={contactForm.last_name} onChange={e => setContactForm({...contactForm, last_name: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Last Name" /></td>
-                        <td className="px-2 py-2"><input value={contactForm.designation} onChange={e => setContactForm({...contactForm, designation: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Designation" /></td>
-                        <td className="px-2 py-2"><input value={contactForm.work_email} onChange={e => setContactForm({...contactForm, work_email: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Email" /></td>
-                        <td className="px-2 py-2"><input value={contactForm.work_phone} onChange={e => setContactForm({...contactForm, work_phone: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Phone" /></td>
-                        <td className="px-2 py-2"><input value={contactForm.ext} onChange={e => setContactForm({...contactForm, ext: e.target.value})} className={`${inputClass} w-16 text-xs`} placeholder="Ext" /></td>
-                        <td className="px-2 py-2"><input value={contactForm.fax} onChange={e => setContactForm({...contactForm, fax: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Fax" /></td>
-                        <td className="px-2 py-2"><input value={contactForm.cell_phone} onChange={e => setContactForm({...contactForm, cell_phone: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Cell" /></td>
-                        <td className="px-2 py-2">
-                          <select value={contactForm.status} onChange={e => setContactForm({...contactForm, status: e.target.value})} className={`${selectClass} w-full text-xs`}>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                          </select>
-                        </td>
-                        <td className="px-2 py-2 text-center">
-                          <button onClick={handleAddContact} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 mr-1">
+                    {/* Always Visible Add/Edit Row */}
+                    <tr className="bg-white border-b">
+                      <td className="px-1.5 py-2">
+                        <select
+                          value={contactForm.contact_type}
+                          onChange={e => setContactForm({...contactForm, contact_type: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          {contactTypeOptions.filter(o => o.value !== 'all').map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <select
+                          value={contactForm.title}
+                          onChange={e => setContactForm({...contactForm, title: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          {titleOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <input
+                          value={contactForm.first_name}
+                          onChange={e => setContactForm({...contactForm, first_name: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="First Name"
+                        />
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <input
+                          value={contactForm.last_name}
+                          onChange={e => setContactForm({...contactForm, last_name: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Last Name"
+                        />
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <input
+                          value={contactForm.designation}
+                          onChange={e => setContactForm({...contactForm, designation: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Designation"
+                        />
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <input
+                          value={contactForm.work_email}
+                          onChange={e => setContactForm({...contactForm, work_email: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Work Email ID"
+                        />
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <input
+                          value={contactForm.work_phone}
+                          onChange={e => setContactForm({...contactForm, work_phone: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Work Phone"
+                        />
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <input
+                          value={contactForm.ext}
+                          onChange={e => setContactForm({...contactForm, ext: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Ext."
+                        />
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <input
+                          value={contactForm.fax}
+                          onChange={e => setContactForm({...contactForm, fax: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Fax"
+                        />
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <input
+                          value={contactForm.cell_phone}
+                          onChange={e => setContactForm({...contactForm, cell_phone: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Cell Phone"
+                        />
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <select
+                          value={contactForm.status}
+                          onChange={e => setContactForm({...contactForm, status: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                        </select>
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={handleAddContact}
+                            className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700"
+                          >
                             {editingContact ? 'Save' : 'Add'}
                           </button>
-                          <button onClick={resetContactForm} className="px-2 py-1 text-xs bg-gray-400 text-white rounded hover:bg-gray-500">
-                            Cancel
-                          </button>
-                        </td>
-                      </tr>
-                    )}
+                          {editingContact && (
+                            <button
+                              onClick={resetContactForm}
+                              className="px-2 py-1.5 text-xs bg-gray-400 text-white rounded hover:bg-gray-500"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                          {!editingContact && (
+                            <input type="checkbox" className="w-4 h-4 rounded border-gray-300" />
+                          )}
+                        </div>
+                      </td>
+                    </tr>
                   </thead>
                   <tbody>
-                    {!showContactForm && (
-                      <tr className="border-b bg-gray-50">
-                        <td colSpan={12} className="px-3 py-2">
-                          <button onClick={() => setShowContactForm(true)} className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
-                            + Add Contact
-                          </button>
-                        </td>
-                      </tr>
-                    )}
                     {filteredContacts.map((contact) => (
                       <tr key={contact.id} className="border-b hover:bg-gray-50">
-                        <td className="px-3 py-2">{contact.contact_type}</td>
-                        <td className="px-3 py-2">{contact.title}</td>
-                        <td className="px-3 py-2">{contact.first_name}</td>
-                        <td className="px-3 py-2">{contact.last_name}</td>
-                        <td className="px-3 py-2">{contact.designation}</td>
-                        <td className="px-3 py-2">{contact.work_email}</td>
-                        <td className="px-3 py-2">{contact.work_phone}</td>
-                        <td className="px-3 py-2">{contact.ext}</td>
-                        <td className="px-3 py-2">{contact.fax}</td>
-                        <td className="px-3 py-2">{contact.cell_phone}</td>
-                        <td className="px-3 py-2 text-center">
-                          <span className={`px-2 py-1 rounded text-xs ${contact.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        <td className="px-2 py-2 text-xs">{contact.contact_type}</td>
+                        <td className="px-2 py-2 text-xs">{contact.title}</td>
+                        <td className="px-2 py-2 text-xs">{contact.first_name}</td>
+                        <td className="px-2 py-2 text-xs">{contact.last_name}</td>
+                        <td className="px-2 py-2 text-xs">{contact.designation}</td>
+                        <td className="px-2 py-2 text-xs">{contact.work_email}</td>
+                        <td className="px-2 py-2 text-xs">{contact.work_phone}</td>
+                        <td className="px-2 py-2 text-xs">{contact.ext}</td>
+                        <td className="px-2 py-2 text-xs">{contact.fax}</td>
+                        <td className="px-2 py-2 text-xs">{contact.cell_phone}</td>
+                        <td className="px-2 py-2 text-center">
+                          <span className={`px-2 py-0.5 rounded text-xs ${contact.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                             {contact.status}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-center">
-                          <button onClick={() => handleEditContact(contact)} className="p-1 text-blue-600 hover:bg-blue-50 rounded mr-1" title="Edit">
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleOpenSocialMediaModal(contact)} className="p-1 text-green-600 hover:bg-green-50 rounded mr-1" title="Social Media Links">
-                            <Link2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDeleteContact(contact.id)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Delete">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        <td className="px-2 py-2 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button onClick={() => handleEditContact(contact)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Edit">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => handleOpenSocialMediaModal(contact)} className="p-1 text-green-600 hover:bg-green-50 rounded" title="Social Media Links">
+                              <Link2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => handleDeleteContact(contact.id)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Delete">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
                     {filteredContacts.length === 0 && (
                       <tr>
-                        <td colSpan={12} className="px-3 py-8 text-center text-gray-500">No contacts found</td>
+                        <td colSpan={12} className="px-3 py-8 text-center text-gray-500 text-xs">No contacts found</td>
                       </tr>
                     )}
                   </tbody>
@@ -1341,24 +1414,77 @@ export default function EditPreLeadPage() {
               {/* Memo Modal */}
               {showMemoModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                  <div className="bg-white rounded-lg w-full max-w-2xl">
-                    <div className="flex items-center justify-between px-4 py-3 border-b">
-                      <h3 className="text-lg font-semibold">Memo Details</h3>
-                      <button onClick={() => setShowMemoModal(false)} className="p-1 hover:bg-gray-100 rounded">
+                  <div className="bg-white rounded-lg w-full max-w-2xl overflow-hidden shadow-xl">
+                    {/* Modal Header - Blue background */}
+                    <div className="flex items-center justify-between px-4 py-2.5 bg-blue-600">
+                      <h3 className="text-sm font-semibold text-yellow-300 uppercase tracking-wide">MEMO DETAILS</h3>
+                      <button onClick={() => setShowMemoModal(false)} className="p-1 hover:bg-blue-700 rounded text-white">
                         <X className="w-5 h-5" />
                       </button>
                     </div>
+
+                    {/* Rich Text Editor Toolbar */}
+                    <div className="flex items-center gap-1 px-4 py-2 border-b bg-gray-50 flex-wrap">
+                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm font-bold" title="Bold">
+                        B
+                      </button>
+                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm italic" title="Italic">
+                        I
+                      </button>
+                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm underline" title="Underline">
+                        U
+                      </button>
+                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Highlight">
+                        <span className="bg-yellow-300 px-1">ab</span>
+                      </button>
+                      <div className="w-px h-5 bg-gray-300 mx-1"></div>
+                      <select className="h-7 px-2 text-xs border border-gray-300 rounded bg-white">
+                        <option>Arial</option>
+                        <option>Times New Roman</option>
+                        <option>Verdana</option>
+                        <option>Georgia</option>
+                      </select>
+                      <select className="h-7 px-2 text-xs border border-gray-300 rounded bg-white w-14">
+                        <option>12</option>
+                        <option>14</option>
+                        <option>16</option>
+                        <option>18</option>
+                        <option>20</option>
+                        <option>24</option>
+                      </select>
+                      <div className="w-px h-5 bg-gray-300 mx-1"></div>
+                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm bg-yellow-200" title="Text Color">
+                        <span className="font-bold">A</span>
+                      </button>
+                      <div className="w-px h-5 bg-gray-300 mx-1"></div>
+                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Bullet List">
+                        <List className="w-4 h-4" />
+                      </button>
+                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Numbered List">
+                        <span className="text-xs">1.</span>
+                      </button>
+                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Decrease Indent">
+                        <AlignLeft className="w-4 h-4" />
+                      </button>
+                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Increase Indent">
+                        <AlignRight className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Editor Area */}
                     <div className="p-4">
                       <textarea
                         value={memoContent}
                         onChange={(e) => setMemoContent(e.target.value)}
-                        rows={10}
-                        className="w-full px-3 py-2 border border-gray-300 rounded resize-none"
+                        rows={12}
+                        className="w-full px-3 py-2 border border-gray-300 rounded resize-y min-h-[200px] focus:outline-none focus:ring-1 focus:ring-blue-500"
                         placeholder="Enter memo details..."
                       />
                     </div>
-                    <div className="flex justify-center gap-3 px-4 py-3 border-t">
-                      <button onClick={handleSaveMemo} className="px-6 py-2 text-sm bg-green-500 text-white rounded hover:bg-green-600">
+
+                    {/* Footer with Save Button */}
+                    <div className="flex justify-center px-4 py-3 border-t bg-gray-50">
+                      <button onClick={handleSaveMemo} className="px-8 py-2 text-sm font-medium bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
                         Save
                       </button>
                     </div>

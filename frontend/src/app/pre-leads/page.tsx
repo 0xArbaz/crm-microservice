@@ -404,7 +404,7 @@ export default function PreLeadsPage() {
                   preLeads.map((preLead, index) => (
                     <tr key={preLead.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                       <td className={tdClass}>
-                        <Link href={`/pre-leads/${preLead.id}`} className="text-blue-600 hover:underline font-medium">
+                        <Link href={`/pre-leads/${preLead.id}/view`} className="text-blue-600 hover:underline font-medium">
                           {preLead.company_name || preLead.first_name}
                         </Link>
                       </td>
@@ -418,7 +418,7 @@ export default function PreLeadsPage() {
                       <td className={tdClass}>{preLead.source?.replace('_', ' ') || '-'}</td>
                       <td className={tdClass}>
                         <div className="flex items-center gap-1">
-                          <Link href={`/pre-leads/${preLead.id}`}>
+                          <Link href={`/pre-leads/${preLead.id}/view`}>
                             <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="View">
                               <Eye className="w-4 h-4" />
                             </button>

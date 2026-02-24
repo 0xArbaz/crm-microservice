@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     activities,
     sales_targets,
     webhooks,
+    webhook_settings,
     marketing,
     customer_requirements,
     option_master,
@@ -58,6 +59,9 @@ api_router.include_router(sales_targets.router, prefix="/sales-targets", tags=["
 
 # Webhooks
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])
+
+# Webhook Settings
+api_router.include_router(webhook_settings.router, prefix="/webhook-settings", tags=["Webhook Settings"])
 
 # Marketing (Bulk Email, WhatsApp)
 api_router.include_router(marketing.router, prefix="/marketing", tags=["Marketing"])

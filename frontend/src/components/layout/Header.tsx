@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Bell, LogOut, User, Search } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/Button';
+import { WebhookButton } from '@/components/WebhookButton';
 
 export function Header() {
   const router = useRouter();
@@ -31,6 +32,9 @@ export function Header() {
 
       {/* Right side */}
       <div className="flex items-center space-x-4">
+        {/* Webhook Button */}
+        <WebhookButton />
+
         {/* Notifications */}
         <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
           <Bell className="w-5 h-5" />
