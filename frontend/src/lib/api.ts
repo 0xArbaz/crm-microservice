@@ -113,6 +113,11 @@ class ApiService {
     return response.data;
   }
 
+  async getUsers(params?: { skip?: number; limit?: number; role?: string; is_active?: boolean }): Promise<User[]> {
+    const response = await this.client.get<User[]>('/users', { params });
+    return response.data;
+  }
+
   logout(): void {
     this.clearToken();
   }
@@ -521,6 +526,7 @@ class ApiService {
   // Contacts
   async getContacts(params?: {
     page?: number;
+    page_size?: number;
     lead_id?: number;
     customer_id?: number;
   }): Promise<PaginatedResponse<Contact>> {
@@ -633,10 +639,10 @@ class ApiService {
     return response.data;
   }
 
-  async updateWebhookConfig(id: number, data: Partial<WebhookConfig>): Promise<WebhookConfig> {
-    const response = await this.client.put<WebhookConfig>(`/webhooks/configs/${id}`, data);
-    return response.data;
-  }
+  // async updateWebhookConfig(id: number, data: Partial<WebhookConfig>): Promise<WebhookConfig> {
+  //   const response = await this.client.put<WebhookConfig>(`/webhooks/configs/${id}`, data);
+  //   return response.data;
+  // }
 
   async deleteWebhookConfig(id: number): Promise<void> {
     await this.client.delete(`/webhooks/configs/${id}`);
@@ -683,6 +689,122 @@ class ApiService {
 
   async getWhatsAppTemplates(): Promise<{ templates: any[] }> {
     const response = await this.client.get('/marketing/whatsapp/templates');
+    return response.data;
+  }
+
+  // WhatsApp Marketing Advanced
+  async sendWhatsAppAdvanced(data: {
+    recipients: { number: string; lead_id: number; name: string; company: string }[];
+    template_key: string;
+    documents?: { link: string }[];
+    custom_message?: string;
+  }): Promise<{ status: string; message: string }> {
+    const response = await this.client.post('/marketing/whatsapp/send', data);
+    return response.data;
+  }
+
+  async getWhatsAppDocuments(): Promise<any[]> {
+    const response = await this.client.get('/marketing/whatsapp/documents');
+    return response.data;
+  }
+
+  async uploadWhatsAppDocument(file: File): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.client.post('/marketing/whatsapp/documents', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async deleteWhatsAppDocument(docId: number): Promise<void> {
+    await this.client.post('/marketing/whatsapp/documents/delete', { doc_id: docId });
+  }
+
+  async getWhatsAppSentMessages(): Promise<any[]> {
+    const response = await this.client.get('/marketing/whatsapp/sent-messages');
+    return response.data;
+  }
+
+  async getWhatsAppReceivedMessages(): Promise<any[]> {
+    const response = await this.client.get('/marketing/whatsapp/received-messages');
+    return response.data;
+  }
+
+  async getWhatsAppConversation(phoneNumber: string): Promise<any[]> {
+    const response = await this.client.get(`/marketing/whatsapp/conversation/${encodeURIComponent(phoneNumber)}`);
+    return response.data;
+  }
+
+  async sendWhatsAppConversationMessage(phoneNumber: string, messageBody: string): Promise<any> {
+    const response = await this.client.post('/marketing/whatsapp/conversation/send', {
+      phone_number: phoneNumber,
+      message_body: messageBody,
+    });
+    return response.data;
+  }
+
+  async getWhatsAppAuditLog(): Promise<any[]> {
+    const response = await this.client.get('/marketing/whatsapp/audit-log');
+    return response.data;
+  }
+
+  async getWhatsAppLeads(params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    country_id?: number;
+    state_id?: number;
+    city_id?: number;
+    group_id?: number;
+    industry_id?: number;
+    sales_rep?: number;
+    lead_source?: string;
+    lead_status?: string;
+  }): Promise<any> {
+    const response = await this.client.get('/marketing/whatsapp/leads', { params });
+    return response.data;
+  }
+
+  async getLeadContactsForWhatsApp(leadId: number): Promise<{ contacts: any[] }> {
+    const response = await this.client.get(`/marketing/whatsapp/lead/${leadId}/contacts`);
+    return response.data;
+  }
+
+  // Advanced Bulk Email
+  async sendBulkEmailAdvanced(data: {
+    leads: { lead_id: number; contact_email: string; contact_name: string }[];
+    subject: string;
+    body: string;
+    cc?: string;
+    bcc?: string;
+    attachment_ids?: number[];
+    template_id?: string;
+  }): Promise<{ total_recipients: number; queued: number; message: string }> {
+    const response = await this.client.post('/marketing/bulk-email/advanced', data);
+    return response.data;
+  }
+
+  async getBulkEmailDocuments(): Promise<any[]> {
+    const response = await this.client.get('/marketing/bulk-email/documents');
+    return response.data;
+  }
+
+  async uploadBulkEmailDocument(file: File): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.client.post('/marketing/bulk-email/documents', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async deleteBulkEmailDocument(docId: number): Promise<void> {
+    await this.client.delete(`/marketing/bulk-email/documents/${docId}`);
+  }
+
+  async getBulkEmailHistory(): Promise<any[]> {
+    const response = await this.client.get('/marketing/bulk-email/history');
     return response.data;
   }
 
@@ -1251,6 +1373,46 @@ class ApiService {
 
   async deleteBulkEnrichmentJob(jobId: string): Promise<void> {
     await axios.delete(`${LEAD_SEARCH_API_URL}/leads/enrich/bulk/${jobId}`);
+  // ============ Webhook Settings ============
+
+  async getWebhookSettings(): Promise<any[]> {
+    const response = await this.client.get('/webhook-settings/settings');
+    return response.data;
+  }
+
+  async updateWebhookSetting(menuKey: string, isEnabled: boolean): Promise<any> {
+    const response = await this.client.put(`/webhook-settings/settings/${menuKey}`, { is_enabled: isEnabled });
+    return response.data;
+  }
+
+  async checkWebhookEnabled(menuPath: string): Promise<{ is_enabled: boolean; menu_key: string | null }> {
+    const response = await this.client.get(`/webhook-settings/settings/check/${encodeURIComponent(menuPath)}`);
+    return response.data;
+  }
+
+  async getWebhookConfig(menuKey: string): Promise<any> {
+    const response = await this.client.get(`/webhook-settings/config/${menuKey}`);
+    return response.data;
+  }
+
+  async updateWebhookConfig(menuKey: string, data: {
+    webhook_url?: string;
+    secret_key?: string;
+    events?: string[];
+    is_active?: boolean;
+  }): Promise<any> {
+    const response = await this.client.put(`/webhook-settings/config/${menuKey}`, data);
+    return response.data;
+  }
+
+  async testWebhook(menuKey: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.client.post(`/webhook-settings/config/${menuKey}/test`);
+    return response.data;
+  }
+
+  async getEnabledWebhookPaths(): Promise<{ paths: { menu_key: string; menu_path: string }[] }> {
+    const response = await this.client.get('/webhook-settings/enabled-paths');
+    return response.data;
   }
 }
 

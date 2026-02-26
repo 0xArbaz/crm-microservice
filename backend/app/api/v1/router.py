@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     activities,
     sales_targets,
     webhooks,
+    webhook_settings,
     marketing,
     customer_requirements,
     option_master,
@@ -37,11 +38,12 @@ api_router.include_router(pre_leads.router, prefix="/pre-leads", tags=["Pre-Lead
 # Pre-Lead Entities (Contacts, Activities, Memos, Documents, Status, Qualified Profiles)
 api_router.include_router(pre_lead_entities.router, prefix="/pre-leads", tags=["Pre-Lead Entities"])
 
+# Lead Entities (Contacts, Activities, Memos, Documents, Status, Qualified Profiles)
+# NOTE: Must come BEFORE leads.router so /all-contacts matches before /{lead_id}
+api_router.include_router(lead_entities.router, prefix="/leads", tags=["Lead Entities"])
+
 # Leads
 api_router.include_router(leads.router, prefix="/leads", tags=["Leads"])
-
-# Lead Entities (Contacts, Activities, Memos, Documents, Status, Qualified Profiles)
-api_router.include_router(lead_entities.router, prefix="/leads", tags=["Lead Entities"])
 
 # Customers
 api_router.include_router(customers.router, prefix="/customers", tags=["Customers"])
@@ -57,6 +59,9 @@ api_router.include_router(sales_targets.router, prefix="/sales-targets", tags=["
 
 # Webhooks
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])
+
+# Webhook Settings
+api_router.include_router(webhook_settings.router, prefix="/webhook-settings", tags=["Webhook Settings"])
 
 # Marketing (Bulk Email, WhatsApp)
 api_router.include_router(marketing.router, prefix="/marketing", tags=["Marketing"])

@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Plus, Calendar, ArrowRight, Pencil, Trash2, X, Link2, Upload } from 'lucide-react';
+import { Plus, Calendar, ArrowRight, Pencil, Trash2, X, Link2, Upload, List, AlignLeft, AlignRight, Eraser } from 'lucide-react';
 import api from '@/lib/api';
 import { PreLead } from '@/types';
 
@@ -137,13 +137,7 @@ const leadScoreOptions = [
 
 // Location options will be fetched dynamically
 
-const contactTypeOptions = [
-  { value: 'all', label: 'All' },
-  { value: 'primary', label: 'Primary' },
-  { value: 'billing', label: 'Billing' },
-  { value: 'technical', label: 'Technical' },
-  { value: 'decision_maker', label: 'Decision Maker' },
-];
+// contactTypeOptions will be fetched from Option Master
 
 const titleOptions = [
   { value: '', label: 'Title' },
@@ -216,6 +210,13 @@ export default function EditPreLeadPage() {
   const [industryOptions, setIndustryOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Industry' }]);
   const [regionOptions, setRegionOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Company Region' }]);
   const [sourceOptions, setSourceOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Lead Source' }]);
+  const [contactTypeOptions, setContactTypeOptions] = useState<{value: string, label: string}[]>([
+    { value: 'all', label: 'All' },
+    { value: 'primary', label: 'Primary' },
+    { value: 'billing', label: 'Billing' },
+    { value: 'technical', label: 'Technical' },
+    { value: 'decision_maker', label: 'Decision Maker' },
+  ]);
 
   // Dynamic location options
   const [countryOptions, setCountryOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Country' }]);
@@ -233,6 +234,25 @@ export default function EditPreLeadPage() {
   const [showMemoModal, setShowMemoModal] = useState(false);
   const [editingMemo, setEditingMemo] = useState<Memo | null>(null);
   const [memoContent, setMemoContent] = useState('');
+  const memoEditorRef = useRef<HTMLDivElement>(null);
+
+  // Rich text formatting functions
+  const execCommand = (command: string, value: string | undefined = undefined) => {
+    document.execCommand(command, false, value);
+    memoEditorRef.current?.focus();
+  };
+
+  const formatBold = () => execCommand('bold');
+  const formatItalic = () => execCommand('italic');
+  const formatUnderline = () => execCommand('underline');
+  const formatHighlight = () => execCommand('hiliteColor', 'yellow');
+  const formatBulletList = () => execCommand('insertUnorderedList');
+  const formatNumberedList = () => execCommand('insertOrderedList');
+  const formatIndent = () => execCommand('indent');
+  const formatOutdent = () => execCommand('outdent');
+  const formatFontName = (font: string) => execCommand('fontName', font);
+  const formatFontSize = (size: string) => execCommand('fontSize', size);
+  const formatTextColor = (color: string) => execCommand('foreColor', color);
 
   // Contact form state
   const [showContactForm, setShowContactForm] = useState(false);
@@ -437,6 +457,11 @@ export default function EditPreLeadPage() {
             setRegionOptions([{ value: '', label: 'Select Company Region' }, ...items]);
           } else if (title === 'lead source' || title === 'source' || title === 'sources') {
             setSourceOptions([{ value: '', label: 'Select Lead Source' }, ...items]);
+          } else if (title === 'contact type' || title === 'contact types') {
+            const contactItems = option.dropdowns
+              .filter((d: any) => d.status === 'Active')
+              .map((d: any) => ({ value: d.name.toLowerCase().replace(/\s+/g, '_'), label: d.name }));
+            setContactTypeOptions([{ value: 'all', label: 'All' }, ...contactItems]);
           }
         });
       } catch (err) {
@@ -730,19 +755,21 @@ export default function EditPreLeadPage() {
   };
 
   const handleSaveMemo = async () => {
-    if (!memoContent.trim()) {
+    const content = memoEditorRef.current?.innerHTML || memoContent;
+    const textContent = memoEditorRef.current?.textContent || '';
+    if (!textContent.trim()) {
       showError('Please enter memo content');
       return;
     }
     try {
       if (editingMemo) {
         await api.updatePreLeadMemo(preLeadId, editingMemo.id, {
-          details: memoContent,
+          details: content,
         });
         showSuccess('Memo updated successfully');
       } else {
         await api.createPreLeadMemo(preLeadId, {
-          details: memoContent,
+          details: content,
         });
         showSuccess('Memo added successfully');
       }
@@ -829,7 +856,7 @@ export default function EditPreLeadPage() {
 
   return (
     <MainLayout>
-      <div className="h-full flex flex-col">
+      <div className="h-full flex flex-col min-w-0 overflow-hidden">
         {/* Header */}
         <div className="bg-slate-700 text-white px-4 py-3 flex items-center justify-between">
           <h1 className="text-sm font-medium">
@@ -859,7 +886,7 @@ export default function EditPreLeadPage() {
         {success && <div className="mx-4 mt-4 p-3 bg-green-50 text-green-600 rounded text-sm">{success}</div>}
 
         {/* Content */}
-        <div className="flex-1 overflow-auto p-6 bg-gray-50">
+        <div className="flex-1 overflow-auto p-6 bg-gray-50 min-w-0">
           {/* ============== TAB 1: Company Details ============== */}
           {activeTab === 'company_details' && (
             <form onSubmit={handleSubmit(onSubmit)}>
@@ -1043,14 +1070,14 @@ export default function EditPreLeadPage() {
 
           {/* ============== TAB 2: Contacts ============== */}
           {activeTab === 'contacts' && (
-            <div>
-              {/* Filter */}
+            <div className="min-w-0">
+              {/* Contact Type Filter */}
               <div className="flex items-center gap-4 mb-4">
-                <label className="text-sm text-blue-600">Contact Type</label>
+                <label className="text-sm text-blue-600 font-medium whitespace-nowrap">Contact type</label>
                 <select
                   value={contactFilter}
                   onChange={(e) => setContactFilter(e.target.value)}
-                  className={`${selectClass} w-48`}
+                  className="w-48 h-9 px-3 text-sm border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
                   {contactTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
@@ -1058,107 +1085,182 @@ export default function EditPreLeadPage() {
 
               {/* Contacts Table */}
               <div className="bg-white border rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-3 py-2 text-left">Contact</th>
-                      <th className="px-3 py-2 text-left">Title</th>
-                      <th className="px-3 py-2 text-left">First Name</th>
-                      <th className="px-3 py-2 text-left">Last Name</th>
-                      <th className="px-3 py-2 text-left">Designation</th>
-                      <th className="px-3 py-2 text-left">Work Email</th>
-                      <th className="px-3 py-2 text-left">Work Phone</th>
-                      <th className="px-3 py-2 text-left">Ext.</th>
-                      <th className="px-3 py-2 text-left">Fax</th>
-                      <th className="px-3 py-2 text-left">Cell Phone</th>
-                      <th className="px-3 py-2 text-center">Status</th>
-                      <th className="px-3 py-2 text-center">Action</th>
+                  {/* Blue Header Row */}
+                  <thead>
+                    <tr className="bg-blue-600 text-white">
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Contact</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Title</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">First Name</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Last Name</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Designation</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Work Email</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Work Phone</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Ext.</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Fax</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Cell Phone</th>
+                      <th className="px-2 py-2.5 text-center text-xs font-medium whitespace-nowrap">Status</th>
+                      <th className="px-2 py-2.5 text-center text-xs font-medium whitespace-nowrap">Action</th>
                     </tr>
-                    {/* Add Row */}
-                    {showContactForm && (
-                      <tr className="bg-blue-50">
-                        <td className="px-2 py-2">
-                          <select value={contactForm.contact_type} onChange={e => setContactForm({...contactForm, contact_type: e.target.value})} className={`${selectClass} w-full text-xs`}>
-                            {contactTypeOptions.filter(o => o.value !== 'all').map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                          </select>
-                        </td>
-                        <td className="px-2 py-2">
-                          <select value={contactForm.title} onChange={e => setContactForm({...contactForm, title: e.target.value})} className={`${selectClass} w-full text-xs`}>
-                            {titleOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                          </select>
-                        </td>
-                        <td className="px-2 py-2"><input value={contactForm.first_name} onChange={e => setContactForm({...contactForm, first_name: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="First Name" /></td>
-                        <td className="px-2 py-2"><input value={contactForm.last_name} onChange={e => setContactForm({...contactForm, last_name: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Last Name" /></td>
-                        <td className="px-2 py-2"><input value={contactForm.designation} onChange={e => setContactForm({...contactForm, designation: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Designation" /></td>
-                        <td className="px-2 py-2"><input value={contactForm.work_email} onChange={e => setContactForm({...contactForm, work_email: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Email" /></td>
-                        <td className="px-2 py-2"><input value={contactForm.work_phone} onChange={e => setContactForm({...contactForm, work_phone: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Phone" /></td>
-                        <td className="px-2 py-2"><input value={contactForm.ext} onChange={e => setContactForm({...contactForm, ext: e.target.value})} className={`${inputClass} w-16 text-xs`} placeholder="Ext" /></td>
-                        <td className="px-2 py-2"><input value={contactForm.fax} onChange={e => setContactForm({...contactForm, fax: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Fax" /></td>
-                        <td className="px-2 py-2"><input value={contactForm.cell_phone} onChange={e => setContactForm({...contactForm, cell_phone: e.target.value})} className={`${inputClass} w-full text-xs`} placeholder="Cell" /></td>
-                        <td className="px-2 py-2">
-                          <select value={contactForm.status} onChange={e => setContactForm({...contactForm, status: e.target.value})} className={`${selectClass} w-full text-xs`}>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                          </select>
-                        </td>
-                        <td className="px-2 py-2 text-center">
-                          <button onClick={handleAddContact} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 mr-1">
+                    {/* Always Visible Add/Edit Row */}
+                    <tr className="bg-white border-b">
+                      <td className="px-1.5 py-2">
+                        <select
+                          value={contactForm.contact_type}
+                          onChange={e => setContactForm({...contactForm, contact_type: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          {contactTypeOptions.filter(o => o.value !== 'all').map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <select
+                          value={contactForm.title}
+                          onChange={e => setContactForm({...contactForm, title: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          {titleOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <input
+                          value={contactForm.first_name}
+                          onChange={e => setContactForm({...contactForm, first_name: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="First Name"
+                        />
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <input
+                          value={contactForm.last_name}
+                          onChange={e => setContactForm({...contactForm, last_name: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Last Name"
+                        />
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <input
+                          value={contactForm.designation}
+                          onChange={e => setContactForm({...contactForm, designation: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Designation"
+                        />
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <input
+                          value={contactForm.work_email}
+                          onChange={e => setContactForm({...contactForm, work_email: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Work Email ID"
+                        />
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <input
+                          value={contactForm.work_phone}
+                          onChange={e => setContactForm({...contactForm, work_phone: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Work Phone"
+                        />
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <input
+                          value={contactForm.ext}
+                          onChange={e => setContactForm({...contactForm, ext: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Ext."
+                        />
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <input
+                          value={contactForm.fax}
+                          onChange={e => setContactForm({...contactForm, fax: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Fax"
+                        />
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <input
+                          value={contactForm.cell_phone}
+                          onChange={e => setContactForm({...contactForm, cell_phone: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Cell Phone"
+                        />
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <select
+                          value={contactForm.status}
+                          onChange={e => setContactForm({...contactForm, status: e.target.value})}
+                          className="w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                        </select>
+                      </td>
+                      <td className="px-1.5 py-2">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={handleAddContact}
+                            className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700"
+                          >
                             {editingContact ? 'Save' : 'Add'}
                           </button>
-                          <button onClick={resetContactForm} className="px-2 py-1 text-xs bg-gray-400 text-white rounded hover:bg-gray-500">
-                            Cancel
-                          </button>
-                        </td>
-                      </tr>
-                    )}
+                          {editingContact && (
+                            <button
+                              onClick={resetContactForm}
+                              className="px-2 py-1.5 text-xs bg-gray-400 text-white rounded hover:bg-gray-500"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                          {!editingContact && (
+                            <input type="checkbox" className="w-4 h-4 rounded border-gray-300" />
+                          )}
+                        </div>
+                      </td>
+                    </tr>
                   </thead>
                   <tbody>
-                    {!showContactForm && (
-                      <tr className="border-b bg-gray-50">
-                        <td colSpan={12} className="px-3 py-2">
-                          <button onClick={() => setShowContactForm(true)} className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
-                            + Add Contact
-                          </button>
-                        </td>
-                      </tr>
-                    )}
                     {filteredContacts.map((contact) => (
                       <tr key={contact.id} className="border-b hover:bg-gray-50">
-                        <td className="px-3 py-2">{contact.contact_type}</td>
-                        <td className="px-3 py-2">{contact.title}</td>
-                        <td className="px-3 py-2">{contact.first_name}</td>
-                        <td className="px-3 py-2">{contact.last_name}</td>
-                        <td className="px-3 py-2">{contact.designation}</td>
-                        <td className="px-3 py-2">{contact.work_email}</td>
-                        <td className="px-3 py-2">{contact.work_phone}</td>
-                        <td className="px-3 py-2">{contact.ext}</td>
-                        <td className="px-3 py-2">{contact.fax}</td>
-                        <td className="px-3 py-2">{contact.cell_phone}</td>
-                        <td className="px-3 py-2 text-center">
-                          <span className={`px-2 py-1 rounded text-xs ${contact.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        <td className="px-2 py-2 text-xs">{contact.contact_type}</td>
+                        <td className="px-2 py-2 text-xs">{contact.title}</td>
+                        <td className="px-2 py-2 text-xs">{contact.first_name}</td>
+                        <td className="px-2 py-2 text-xs">{contact.last_name}</td>
+                        <td className="px-2 py-2 text-xs">{contact.designation}</td>
+                        <td className="px-2 py-2 text-xs">{contact.work_email}</td>
+                        <td className="px-2 py-2 text-xs">{contact.work_phone}</td>
+                        <td className="px-2 py-2 text-xs">{contact.ext}</td>
+                        <td className="px-2 py-2 text-xs">{contact.fax}</td>
+                        <td className="px-2 py-2 text-xs">{contact.cell_phone}</td>
+                        <td className="px-2 py-2 text-center">
+                          <span className={`px-2 py-0.5 rounded text-xs ${contact.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                             {contact.status}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-center">
-                          <button onClick={() => handleEditContact(contact)} className="p-1 text-blue-600 hover:bg-blue-50 rounded mr-1" title="Edit">
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleOpenSocialMediaModal(contact)} className="p-1 text-green-600 hover:bg-green-50 rounded mr-1" title="Social Media Links">
-                            <Link2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDeleteContact(contact.id)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Delete">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        <td className="px-2 py-2 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button onClick={() => handleEditContact(contact)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Edit">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => handleOpenSocialMediaModal(contact)} className="p-1 text-green-600 hover:bg-green-50 rounded" title="Social Media Links">
+                              <Link2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => handleDeleteContact(contact.id)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Delete">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
                     {filteredContacts.length === 0 && (
                       <tr>
-                        <td colSpan={12} className="px-3 py-8 text-center text-gray-500">No contacts found</td>
+                        <td colSpan={12} className="px-3 py-8 text-center text-gray-500 text-xs">No contacts found</td>
                       </tr>
                     )}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
           )}
@@ -1181,8 +1283,21 @@ export default function EditPreLeadPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <label className={labelClass}>Best Time (Call)</label>
-                      <div className="flex gap-2 flex-1">
-                        <input type="time" value={profileForm.q_bes_time_call} onChange={e => setProfileForm({...profileForm, q_bes_time_call: e.target.value})} className={`${inputClass} w-28`} />
+                      <div className="flex gap-1 flex-1 items-center">
+                        <input
+                          type="time"
+                          value={profileForm.q_bes_time_call}
+                          onChange={e => setProfileForm({...profileForm, q_bes_time_call: e.target.value})}
+                          className="w-28 h-9 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setProfileForm({...profileForm, q_bes_time_call: ''})}
+                          className="p-1 text-gray-500 hover:text-red-600"
+                          title="Clear time"
+                        >
+                          <Eraser className="w-4 h-4" />
+                        </button>
                         <select value={profileForm.q_bes_time_call_timezone} onChange={e => setProfileForm({...profileForm, q_bes_time_call_timezone: e.target.value})} className={`${selectClass} flex-1`}>
                           {timezoneOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                         </select>
@@ -1318,7 +1433,7 @@ export default function EditPreLeadPage() {
                       <tr key={memo.id} className="border-b hover:bg-gray-50">
                         <td className="px-4 py-3">{new Date(memo.created_at).toLocaleDateString()}</td>
                         <td className="px-4 py-3">User #{memo.created_by}</td>
-                        <td className="px-4 py-3">{memo.details || memo.content}</td>
+                        <td className="px-4 py-3" dangerouslySetInnerHTML={{ __html: memo.details || memo.content || '' }} />
                         <td className="px-4 py-3 text-center">
                           <button onClick={() => handleEditMemo(memo)} className="p-1 text-blue-600 hover:bg-blue-50 rounded mr-1">
                             <Pencil className="w-4 h-4" />
@@ -1341,24 +1456,87 @@ export default function EditPreLeadPage() {
               {/* Memo Modal */}
               {showMemoModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                  <div className="bg-white rounded-lg w-full max-w-2xl">
-                    <div className="flex items-center justify-between px-4 py-3 border-b">
-                      <h3 className="text-lg font-semibold">Memo Details</h3>
-                      <button onClick={() => setShowMemoModal(false)} className="p-1 hover:bg-gray-100 rounded">
+                  <div className="bg-white rounded-lg w-full max-w-2xl overflow-hidden shadow-xl">
+                    {/* Modal Header - Blue background */}
+                    <div className="flex items-center justify-between px-4 py-2.5 bg-blue-600">
+                      <h3 className="text-sm font-semibold text-yellow-300 uppercase tracking-wide">MEMO DETAILS</h3>
+                      <button onClick={() => setShowMemoModal(false)} className="p-1 hover:bg-blue-700 rounded text-white">
                         <X className="w-5 h-5" />
                       </button>
                     </div>
+
+                    {/* Rich Text Editor Toolbar */}
+                    <div className="flex items-center gap-1 px-4 py-2 border-b bg-gray-50 flex-wrap">
+                      <button type="button" onClick={formatBold} className="px-2 py-1 hover:bg-gray-200 rounded text-sm font-bold" title="Bold">
+                        B
+                      </button>
+                      <button type="button" onClick={formatItalic} className="px-2 py-1 hover:bg-gray-200 rounded text-sm italic" title="Italic">
+                        I
+                      </button>
+                      <button type="button" onClick={formatUnderline} className="px-2 py-1 hover:bg-gray-200 rounded text-sm underline" title="Underline">
+                        U
+                      </button>
+                      <button type="button" onClick={formatHighlight} className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Highlight">
+                        <span className="bg-yellow-300 px-1">ab</span>
+                      </button>
+                      <div className="w-px h-5 bg-gray-300 mx-1"></div>
+                      <select
+                        className="h-7 px-2 text-xs border border-gray-300 rounded bg-white"
+                        onChange={(e) => formatFontName(e.target.value)}
+                      >
+                        <option value="Arial">Arial</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="Verdana">Verdana</option>
+                        <option value="Georgia">Georgia</option>
+                      </select>
+                      <select
+                        className="h-7 px-2 text-xs border border-gray-300 rounded bg-white w-14"
+                        onChange={(e) => formatFontSize(e.target.value)}
+                      >
+                        <option value="2">12</option>
+                        <option value="3">14</option>
+                        <option value="4">16</option>
+                        <option value="5">18</option>
+                        <option value="6">20</option>
+                        <option value="7">24</option>
+                      </select>
+                      <div className="w-px h-5 bg-gray-300 mx-1"></div>
+                      <input
+                        type="color"
+                        className="w-7 h-7 p-0 border border-gray-300 rounded cursor-pointer"
+                        onChange={(e) => formatTextColor(e.target.value)}
+                        title="Text Color"
+                      />
+                      <div className="w-px h-5 bg-gray-300 mx-1"></div>
+                      <button type="button" onClick={formatBulletList} className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Bullet List">
+                        <List className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={formatNumberedList} className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Numbered List">
+                        <span className="text-xs">1.</span>
+                      </button>
+                      <button type="button" onClick={formatOutdent} className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Decrease Indent">
+                        <AlignLeft className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={formatIndent} className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Increase Indent">
+                        <AlignRight className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Editor Area */}
                     <div className="p-4">
-                      <textarea
-                        value={memoContent}
-                        onChange={(e) => setMemoContent(e.target.value)}
-                        rows={10}
-                        className="w-full px-3 py-2 border border-gray-300 rounded resize-none"
-                        placeholder="Enter memo details..."
+                      <div
+                        ref={memoEditorRef}
+                        contentEditable
+                        className="w-full px-3 py-2 border border-gray-300 rounded min-h-[200px] focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-auto"
+                        style={{ maxHeight: '400px' }}
+                        dangerouslySetInnerHTML={{ __html: memoContent }}
+                        onBlur={(e) => setMemoContent(e.currentTarget.innerHTML)}
                       />
                     </div>
-                    <div className="flex justify-center gap-3 px-4 py-3 border-t">
-                      <button onClick={handleSaveMemo} className="px-6 py-2 text-sm bg-green-500 text-white rounded hover:bg-green-600">
+
+                    {/* Footer with Save Button */}
+                    <div className="flex justify-center px-4 py-3 border-t bg-gray-50">
+                      <button onClick={handleSaveMemo} className="px-8 py-2 text-sm font-medium bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
                         Save
                       </button>
                     </div>

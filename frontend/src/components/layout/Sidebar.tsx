@@ -54,6 +54,7 @@ const navigation: NavItem[] = [
       { name: 'Sales Target', href: '/leads/sales-target' },
       { name: 'Bulk Email', href: '/leads/bulk-email' },
       { name: 'WhatsApp Marketing', href: '/leads/whatsapp' },
+      { name: 'Lead Agent', href: '/leads/agent' },
     ],
   },
   {
@@ -83,6 +84,7 @@ const navigation: NavItem[] = [
     icon: Settings,
     children: [
       { name: 'Option Master', href: '/settings/option-master' },
+      { name: 'Webhook Setting', href: '/settings/webhook' },
       { name: 'General Settings', href: '/settings' },
     ],
   },

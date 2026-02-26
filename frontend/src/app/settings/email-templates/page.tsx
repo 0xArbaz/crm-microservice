@@ -110,27 +110,29 @@ export default function EmailTemplatesPage() {
             ) : (
               filteredGroups.map((group) => (
                 <Card key={group.key}>
-                  <CardHeader
+                  <div
                     className="cursor-pointer hover:bg-gray-50"
                     onClick={() => toggleGroup(group.key)}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <FolderOpen className="w-5 h-5 text-primary-600" />
-                        <div>
-                          <h3 className="font-semibold">{group.label}</h3>
-                          <p className="text-sm text-gray-500">
-                            {group.templates.length} template(s)
-                          </p>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <FolderOpen className="w-5 h-5 text-primary-600" />
+                          <div>
+                            <h3 className="font-semibold">{group.label}</h3>
+                            <p className="text-sm text-gray-500">
+                              {group.templates.length} template(s)
+                            </p>
+                          </div>
                         </div>
+                        <ChevronRight
+                          className={`w-5 h-5 text-gray-400 transition-transform ${
+                            expandedGroups.has(group.key) ? 'rotate-90' : ''
+                          }`}
+                        />
                       </div>
-                      <ChevronRight
-                        className={`w-5 h-5 text-gray-400 transition-transform ${
-                          expandedGroups.has(group.key) ? 'rotate-90' : ''
-                        }`}
-                      />
-                    </div>
-                  </CardHeader>
+                    </CardHeader>
+                  </div>
 
                   {expandedGroups.has(group.key) && group.templates.length > 0 && (
                     <CardContent>

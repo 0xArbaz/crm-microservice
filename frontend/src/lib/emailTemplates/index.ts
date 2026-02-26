@@ -64,14 +64,14 @@ export function getEmailTemplatesByTab(tab: string): EmailTemplateConfig[] {
  * Get all distinct email format option values
  */
 export function getDistinctEmailFormats(): string[] {
-  return [...new Set(allEmailTemplates.map(t => t.id))];
+  return Array.from(new Set(allEmailTemplates.map(t => t.id)));
 }
 
 /**
  * Get all distinct tabs
  */
 export function getDistinctTabs(): string[] {
-  return [...new Set(allEmailTemplates.map(t => t.tab))];
+  return Array.from(new Set(allEmailTemplates.map(t => t.tab)));
 }
 
 /**

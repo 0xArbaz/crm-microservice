@@ -535,7 +535,7 @@ export default function LeadsPage() {
                       </td>
                       <td className={tdClass}>
                         <div className="flex items-center gap-1">
-                          <Link href={`/leads/${lead.id}`}>
+                          <Link href={`/leads/${lead.id}/view`}>
                             <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="View">
                               <Eye className="w-4 h-4" />
                             </button>

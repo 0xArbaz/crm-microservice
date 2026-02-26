@@ -10,6 +10,7 @@ from app.models.user import User
 from app.models.lead import Lead, LeadSource, LeadPriority
 from app.models.customer import Customer, CustomerType
 from app.models.contact import Contact
+from app.models.location import Country, State, City
 from app.schemas.lead import (
     LeadCreate, LeadUpdate, LeadResponse,
     LeadListResponse, LeadConvert, LeadDiscard
@@ -55,6 +56,28 @@ def create_lead(
     data['updatedby'] = current_user.id
     if not data.get('company_id'):
         data['company_id'] = 1  # Default company
+
+    # Resolve location names from IDs
+    if data.get('country_id'):
+        country = db.query(Country).filter(Country.id == data['country_id']).first()
+        if country:
+            data['country'] = country.name
+
+    if data.get('state_id'):
+        state = db.query(State).filter(State.id == data['state_id']).first()
+        if state:
+            data['state'] = state.name
+
+    if data.get('city_id'):
+        city = db.query(City).filter(City.id == data['city_id']).first()
+        if city:
+            data['city'] = city.name
+
+    # Resolve sales rep name from assigned_to user ID
+    if data.get('assigned_to'):
+        user = db.query(User).filter(User.id == data['assigned_to']).first()
+        if user:
+            data['sales_rep'] = user.full_name or user.email
 
     lead = Lead(**data)
     db.add(lead)
@@ -194,6 +217,28 @@ def update_lead(
 
     # Auto-assign updatedby
     data['updatedby'] = current_user.id
+
+    # Resolve location names from IDs
+    if 'country_id' in data and data['country_id']:
+        country = db.query(Country).filter(Country.id == data['country_id']).first()
+        if country:
+            data['country'] = country.name
+
+    if 'state_id' in data and data['state_id']:
+        state = db.query(State).filter(State.id == data['state_id']).first()
+        if state:
+            data['state'] = state.name
+
+    if 'city_id' in data and data['city_id']:
+        city = db.query(City).filter(City.id == data['city_id']).first()
+        if city:
+            data['city'] = city.name
+
+    # Resolve sales rep name from assigned_to user ID
+    if 'assigned_to' in data and data['assigned_to']:
+        user = db.query(User).filter(User.id == data['assigned_to']).first()
+        if user:
+            data['sales_rep'] = user.full_name or user.email
 
     for field, value in data.items():
         setattr(lead, field, value)

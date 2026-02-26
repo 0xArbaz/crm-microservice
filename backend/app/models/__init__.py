@@ -28,6 +28,11 @@ from app.models.customer_requirement import (
 from app.models.option_master import Option, OptionDropdown
 from app.models.location import Country, State, City
 from app.models.cri_email_template import CRIEmailTemplate
+from app.models.whatsapp_message import (
+    WhatsAppMessage, WhatsAppDocument, WhatsAppEngagement, WhatsAppAuditLog,
+    MessageDirection, MessageStatus
+)
+from app.models.webhook_setting import MenuWebhookSetting, MenuWebhookConfig
 
 __all__ = [
     "User",
@@ -84,4 +89,12 @@ __all__ = [
     "State",
     "City",
     "CRIEmailTemplate",
+    "WhatsAppMessage",
+    "WhatsAppDocument",
+    "WhatsAppEngagement",
+    "WhatsAppAuditLog",
+    "MessageDirection",
+    "MessageStatus",
+    "MenuWebhookSetting",
+    "MenuWebhookConfig",
 ]

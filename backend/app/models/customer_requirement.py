@@ -800,3 +800,17 @@ class CRPresentationMeeting(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_by = Column(Integer, nullable=True)
+
+
+class BulkEmailDoc(Base):
+    """Documents for bulk email attachments"""
+    __tablename__ = "bulk_email_docs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    notes = Column(Text, nullable=True)
+    size = Column(Integer, default=0)
+    url = Column(String(500), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(Integer, nullable=True)

@@ -69,9 +69,9 @@ const salesRepOptions = [
 
 const leadScoreOptions = [
   { value: '', label: 'Select Lead Score' },
-  { value: 'hot', label: 'Hot' },
-  { value: 'warm', label: 'Warm' },
-  { value: 'cold', label: 'Cold' },
+  { value: '1', label: 'Hot' },
+  { value: '2', label: 'Warm' },
+  { value: '3', label: 'Cold' },
 ];
 
 // Location options will be fetched dynamically
@@ -122,10 +122,25 @@ export default function NewLeadPage() {
             setGroupOptions([{ value: '', label: 'Select Group' }, ...items]);
           } else if (title === 'industry' || title === 'industries') {
             setIndustryOptions([{ value: '', label: 'Select Industry' }, ...items]);
-          } else if (title === 'company region' || title === 'region' || title === 'regions') {
+          } else if (title === 'company region' || title === 'customer region' || title === 'region' || title === 'regions') {
             setRegionOptions([{ value: '', label: 'Select Company Region' }, ...items]);
           } else if (title === 'lead source' || title === 'source' || title === 'sources') {
-            setSourceOptions([{ value: '', label: 'Select Lead Source' }, ...items]);
+            // Only use hardcoded valid options to avoid enum validation errors
+            // Backend only accepts: pre_lead, direct, website, referral, social_media, cold_call, walk_in, whatsapp, email, erp, other
+            setSourceOptions([
+              { value: '', label: 'Select Lead Source' },
+              { value: 'direct', label: 'Direct' },
+              { value: 'website', label: 'Website' },
+              { value: 'referral', label: 'Referral' },
+              { value: 'social_media', label: 'Social Media' },
+              { value: 'cold_call', label: 'Cold Call' },
+              { value: 'walk_in', label: 'Walk In' },
+              { value: 'whatsapp', label: 'WhatsApp' },
+              { value: 'email', label: 'Email' },
+              { value: 'erp', label: 'ERP' },
+              { value: 'pre_lead', label: 'Pre Lead' },
+              { value: 'other', label: 'Other' },
+            ]);
           }
         });
       } catch (err) {
@@ -217,20 +232,41 @@ export default function NewLeadPage() {
         office_timings = `${data.from_timings} - ${data.to_timings}`;
       }
 
-      const apiData = {
+      const apiData: Record<string, any> = {
         first_name: data.company_name,
         company_name: data.company_name,
-        email: data.email || undefined,
+        address_line1: data.address_line1 || undefined,
+        address_line2: data.address_line2 || undefined,
+        country_id: data.country_id ? parseInt(data.country_id) : undefined,
+        state_id: data.state_id ? parseInt(data.state_id) : undefined,
+        city_id: data.city_id ? parseInt(data.city_id) : undefined,
+        zip_code: data.zip_code || undefined,
+        phone_no: data.phone_no || undefined,
+        fax: data.fax || undefined,
+        website: data.website || undefined,
+        nof_representative: data.nof_representative || undefined,
         phone: data.phone || undefined,
+        email: data.email?.trim() || undefined,
+        lead_since: data.lead_since || undefined,
+        lead_status: data.lead_status || 'new',
+        group_id: data.group_id ? parseInt(data.group_id) : undefined,
+        industry_id: data.industry_id ? parseInt(data.industry_id) : undefined,
+        region_id: data.region_id ? parseInt(data.region_id) : undefined,
+        office_timings: office_timings || undefined,
+        timezone: data.timezone || undefined,
+        sales_rep: data.sales_rep ? parseInt(data.sales_rep) : undefined,
         source: data.source || 'direct',
+        lead_score: data.lead_score ? parseInt(data.lead_score) : undefined,
         priority: data.priority || 'medium',
-        industry: data.industry_id ? `Industry ${data.industry_id}` : undefined,
-        city: data.city_id ? `City ${data.city_id}` : undefined,
-        state: data.state_id ? `State ${data.state_id}` : undefined,
-        country: data.country_id ? 'India' : 'India',
-        notes: data.remarks,
-        // Extended fields stored in notes or custom fields
+        remarks: data.remarks || undefined,
       };
+
+      // Remove undefined values
+      Object.keys(apiData).forEach(key => {
+        if (apiData[key] === undefined || apiData[key] === '') {
+          delete apiData[key];
+        }
+      });
 
       await api.createLead(apiData as any);
       setSuccess('Lead created successfully!');
@@ -238,7 +274,15 @@ export default function NewLeadPage() {
         router.push('/leads');
       }, 1500);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to create lead');
+      const detail = err.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        const messages = detail.map((e: any) => e.msg || e.message || JSON.stringify(e)).join(', ');
+        setError(messages);
+      } else if (typeof detail === 'object' && detail !== null) {
+        setError(detail.msg || detail.message || JSON.stringify(detail));
+      } else {
+        setError(detail || 'Failed to create lead');
+      }
     } finally {
       setIsSubmitting(false);
     }

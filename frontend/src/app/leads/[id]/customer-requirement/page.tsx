@@ -39,6 +39,16 @@ const mainTabs = [
 
 // Sub-tabs for each main tab
 
+// Helper to filter out error objects from arrays (defined outside components for reuse)
+const filterValidItems = (data: any): any[] => {
+  if (!Array.isArray(data)) return [];
+  return data.filter((item: any) => {
+    if (!item || typeof item !== 'object') return false;
+    if ('type' in item && 'loc' in item && 'msg' in item) return false;
+    return true;
+  });
+};
+
 interface CustomerRequirement {
   id: number;
   lead_id: number;
@@ -155,7 +165,7 @@ export default function CustomerRequirementPage() {
   // Load documents when Upload File tab is active
   useEffect(() => {
     if (cr?.id && activeTab === 'upload-file') {
-      api.getCRDocuments(cr.id, 'upload-file').then(setDocuments).catch(() => setDocuments([]));
+      api.getCRDocuments(cr.id, 'upload-file').then(data => setDocuments(filterValidItems(data))).catch(() => setDocuments([]));
     }
   }, [cr?.id, activeTab, documentsRefreshTrigger]);
 
@@ -176,13 +186,39 @@ export default function CustomerRequirementPage() {
     setActiveTab(tabId);
   };
 
+  // Helper to check if response is a valid object (not an error)
+  const isValidResponse = (data: any): boolean => {
+    if (!data || typeof data !== 'object') return false;
+    if ('type' in data && 'loc' in data && 'msg' in data) return false;
+    if (Array.isArray(data) && data.length > 0 && 'type' in data[0] && 'loc' in data[0] && 'msg' in data[0]) return false;
+    return true;
+  };
+
   const handleSaveCustomerDetails = async () => {
     if (!cr?.id) return;
     setSaving(true);
     try {
-      const updated = await api.updateCustomerRequirement(cr.id, formData);
-      setCr(updated);
-      alert('Saved successfully');
+      // Clean up formData - convert empty strings to null for integer fields
+      const cleanedData: any = { ...formData };
+      const integerFields = ['country_id', 'state_id', 'city_id', 'group_id', 'industry_id', 'region_id', 'timezone_id', 'sales_rep_id', 'lead_source_id', 'lead_from_id', 'no_of_employees'];
+      integerFields.forEach(field => {
+        if (cleanedData[field] === '' || cleanedData[field] === undefined) {
+          cleanedData[field] = null;
+        } else if (typeof cleanedData[field] === 'string') {
+          const parsed = parseInt(cleanedData[field]);
+          cleanedData[field] = isNaN(parsed) ? null : parsed;
+        }
+      });
+
+      const updated = await api.updateCustomerRequirement(cr.id, cleanedData);
+      if (isValidResponse(updated)) {
+        setCr(updated);
+        setFormData(updated);
+        alert('Saved successfully');
+      } else {
+        console.error('Invalid response:', updated);
+        alert('Failed to save: Invalid response from server');
+      }
     } catch (err) {
       console.error('Failed to save:', err);
       alert('Failed to save');
@@ -196,8 +232,13 @@ export default function CustomerRequirementPage() {
     setSaving(true);
     try {
       const updated = await api.updateCRIntroduction(cr.id, introduction);
-      setIntroduction(updated);
-      alert('Saved successfully');
+      if (isValidResponse(updated)) {
+        setIntroduction(updated);
+        alert('Saved successfully');
+      } else {
+        console.error('Invalid response:', updated);
+        alert('Failed to save: Invalid response from server');
+      }
     } catch (err) {
       console.error('Failed to save:', err);
       alert('Failed to save');
@@ -211,8 +252,13 @@ export default function CustomerRequirementPage() {
     setSaving(true);
     try {
       const updated = await api.updateCRRequirement(cr.id, requirement);
-      setRequirement(updated);
-      alert('Saved successfully');
+      if (isValidResponse(updated)) {
+        setRequirement(updated);
+        alert('Saved successfully');
+      } else {
+        console.error('Invalid response:', updated);
+        alert('Failed to save: Invalid response from server');
+      }
     } catch (err) {
       console.error('Failed to save:', err);
       alert('Failed to save');
@@ -616,19 +662,19 @@ function CustomerDetailsForm({ formData, setFormData, onSave, saving, inputClass
   // Load contacts
   useEffect(() => {
     if (leadId) {
-      api.getLeadContactsForEdit(leadId).then(setCustomerContacts).catch(() => setCustomerContacts([]));
+      api.getLeadContactsForEdit(leadId).then(data => setCustomerContacts(filterValidItems(data))).catch(() => setCustomerContacts([]));
     }
   }, [leadId]);
 
   // Load countries on mount
   useEffect(() => {
-    api.getCountries().then(setCountries).catch(() => setCountries([]));
+    api.getCountries().then(data => setCountries(filterValidItems(data))).catch(() => setCountries([]));
   }, []);
 
   // Load states when country changes
   useEffect(() => {
     if (formData.country_id) {
-      api.getStates(formData.country_id).then(setStates).catch(() => setStates([]));
+      api.getStates(formData.country_id).then(data => setStates(filterValidItems(data))).catch(() => setStates([]));
     } else {
       setStates([]);
     }
@@ -637,7 +683,7 @@ function CustomerDetailsForm({ formData, setFormData, onSave, saving, inputClass
   // Load cities when state changes
   useEffect(() => {
     if (formData.state_id) {
-      api.getCities(formData.state_id).then(setCities).catch(() => setCities([]));
+      api.getCities(formData.state_id).then(data => setCities(filterValidItems(data))).catch(() => setCities([]));
     } else {
       setCities([]);
     }
@@ -678,8 +724,8 @@ function CustomerDetailsForm({ formData, setFormData, onSave, saving, inputClass
             <label className={fieldLabelClass}>Country</label>
             <select value={formData.country_id || ''} onChange={(e) => handleCountryChange(parseInt(e.target.value) || null)} className={fieldSelectClass}>
               <option value="">Select Country</option>
-              {countries.map((c: any) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+              {countries.filter((c: any) => c && typeof c === 'object' && !('loc' in c && 'msg' in c) && c.id).map((c: any) => (
+                <option key={c.id} value={c.id}>{typeof c.name === 'string' ? c.name : ''}</option>
               ))}
             </select>
           </div>
@@ -687,8 +733,8 @@ function CustomerDetailsForm({ formData, setFormData, onSave, saving, inputClass
             <label className={fieldLabelClass}>State/Province</label>
             <select value={formData.state_id || ''} onChange={(e) => handleStateChange(parseInt(e.target.value) || null)} className={fieldSelectClass}>
               <option value="">Select State</option>
-              {states.map((s: any) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+              {states.filter((s: any) => s && typeof s === 'object' && !('loc' in s && 'msg' in s) && s.id).map((s: any) => (
+                <option key={s.id} value={s.id}>{typeof s.name === 'string' ? s.name : ''}</option>
               ))}
             </select>
           </div>
@@ -697,8 +743,8 @@ function CustomerDetailsForm({ formData, setFormData, onSave, saving, inputClass
             <div className="flex-1 flex gap-1">
               <select value={formData.city_id || ''} onChange={(e) => setFormData({ ...formData, city_id: parseInt(e.target.value) || null })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
                 <option value="">Select City</option>
-                {cities.map((c: any) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                {cities.filter((c: any) => c && typeof c === 'object' && !('loc' in c && 'msg' in c) && c.id).map((c: any) => (
+                  <option key={c.id} value={c.id}>{typeof c.name === 'string' ? c.name : ''}</option>
                 ))}
               </select>
               <button className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100">
@@ -917,8 +963,8 @@ function CustomerDetailsForm({ formData, setFormData, onSave, saving, inputClass
               <label className={fieldLabelClass}>Decision Maker</label>
               <select value={formData.decision_maker || ''} onChange={(e) => setFormData({ ...formData, decision_maker: e.target.value })} className={fieldSelectClass}>
                 <option value="">Select Decision Maker</option>
-                {customerContacts.map((contact: any) => (
-                  <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
+                {customerContacts.filter((c: any) => c && typeof c === 'object' && !('loc' in c && 'msg' in c) && c.id).map((contact: any) => (
+                  <option key={contact.id} value={contact.id}>{`${typeof contact.first_name === 'string' ? contact.first_name : ''} ${typeof contact.last_name === 'string' ? contact.last_name : ''}`.trim() || '-'}</option>
                 ))}
               </select>
             </div>
@@ -1066,20 +1112,20 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
   // Load documents when crId is available
   useEffect(() => {
     if (crId) {
-      api.getCRDocuments(crId, 'introduction').then(setDocuments).catch(() => setDocuments([]));
+      api.getCRDocuments(crId, 'introduction').then(data => setDocuments(filterValidItems(data))).catch(() => setDocuments([]));
     }
   }, [crId]);
 
   // Load contacts from lead
   useEffect(() => {
     if (leadId) {
-      api.getLeadContactsForEdit(leadId).then(setIntroContacts).catch(() => setIntroContacts([]));
+      api.getLeadContactsForEdit(leadId).then(data => setIntroContacts(filterValidItems(data))).catch(() => setIntroContacts([]));
     }
   }, [leadId]);
 
   // Load email templates for Introduction tab
   useEffect(() => {
-    api.getCRIEmailTemplates('Introduction').then(setIntroEmailTemplates).catch(() => setIntroEmailTemplates([]));
+    api.getCRIEmailTemplates('Introduction').then(data => setIntroEmailTemplates(filterValidItems(data))).catch(() => setIntroEmailTemplates([]));
   }, []);
 
   // Initialize form data from customerData (lead data)
@@ -1100,7 +1146,8 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
       const tabName = activitySubTab === 'followup' ? 'introduction-activity-followup' : 'introduction-activity';
       api.getCRActivities(crId, tabName).then((data) => {
         // Map API response to table display format
-        const mappedActivities = data.map((a: any) => ({
+        const validData = filterValidItems(data);
+        const mappedActivities = validData.map((a: any) => ({
           id: a.id,
           by: a.created_by_name || a.assigned_to_name || 'System',
           date: a.start_date || '',
@@ -1119,28 +1166,28 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
   // Load follow-up activities when sub-tab changes
   useEffect(() => {
     if (crId && introSubTab === 'follow-up') {
-      api.getCRActivities(crId, 'introduction-followup').then(setFollowUpActivities).catch(() => setFollowUpActivities([]));
+      api.getCRActivities(crId, 'introduction-followup').then(data => setFollowUpActivities(filterValidItems(data))).catch(() => setFollowUpActivities([]));
     }
   }, [crId, introSubTab]);
 
   // Load memos when sub-tab changes
   useEffect(() => {
     if (crId && introSubTab === 'memo') {
-      api.getCRMemos(crId, 'introduction').then(setIntroMemos).catch(() => setIntroMemos([]));
+      api.getCRMemos(crId, 'introduction').then(data => setIntroMemos(filterValidItems(data))).catch(() => setIntroMemos([]));
     }
   }, [crId, introSubTab]);
 
   // Load upload-file sub-tab documents
   useEffect(() => {
     if (crId && introSubTab === 'upload-file') {
-      api.getCRDocuments(crId, 'introduction-upload').then(setSubTabDocs).catch(() => setSubTabDocs([]));
+      api.getCRDocuments(crId, 'introduction-upload').then(data => setSubTabDocs(filterValidItems(data))).catch(() => setSubTabDocs([]));
     }
   }, [crId, introSubTab]);
 
   // Load email history for Introduction tab
   useEffect(() => {
     if (crId) {
-      api.getCREmailHistory(crId, 'introduction').then(setEmailsSent).catch(() => setEmailsSent([]));
+      api.getCREmailHistory(crId, 'introduction').then(data => setEmailsSent(filterValidItems(data))).catch(() => setEmailsSent([]));
     }
   }, [crId, emailHistoryRefresh]);
 
@@ -1167,7 +1214,7 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
     try {
       await api.uploadCRDocument(crId, subTabFile, 'introduction-upload', 'Upload File');
       const docs = await api.getCRDocuments(crId, 'introduction-upload');
-      setSubTabDocs(docs);
+      setSubTabDocs(filterValidItems(docs));
       setSubTabFile(null);
       setSubTabNotes('');
       if (subTabFileRef.current) subTabFileRef.current.value = '';
@@ -1214,7 +1261,7 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
     try {
       await api.uploadCRDocument(crId, selectedFile, 'introduction', 'Details');
       const docs = await api.getCRDocuments(crId, 'introduction');
-      setDocuments(docs);
+      setDocuments(filterValidItems(docs));
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       alert('File uploaded successfully');
@@ -1261,15 +1308,16 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
       await api.createCRActivity(crId, activityData);
       // Refresh activities list
       const data = await api.getCRActivities(crId, 'introduction-activity').catch(() => []);
-      const mappedActivities = data.map((a: any) => ({
+      const validData = Array.isArray(data) ? data.filter((a: any) => a && typeof a === 'object' && !('loc' in a && 'msg' in a)) : [];
+      const mappedActivities = validData.map((a: any) => ({
         id: a.id,
-        by: a.created_by_name || a.assigned_to_name || 'System',
-        date: a.start_date || '',
-        time: a.start_time || '',
-        source: a.source || 'Manual',
-        type: a.activity_type || '',
-        description: a.description || a.subject || '',
-        action_to_be_taken: a.subject || '',
+        by: typeof a.created_by_name === 'string' ? a.created_by_name : (typeof a.assigned_to_name === 'string' ? a.assigned_to_name : 'System'),
+        date: typeof a.start_date === 'string' ? a.start_date : '',
+        time: typeof a.start_time === 'string' ? a.start_time : '',
+        source: typeof a.source === 'string' ? a.source : 'Manual',
+        type: typeof a.activity_type === 'string' ? a.activity_type : '',
+        description: typeof a.description === 'string' ? a.description : (typeof a.subject === 'string' ? a.subject : ''),
+        action_to_be_taken: typeof a.subject === 'string' ? a.subject : '',
         contact: a.contact_id,
       }));
       setActivities(mappedActivities);
@@ -1615,8 +1663,8 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
             <label className={fieldLabelClass}>Contact Name</label>
             <select value={introFormData.contact_name} onChange={(e) => { const cid = e.target.value; const selectedContact = introContacts.find((c: any) => c.id?.toString() === cid); setIntroFormData({ ...introFormData, contact_name: cid, contact_email: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || '' }); }} className={fieldSelectClass}>
               <option value="">Select Contact Name</option>
-              {introContacts.map((contact: any) => (
-                <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
+              {introContacts.filter((c: any) => c && typeof c === 'object' && !('loc' in c && 'msg' in c) && c.id).map((contact: any) => (
+                <option key={contact.id} value={contact.id}>{`${typeof contact.first_name === 'string' ? contact.first_name : ''} ${typeof contact.last_name === 'string' ? contact.last_name : ''}`.trim() || '-'}</option>
               ))}
             </select>
           </div>
@@ -1625,8 +1673,8 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
             <div className="flex-1 flex">
               <select value={introFormData.email_format_type} onChange={(e) => setIntroFormData({ ...introFormData, email_format_type: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
                 <option value="">Select Email Format</option>
-                {introEmailTemplates.map((template: any) => (
-                  <option key={template.id} value={template.email_format}>{template.email_format}</option>
+                {introEmailTemplates.filter((t: any) => t && typeof t === 'object' && !('loc' in t && 'msg' in t) && t.id).map((template: any) => (
+                  <option key={template.id} value={typeof template.email_format === 'string' ? template.email_format : ''}>{typeof template.email_format === 'string' ? template.email_format : ''}</option>
                 ))}
               </select>
               <button
@@ -1663,14 +1711,14 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                 {emailsSent.length === 0 ? (
                   <tr><td colSpan={4} className="px-3 py-4 text-center text-gray-400 text-xs">No emails sent</td></tr>
                 ) : (
-                  emailsSent.map((email: any, index: number) => (
+                  emailsSent.filter((e: any) => e && typeof e === 'object' && !('loc' in e && 'msg' in e)).map((email: any, index: number) => (
                     <tr key={email.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className={tdClass}>{email.to_email}</td>
-                      <td className={tdClass}>{email.subject || '-'}</td>
+                      <td className={tdClass}>{typeof email.to_email === 'string' ? email.to_email : ''}</td>
+                      <td className={tdClass}>{typeof email.subject === 'string' ? email.subject : '-'}</td>
                       <td className={tdClass}>{email.sent_at ? new Date(email.sent_at).toLocaleDateString() : '-'}</td>
                       <td className={tdClass}>
                         <button
-                          onClick={() => alert(`Subject: ${email.subject}\nTo: ${email.to_email}\nCC: ${email.cc_email || '-'}\nBCC: ${email.bcc_email || '-'}\n\n${email.content || ''}`)}
+                          onClick={() => alert(`Subject: ${email.subject || ''}\nTo: ${email.to_email || ''}\nCC: ${email.cc_email || '-'}\nBCC: ${email.bcc_email || '-'}\n\n${email.content || ''}`)}
                           className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="View Email"
                         >
                           <Eye className="w-3 h-3" />
@@ -1737,9 +1785,9 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                 {documents.length === 0 ? (
                   <tr><td colSpan={5} className="px-3 py-4 text-center text-gray-400 text-xs">No documents uploaded</td></tr>
                 ) : (
-                  documents.map((doc: any, index: number) => (
+                  documents.filter((d: any) => d && typeof d === 'object' && !('loc' in d && 'msg' in d)).map((doc: any, index: number) => (
                     <tr key={doc.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className={`${tdClass} text-blue-600`}>{doc.file_name}</td>
+                      <td className={`${tdClass} text-blue-600`}>{typeof doc.file_name === 'string' ? doc.file_name : ''}</td>
                       <td className={`${tdClass} text-blue-600`}>
                         {doc.file_path ? (
                           <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/${doc.file_path}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
@@ -1782,25 +1830,27 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
       </div>
 
       {/* Sub-tabs Section */}
-      <div className="border-t pt-4">
-        <div className="flex gap-4 mb-4">
-          {['Activity', 'Follow-Up', 'Memo', 'Upload File', 'Workflow & Audit Trail'].map((tab) => {
-            const tabKey = tab.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-');
-            const isActive = introSubTab === tabKey;
-            return (
-              <button
-                key={tab}
-                onClick={() => setIntroSubTab(tabKey)}
-                className={`px-2 py-1 text-xs font-medium border-b-2 ${
-                  isActive
-                    ? 'border-blue-600 text-blue-600 bg-blue-50 rounded-t'
-                    : 'border-transparent text-orange-500 hover:text-orange-600'
-                }`}
-              >
-                {tab}
-              </button>
-            );
-          })}
+      <div className="pt-4">
+        <div className="flex gap-1 border-b border-gray-200 overflow-x-auto mb-4">
+          {[
+            { id: 'activity', label: 'Activity' },
+            { id: 'follow-up', label: 'Follow-Up' },
+            { id: 'memo', label: 'Memo' },
+            { id: 'upload-file', label: 'Upload File' },
+            { id: 'workflow-audit-trail', label: 'Workflow & Audit Trail' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setIntroSubTab(tab.id)}
+              className={`px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors ${
+                introSubTab === tab.id
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Activity Section */}
@@ -1820,14 +1870,16 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                 <button
                   onClick={() => setActivitySubTab('followup')}
                   className={`px-3 py-1 text-xs font-medium rounded ${
-                    activitySubTab === 'followup' ? 'bg-blue-600 text-white' : 'text-orange-500'
+                    activitySubTab === 'followup' ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-600'
                   }`}
                 >
                   Activity Follow-Up
                 </button>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setShowActivityModal(true)} className="px-3 py-1 text-xs border rounded hover:bg-gray-50">Add New Activity</button>
+                {activitySubTab === 'all' && (
+                  <button onClick={() => setShowActivityModal(true)} className="px-3 py-1 text-xs border rounded hover:bg-gray-50">Add New Activity</button>
+                )}
                 <button onClick={exportActivitiesCSV} className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">CSV</button>
                 <button onClick={exportActivitiesCSV} className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600">EXCEL</button>
                 <button onClick={exportActivitiesPDF} className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">PDF</button>
@@ -1854,15 +1906,15 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                     {activities.length === 0 ? (
                       <tr><td colSpan={8} className="px-3 py-8 text-center text-gray-400 text-xs">No activities found</td></tr>
                     ) : (
-                      activities.map((activity: any, index: number) => (
+                      activities.filter((a: any) => a && typeof a === 'object' && !('loc' in a && 'msg' in a)).map((activity: any, index: number) => (
                         <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className={tdClass}>{activity.by}</td>
-                          <td className={`${tdClass} text-blue-600`}>{activity.date}</td>
-                          <td className={`${tdClass} text-blue-600`}>{activity.time}</td>
-                          <td className={`${tdClass} text-blue-600`}>{activity.source}</td>
-                          <td className={tdClass}>{activity.type}</td>
-                          <td className={`${tdClass} text-blue-600`}>{activity.description}</td>
-                          <td className={tdClass}>{activity.action_to_be_taken || '-'}</td>
+                          <td className={tdClass}>{typeof activity.by === 'string' ? activity.by : ''}</td>
+                          <td className={`${tdClass} text-blue-600`}>{typeof activity.date === 'string' ? activity.date : ''}</td>
+                          <td className={`${tdClass} text-blue-600`}>{typeof activity.time === 'string' ? activity.time : ''}</td>
+                          <td className={`${tdClass} text-blue-600`}>{typeof activity.source === 'string' ? activity.source : ''}</td>
+                          <td className={tdClass}>{typeof activity.type === 'string' ? activity.type : ''}</td>
+                          <td className={`${tdClass} text-blue-600`}>{typeof activity.description === 'string' ? activity.description : ''}</td>
+                          <td className={tdClass}>{typeof activity.action_to_be_taken === 'string' ? activity.action_to_be_taken : '-'}</td>
                           <td className={tdClass}>
                             <button
                               onClick={() => handleOpenActivityFollowUp(activity)}
@@ -1900,18 +1952,18 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                     {activities.length === 0 ? (
                       <tr><td colSpan={9} className="px-3 py-8 text-center text-gray-400 text-xs">No follow-up activities found</td></tr>
                     ) : (
-                      activities.map((activity: any, index: number) => (
+                      activities.filter((a: any) => a && typeof a === 'object' && !('loc' in a && 'msg' in a)).map((activity: any, index: number) => (
                         <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className={`${tdClass} text-blue-600`}>{activity.date}</td>
-                          <td className={`${tdClass} text-blue-600`}>{activity.time}</td>
-                          <td className={tdClass}>{activity.assigned_to || '-'}</td>
-                          <td className={tdClass}>{activity.by || '-'}</td>
-                          <td className={`${tdClass} text-blue-600`}>{activity.type || '-'}</td>
-                          <td className={tdClass}>{activity.priority || 'High'}</td>
-                          <td className={tdClass}>{activity.description || '-'}</td>
+                          <td className={`${tdClass} text-blue-600`}>{typeof activity.date === 'string' ? activity.date : ''}</td>
+                          <td className={`${tdClass} text-blue-600`}>{typeof activity.time === 'string' ? activity.time : ''}</td>
+                          <td className={tdClass}>{typeof activity.assigned_to === 'string' ? activity.assigned_to : '-'}</td>
+                          <td className={tdClass}>{typeof activity.by === 'string' ? activity.by : '-'}</td>
+                          <td className={`${tdClass} text-blue-600`}>{typeof activity.type === 'string' ? activity.type : '-'}</td>
+                          <td className={tdClass}>{typeof activity.priority === 'string' ? activity.priority : 'High'}</td>
+                          <td className={tdClass}>{typeof activity.description === 'string' ? activity.description : '-'}</td>
                           <td className={tdClass}>
                             <span className={activity.status === 'Closed' ? 'text-red-600' : 'text-green-600'}>
-                              {activity.status || 'Open'}
+                              {typeof activity.status === 'string' ? activity.status : 'Open'}
                             </span>
                           </td>
                           <td className={tdClass}>
@@ -1963,22 +2015,22 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                   {followUpActivities.length === 0 ? (
                     <tr><td colSpan={9} className="px-3 py-8 text-center text-gray-400 text-xs">No follow-up activities found</td></tr>
                   ) : (
-                    followUpActivities.map((item: any, index: number) => (
+                    followUpActivities.filter((a: any) => a && typeof a === 'object' && !('loc' in a && 'msg' in a)).map((item: any, index: number) => (
                       <tr key={item.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className={`${tdClass} text-red-500`}>{item.activity_type || '-'}</td>
-                        <td className={tdClass}>{item.subject || '-'}</td>
+                        <td className={`${tdClass} text-red-500`}>{typeof item.activity_type === 'string' ? item.activity_type : '-'}</td>
+                        <td className={tdClass}>{typeof item.subject === 'string' ? item.subject : '-'}</td>
                         <td className={tdClass}>
                           {item.start_date ? `${new Date(item.start_date).toLocaleDateString()}, ${item.start_time || ''}` : '-'}
                         </td>
                         <td className={tdClass}>
                           {item.end_date ? `${new Date(item.end_date).toLocaleDateString()} ; ${item.end_time || ''}` : '-'}
                         </td>
-                        <td className={tdClass}>{item.description || '-'}</td>
-                        <td className={tdClass}>{item.assigned_to || '-'}</td>
+                        <td className={tdClass}>{typeof item.description === 'string' ? item.description : '-'}</td>
+                        <td className={tdClass}>{typeof item.assigned_to === 'string' ? item.assigned_to : '-'}</td>
                         <td className={tdClass}>{item.contact_id || '-'}</td>
                         <td className={tdClass}>
                           <span className={item.status === 'Closed' ? 'text-red-600' : 'text-green-600'}>
-                            {item.status || 'Open'}
+                            {typeof item.status === 'string' ? item.status : 'Open'}
                           </span>
                         </td>
                         <td className={tdClass}>
@@ -2025,13 +2077,13 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                   {introMemos.length === 0 ? (
                     <tr><td colSpan={4} className="px-3 py-8 text-center text-gray-400 text-xs">No memos found</td></tr>
                   ) : (
-                    introMemos.map((memo: any, index: number) => (
+                    introMemos.filter((m: any) => m && typeof m === 'object' && !('loc' in m && 'msg' in m)).map((memo: any, index: number) => (
                       <tr key={memo.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                         <td className={tdClass}>
                           {memo.created_at ? new Date(memo.created_at).toLocaleDateString() : '-'}
                         </td>
-                        <td className={tdClass}>{memo.title || '-'}</td>
-                        <td className={`${tdClass} text-blue-600`}>{memo.content || '-'}</td>
+                        <td className={tdClass}>{typeof memo.title === 'string' ? memo.title : '-'}</td>
+                        <td className={`${tdClass} text-blue-600`}>{typeof memo.content === 'string' ? memo.content : '-'}</td>
                         <td className={tdClass}>
                           <div className="flex gap-1 justify-center">
                             <button
@@ -2124,12 +2176,12 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                   {subTabDocs.length === 0 ? (
                     <tr><td colSpan={5} className="px-3 py-8 text-center text-gray-400 text-xs">No files uploaded</td></tr>
                   ) : (
-                    subTabDocs.map((doc: any, index: number) => (
+                    subTabDocs.filter((d: any) => d && typeof d === 'object' && !('loc' in d && 'msg' in d)).map((doc: any, index: number) => (
                       <tr key={doc.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className={`${tdClass} text-blue-600`}>{doc.file_name || '-'}</td>
+                        <td className={`${tdClass} text-blue-600`}>{typeof doc.file_name === 'string' ? doc.file_name : '-'}</td>
                         <td className={tdClass}>{doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : '-'}</td>
                         <td className={tdClass}>{doc.file_size ? `${(doc.file_size / 1024).toFixed(2)} Kb` : '-'}</td>
-                        <td className={tdClass}>{doc.description || '-'}</td>
+                        <td className={tdClass}>{typeof doc.description === 'string' ? doc.description : '-'}</td>
                         <td className={tdClass}>
                           <div className="flex gap-1 justify-center">
                             <button
@@ -2251,8 +2303,8 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                     className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                   >
                     <option value="">Select Contact</option>
-                    {introContacts.map((contact: any) => (
-                      <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
+                    {introContacts.filter((c: any) => c && typeof c === 'object' && !('loc' in c && 'msg' in c) && c.id).map((contact: any) => (
+                      <option key={contact.id} value={contact.id}>{`${typeof contact.first_name === 'string' ? contact.first_name : ''} ${typeof contact.last_name === 'string' ? contact.last_name : ''}`.trim() || '-'}</option>
                     ))}
                   </select>
                 </div>
@@ -2345,8 +2397,8 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                     className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                   >
                     <option value="">Select Contact</option>
-                    {introContacts.map((contact: any) => (
-                      <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
+                    {introContacts.filter((c: any) => c && typeof c === 'object' && !('loc' in c && 'msg' in c) && c.id).map((contact: any) => (
+                      <option key={contact.id} value={contact.id}>{`${typeof contact.first_name === 'string' ? contact.first_name : ''} ${typeof contact.last_name === 'string' ? contact.last_name : ''}`.trim() || '-'}</option>
                     ))}
                   </select>
                 </div>
@@ -2525,8 +2577,8 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                     className="w-full h-8 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                   >
                     <option value="">Select Contact</option>
-                    {introContacts.map((contact: any) => (
-                      <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
+                    {introContacts.filter((c: any) => c && typeof c === 'object' && !('loc' in c && 'msg' in c) && c.id).map((contact: any) => (
+                      <option key={contact.id} value={contact.id}>{`${typeof contact.first_name === 'string' ? contact.first_name : ''} ${typeof contact.last_name === 'string' ? contact.last_name : ''}`.trim() || '-'}</option>
                     ))}
                   </select>
                 </div>
@@ -2875,45 +2927,45 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
   // Load contacts
   useEffect(() => {
     if (leadId) {
-      api.getLeadContactsForEdit(leadId).then(setReqContacts).catch(() => setReqContacts([]));
+      api.getLeadContactsForEdit(leadId).then(data => setReqContacts(filterValidItems(data))).catch(() => setReqContacts([]));
     }
   }, [leadId]);
 
   // Load documents
   useEffect(() => {
     if (crId) {
-      api.getCRDocuments(crId, 'requirement').then(setReqDocs).catch(() => setReqDocs([]));
+      api.getCRDocuments(crId, 'requirement').then(data => setReqDocs(filterValidItems(data))).catch(() => setReqDocs([]));
     }
   }, [crId]);
 
   // Load email templates for Requirement tab
   useEffect(() => {
-    api.getCRIEmailTemplates('Requirement').then(setReqEmailTemplates).catch(() => setReqEmailTemplates([]));
+    api.getCRIEmailTemplates('Requirement').then(data => setReqEmailTemplates(filterValidItems(data))).catch(() => setReqEmailTemplates([]));
   }, []);
 
   // Load sub-tab data
   useEffect(() => {
     if (crId && reqSubTab === 'follow-up') {
-      api.getCRActivities(crId, 'requirement-followup').then(setReqFollowUps).catch(() => setReqFollowUps([]));
+      api.getCRActivities(crId, 'requirement-followup').then(data => setReqFollowUps(filterValidItems(data))).catch(() => setReqFollowUps([]));
     }
   }, [crId, reqSubTab]);
 
   useEffect(() => {
     if (crId && reqSubTab === 'memo') {
-      api.getCRMemos(crId, 'requirement').then(setReqMemos).catch(() => setReqMemos([]));
+      api.getCRMemos(crId, 'requirement').then(data => setReqMemos(filterValidItems(data))).catch(() => setReqMemos([]));
     }
   }, [crId, reqSubTab]);
 
   useEffect(() => {
     if (crId && reqSubTab === 'upload-file') {
-      api.getCRDocuments(crId, 'requirement-upload').then(setReqSubTabDocs).catch(() => setReqSubTabDocs([]));
+      api.getCRDocuments(crId, 'requirement-upload').then(data => setReqSubTabDocs(filterValidItems(data))).catch(() => setReqSubTabDocs([]));
     }
   }, [crId, reqSubTab]);
 
   // Load email history
   useEffect(() => {
     if (crId) {
-      api.getCREmailHistory(crId, 'requirement').then(setEmailsSent).catch(() => setEmailsSent([]));
+      api.getCREmailHistory(crId, 'requirement').then(data => setEmailsSent(filterValidItems(data))).catch(() => setEmailsSent([]));
     }
   }, [crId, emailHistoryRefresh]);
 
@@ -2926,7 +2978,7 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
     try {
       await api.uploadCRDocument(crId, reqSelectedFile, 'requirement', 'Details');
       const docs = await api.getCRDocuments(crId, 'requirement');
-      setReqDocs(docs);
+      setReqDocs(filterValidItems(docs));
       setReqSelectedFile(null);
       if (reqFileInputRef.current) reqFileInputRef.current.value = '';
     } catch (err: any) { alert(err?.response?.data?.detail || 'Failed to upload file'); } finally { setReqUploading(false); }
@@ -2945,7 +2997,7 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
     try {
       await api.uploadCRDocument(crId, reqSubTabFile, 'requirement-upload', 'Upload File');
       const docs = await api.getCRDocuments(crId, 'requirement-upload');
-      setReqSubTabDocs(docs);
+      setReqSubTabDocs(filterValidItems(docs));
       setReqSubTabFile(null); setReqSubTabNotes('');
       if (reqSubTabFileRef.current) reqSubTabFileRef.current.value = '';
     } catch (err: any) { alert(err?.response?.data?.detail || 'Failed to upload file'); } finally { setReqSubTabUploading(false); }
@@ -3041,8 +3093,8 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
             <label className={fieldLabelClass}>Contact Name</label>
             <select value={data?.contact_id || ''} onChange={(e) => { const cid = e.target.value; const selectedContact = reqContacts.find((c: any) => c.id?.toString() === cid); setData({ ...data, contact_id: cid, contact_email: selectedContact?.work_email || selectedContact?.personal_email || selectedContact?.email || '' }); }} className={fieldSelectClass}>
               <option value="">Select Contact Name</option>
-              {reqContacts.map((contact: any) => (
-                <option key={contact.id} value={contact.id}>{`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}</option>
+              {reqContacts.filter((c: any) => c && typeof c === 'object' && !('loc' in c && 'msg' in c) && c.id).map((contact: any) => (
+                <option key={contact.id} value={contact.id}>{`${typeof contact.first_name === 'string' ? contact.first_name : ''} ${typeof contact.last_name === 'string' ? contact.last_name : ''}`.trim() || '-'}</option>
               ))}
             </select>
           </div>
@@ -3051,8 +3103,8 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
             <div className="flex-1 flex">
               <select value={data?.email_format || ''} onChange={(e) => setData({ ...data, email_format: e.target.value })} className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-l bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
                 <option value="">Select Email Format</option>
-                {reqEmailTemplates.map((template: any) => (
-                  <option key={template.id} value={template.email_format}>{template.email_format}</option>
+                {reqEmailTemplates.filter((t: any) => t && typeof t === 'object' && !('loc' in t && 'msg' in t) && t.id).map((template: any) => (
+                  <option key={template.id} value={typeof template.email_format === 'string' ? template.email_format : ''}>{typeof template.email_format === 'string' ? template.email_format : ''}</option>
                 ))}
               </select>
               <button
@@ -3087,14 +3139,14 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
                 {emailsSent.length === 0 ? (
                   <tr><td colSpan={4} className="px-3 py-4 text-center text-gray-400 text-xs">No emails sent</td></tr>
                 ) : (
-                  emailsSent.map((email: any, index: number) => (
+                  emailsSent.filter((e: any) => e && typeof e === 'object' && !('loc' in e && 'msg' in e)).map((email: any, index: number) => (
                     <tr key={email.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className={tdClass}>{email.to_email}</td>
-                      <td className={tdClass}>{email.subject || '-'}</td>
+                      <td className={tdClass}>{typeof email.to_email === 'string' ? email.to_email : ''}</td>
+                      <td className={tdClass}>{typeof email.subject === 'string' ? email.subject : '-'}</td>
                       <td className={tdClass}>{email.sent_at ? new Date(email.sent_at).toLocaleDateString() : '-'}</td>
                       <td className={tdClass}>
                         <button
-                          onClick={() => alert(`Subject: ${email.subject}\nTo: ${email.to_email}\nCC: ${email.cc_email || '-'}\nBCC: ${email.bcc_email || '-'}\n\n${email.content || ''}`)}
+                          onClick={() => alert(`Subject: ${email.subject || ''}\nTo: ${email.to_email || ''}\nCC: ${email.cc_email || '-'}\nBCC: ${email.bcc_email || '-'}\n\n${email.content || ''}`)}
                           className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="View Email"
                         >
                           <Eye className="w-3 h-3" />
@@ -3146,9 +3198,9 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
                 {reqDocs.length === 0 ? (
                   <tr><td colSpan={5} className="px-3 py-4 text-center text-gray-400 text-xs">No documents uploaded</td></tr>
                 ) : (
-                  reqDocs.map((doc: any, index: number) => (
+                  reqDocs.filter((d: any) => d && typeof d === 'object' && !('loc' in d && 'msg' in d)).map((doc: any, index: number) => (
                     <tr key={doc.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className={`${tdClass} text-blue-600`}>{doc.file_name}</td>
+                      <td className={`${tdClass} text-blue-600`}>{typeof doc.file_name === 'string' ? doc.file_name : ''}</td>
                       <td className={`${tdClass} text-blue-600`}>
                         {doc.file_path ? <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/${doc.file_path}`} target="_blank" rel="noopener noreferrer" className="hover:underline truncate block max-w-[120px]">service.delta.axieve...</a> : '-'}
                       </td>
@@ -3181,25 +3233,30 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
       </div>
 
       {/* Sub-tabs Section */}
-      <div className="border-t pt-4">
-        <div className="flex gap-4 mb-4">
-          {reqSubTabs.map((tab) => {
-            const tabKey = tab.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-');
-            const isActive = reqSubTab === tabKey;
-            return (
-              <button
-                key={tab}
-                onClick={() => setReqSubTab(tabKey)}
-                className={`px-2 py-1 text-xs font-medium border-b-2 ${
-                  isActive
-                    ? 'border-blue-600 text-blue-600 bg-blue-50 rounded-t'
-                    : 'border-transparent text-orange-500 hover:text-orange-600'
-                }`}
-              >
-                {tab}
-              </button>
-            );
-          })}
+      <div className="pt-4">
+        <div className="flex gap-1 border-b border-gray-200 overflow-x-auto mb-4">
+          {[
+            { id: 'pre-demo-business-questionnaire', label: 'Pre-Demo Business Questionnaire' },
+            { id: 'meeting-date-time', label: 'Meeting Date & Time' },
+            { id: 'process-flow', label: 'Process Flow' },
+            { id: 'analysis', label: 'Analysis' },
+            { id: 'follow-up', label: 'Follow-Up' },
+            { id: 'memo', label: 'Memo' },
+            { id: 'upload-file', label: 'Upload File' },
+            { id: 'workflow-audit-trail', label: 'Workflow & Audit Trail' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setReqSubTab(tab.id)}
+              className={`px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors ${
+                reqSubTab === tab.id
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Pre-Demo Business Questionnaire */}
@@ -4206,16 +4263,16 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
                   {reqFollowUps.length === 0 ? (
                     <tr><td colSpan={9} className="px-3 py-8 text-center text-gray-400 text-xs">No follow-up activities</td></tr>
                   ) : (
-                    reqFollowUps.map((item: any, index: number) => (
+                    reqFollowUps.filter((a: any) => a && typeof a === 'object' && !('loc' in a && 'msg' in a)).map((item: any, index: number) => (
                       <tr key={item.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className={tdClass}>{item.activity_type || '-'}</td>
-                        <td className={tdClass}>{item.subject || '-'}</td>
+                        <td className={tdClass}>{typeof item.activity_type === 'string' ? item.activity_type : '-'}</td>
+                        <td className={tdClass}>{typeof item.subject === 'string' ? item.subject : '-'}</td>
                         <td className={tdClass}>{item.start_date ? `${item.start_date}${item.start_time ? ';  ' + item.start_time : ''}` : '-'}</td>
                         <td className={tdClass}>{item.next_followup_date ? `${item.next_followup_date}${item.next_followup_time ? ' ; ' + item.next_followup_time : ''}` : '-'}</td>
-                        <td className={tdClass}>{item.channel_type || '-'}</td>
-                        <td className={tdClass}>{item.assigned_to || '-'}</td>
-                        <td className={tdClass}>{item.sent_to || '-'}</td>
-                        <td className={`${tdClass} text-green-600`}>{item.status || '-'}</td>
+                        <td className={tdClass}>{typeof item.channel_type === 'string' ? item.channel_type : '-'}</td>
+                        <td className={tdClass}>{typeof item.assigned_to === 'string' ? item.assigned_to : '-'}</td>
+                        <td className={tdClass}>{typeof item.sent_to === 'string' ? item.sent_to : '-'}</td>
+                        <td className={`${tdClass} text-green-600`}>{typeof item.status === 'string' ? item.status : '-'}</td>
                         <td className={tdClass}>
                           <button onClick={() => handleOpenReqFollowUp(item)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded border border-blue-200"><Edit2 className="w-3 h-3" /></button>
                         </td>
@@ -4248,11 +4305,11 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
                   {reqMemos.length === 0 ? (
                     <tr><td colSpan={4} className="px-3 py-8 text-center text-gray-400 text-xs">No memos</td></tr>
                   ) : (
-                    reqMemos.map((memo: any, index: number) => (
+                    reqMemos.filter((m: any) => m && typeof m === 'object' && !('loc' in m && 'msg' in m)).map((memo: any, index: number) => (
                       <tr key={memo.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                         <td className={tdClass}>{memo.created_at ? new Date(memo.created_at).toLocaleDateString() : '-'}</td>
-                        <td className={`${tdClass} text-blue-600`}>{memo.added_by || memo.created_by_name || '-'}</td>
-                        <td className={tdClass}>{memo.content || '-'}</td>
+                        <td className={`${tdClass} text-blue-600`}>{typeof memo.added_by === 'string' ? memo.added_by : (typeof memo.created_by_name === 'string' ? memo.created_by_name : '-')}</td>
+                        <td className={tdClass}>{typeof memo.content === 'string' ? memo.content : '-'}</td>
                         <td className={tdClass}>
                           <div className="flex gap-1 justify-center">
                             <button onClick={() => handleOpenReqMemo(memo)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded border border-blue-200"><Edit2 className="w-3 h-3" /></button>
@@ -4300,12 +4357,12 @@ function RequirementForm({ data, setData, onSave, saving, inputClass, labelClass
                   {reqSubTabDocs.length === 0 ? (
                     <tr><td colSpan={5} className="px-3 py-8 text-center text-gray-400 text-xs">No files uploaded</td></tr>
                   ) : (
-                    reqSubTabDocs.map((doc: any, index: number) => (
+                    reqSubTabDocs.filter((d: any) => d && typeof d === 'object' && !('loc' in d && 'msg' in d)).map((doc: any, index: number) => (
                       <tr key={doc.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className={`${tdClass} text-blue-600`}>{doc.file_name || '-'}</td>
+                        <td className={`${tdClass} text-blue-600`}>{typeof doc.file_name === 'string' ? doc.file_name : '-'}</td>
                         <td className={tdClass}>{doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : '-'}</td>
                         <td className={tdClass}>{doc.file_size ? `${(doc.file_size / 1024).toFixed(2)} Kb` : '-'}</td>
-                        <td className={tdClass}>{doc.description || '-'}</td>
+                        <td className={tdClass}>{typeof doc.description === 'string' ? doc.description : '-'}</td>
                         <td className={tdClass}>
                           <div className="flex gap-1 justify-center">
                             <button type="button" onClick={() => handleReqSubTabDeleteDoc(doc.id)} className="p-1 text-red-600 hover:bg-red-50 rounded border border-gray-300"><Trash2 className="w-3 h-3" /></button>
@@ -4643,7 +4700,7 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
 
   // Questions state
   const [questionsForm, setQuestionsForm] = useState({
-    presentation_date: '', presentation_by: '', attended_by: []
+    presentation_date: '', presentation_by: '', attended_by: [] as string[]
   });
   const [questionRow, setQuestionRow] = useState({
     date: '', added_by: '', question: '', category: '', asked_by: '', answered: ''
@@ -4679,38 +4736,38 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
   // Load contacts
   useEffect(() => {
     if (leadId) {
-      api.getLeadContactsForEdit(leadId).then(setPresContacts).catch(() => setPresContacts([]));
+      api.getLeadContactsForEdit(leadId).then(data => setPresContacts(filterValidItems(data))).catch(() => setPresContacts([]));
     }
   }, [leadId]);
 
   // Load documents
   useEffect(() => {
     if (crId) {
-      api.getCRDocuments(crId, 'presentation').then(setPresDocs).catch(() => setPresDocs([]));
+      api.getCRDocuments(crId, 'presentation').then(data => setPresDocs(filterValidItems(data))).catch(() => setPresDocs([]));
     }
   }, [crId]);
 
   // Load email templates for Presentation tab
   useEffect(() => {
-    api.getCRIEmailTemplates('Presentation').then(setPresEmailTemplates).catch(() => setPresEmailTemplates([]));
+    api.getCRIEmailTemplates('Presentation').then(data => setPresEmailTemplates(filterValidItems(data))).catch(() => setPresEmailTemplates([]));
   }, []);
 
   // Load sub-tab data
   useEffect(() => {
     if (crId && presSubTab === 'follow-up') {
-      api.getCRActivities(crId, 'presentation-followup').then(setPresFollowUps).catch(() => setPresFollowUps([]));
+      api.getCRActivities(crId, 'presentation-followup').then(data => setPresFollowUps(filterValidItems(data))).catch(() => setPresFollowUps([]));
     }
   }, [crId, presSubTab]);
 
   useEffect(() => {
     if (crId && presSubTab === 'memo') {
-      api.getCRMemos(crId, 'presentation').then(setPresMemos).catch(() => setPresMemos([]));
+      api.getCRMemos(crId, 'presentation').then(data => setPresMemos(filterValidItems(data))).catch(() => setPresMemos([]));
     }
   }, [crId, presSubTab]);
 
   useEffect(() => {
     if (crId && presSubTab === 'upload-file') {
-      api.getCRDocuments(crId, 'presentation-upload').then(setPresSubTabDocs).catch(() => setPresSubTabDocs([]));
+      api.getCRDocuments(crId, 'presentation-upload').then(data => setPresSubTabDocs(filterValidItems(data))).catch(() => setPresSubTabDocs([]));
     }
   }, [crId, presSubTab]);
 
@@ -4726,7 +4783,7 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
   // Load email history
   useEffect(() => {
     if (crId) {
-      api.getCREmailHistory(crId, 'presentation').then(setEmailsSent).catch(() => setEmailsSent([]));
+      api.getCREmailHistory(crId, 'presentation').then(data => setEmailsSent(filterValidItems(data))).catch(() => setEmailsSent([]));
     }
   }, [crId, emailHistoryRefresh]);
 
@@ -4739,7 +4796,7 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
     try {
       await api.uploadCRDocument(crId, presSelectedFile, 'presentation', 'Details');
       const docs = await api.getCRDocuments(crId, 'presentation');
-      setPresDocs(docs);
+      setPresDocs(filterValidItems(docs));
       setPresSelectedFile(null);
       if (presFileInputRef.current) presFileInputRef.current.value = '';
     } catch (err: any) { alert(err?.response?.data?.detail || 'Failed to upload file'); } finally { setPresUploading(false); }
@@ -4758,7 +4815,7 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
     try {
       await api.uploadCRDocument(crId, presSubTabFile, 'presentation-upload', 'Upload File');
       const docs = await api.getCRDocuments(crId, 'presentation-upload');
-      setPresSubTabDocs(docs);
+      setPresSubTabDocs(filterValidItems(docs));
       setPresSubTabFile(null); setPresSubTabNotes('');
       if (presSubTabFileRef.current) presSubTabFileRef.current.value = '';
     } catch (err: any) { alert(err?.response?.data?.detail || 'Failed to upload file'); } finally { setPresSubTabUploading(false); }
@@ -4934,14 +4991,14 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
                 {emailsSent.length === 0 ? (
                   <tr><td colSpan={4} className="px-3 py-4 text-center text-gray-400 text-xs">No emails sent</td></tr>
                 ) : (
-                  emailsSent.map((email: any, index: number) => (
+                  emailsSent.filter((e: any) => e && typeof e === 'object' && !('loc' in e && 'msg' in e)).map((email: any, index: number) => (
                     <tr key={email.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className={tdClass}>{email.to_email}</td>
-                      <td className={tdClass}>{email.subject || '-'}</td>
+                      <td className={tdClass}>{typeof email.to_email === 'string' ? email.to_email : ''}</td>
+                      <td className={tdClass}>{typeof email.subject === 'string' ? email.subject : '-'}</td>
                       <td className={tdClass}>{email.sent_at ? new Date(email.sent_at).toLocaleDateString() : '-'}</td>
                       <td className={tdClass}>
                         <button
-                          onClick={() => alert(`Subject: ${email.subject}\nTo: ${email.to_email}\nCC: ${email.cc_email || '-'}\nBCC: ${email.bcc_email || '-'}\n\n${email.content || ''}`)}
+                          onClick={() => alert(`Subject: ${email.subject || ''}\nTo: ${email.to_email || ''}\nCC: ${email.cc_email || '-'}\nBCC: ${email.bcc_email || '-'}\n\n${email.content || ''}`)}
                           className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="View Email"
                         >
                           <Eye className="w-3 h-3" />
@@ -5019,7 +5076,7 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
 
       {/* Sub-tabs Section */}
       <div className="border-t pt-4">
-        <div className="flex gap-4 mb-4">
+        <div className="flex gap-1 border-b border-gray-200 overflow-x-auto mb-4">
           {presSubTabs.map((tab) => {
             const tabKey = tab.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-');
             const isActive = presSubTab === tabKey;
@@ -5027,10 +5084,10 @@ function PresentationForm({ data, setData, crId, leadId, presentations, refreshD
               <button
                 key={tab}
                 onClick={() => setPresSubTab(tabKey)}
-                className={`px-2 py-1 text-xs font-medium border-b-2 ${
+                className={`px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors ${
                   isActive
-                    ? 'border-blue-600 text-blue-600 bg-blue-50 rounded-t'
-                    : 'border-transparent text-orange-500 hover:text-orange-600'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
                 {tab}
@@ -6169,45 +6226,45 @@ function DemoForm({ data, setData, crId, leadId, demos, refreshData, onOpenEmail
   // Load contacts
   useEffect(() => {
     if (leadId) {
-      api.getLeadContactsForEdit(leadId).then(setDemoContacts).catch(() => setDemoContacts([]));
+      api.getLeadContactsForEdit(leadId).then(data => setDemoContacts(filterValidItems(data))).catch(() => setDemoContacts([]));
     }
   }, [leadId]);
 
   // Load email templates for Demo tab
   useEffect(() => {
-    api.getCRIEmailTemplates('Demo').then(setDemoEmailTemplates).catch(() => setDemoEmailTemplates([]));
+    api.getCRIEmailTemplates('Demo').then(data => setDemoEmailTemplates(filterValidItems(data))).catch(() => setDemoEmailTemplates([]));
   }, []);
 
   // Load documents
   useEffect(() => {
     if (crId) {
-      api.getCRDocuments(crId, 'demo').then(setDemoDocs).catch(() => setDemoDocs([]));
+      api.getCRDocuments(crId, 'demo').then(data => setDemoDocs(filterValidItems(data))).catch(() => setDemoDocs([]));
     }
   }, [crId]);
 
   // Load sub-tab data
   useEffect(() => {
     if (crId && demoSubTab === 'follow-up') {
-      api.getCRActivities(crId, 'demo-followup').then(setDemoFollowUps).catch(() => setDemoFollowUps([]));
+      api.getCRActivities(crId, 'demo-followup').then(data => setDemoFollowUps(filterValidItems(data))).catch(() => setDemoFollowUps([]));
     }
   }, [crId, demoSubTab]);
 
   useEffect(() => {
     if (crId && demoSubTab === 'memo') {
-      api.getCRMemos(crId, 'demo').then(setDemoMemos).catch(() => setDemoMemos([]));
+      api.getCRMemos(crId, 'demo').then(data => setDemoMemos(filterValidItems(data))).catch(() => setDemoMemos([]));
     }
   }, [crId, demoSubTab]);
 
   useEffect(() => {
     if (crId && demoSubTab === 'upload-file') {
-      api.getCRDocuments(crId, 'demo-upload').then(setDemoSubTabDocs).catch(() => setDemoSubTabDocs([]));
+      api.getCRDocuments(crId, 'demo-upload').then(data => setDemoSubTabDocs(filterValidItems(data))).catch(() => setDemoSubTabDocs([]));
     }
   }, [crId, demoSubTab]);
 
   // Load email history
   useEffect(() => {
     if (crId) {
-      api.getCREmailHistory(crId, 'demo').then(setDemoEmailsSent).catch(() => setDemoEmailsSent([]));
+      api.getCREmailHistory(crId, 'demo').then(data => setDemoEmailsSent(filterValidItems(data))).catch(() => setDemoEmailsSent([]));
     }
   }, [crId, emailHistoryRefresh]);
 
@@ -6220,7 +6277,7 @@ function DemoForm({ data, setData, crId, leadId, demos, refreshData, onOpenEmail
     try {
       await api.uploadCRDocument(crId, demoFile, 'demo', 'Details');
       const docs = await api.getCRDocuments(crId, 'demo');
-      setDemoDocs(docs);
+      setDemoDocs(filterValidItems(docs));
       setDemoFile(null);
       if (demoFileRef.current) demoFileRef.current.value = '';
     } catch (err) { alert('Failed to upload'); }
@@ -6294,7 +6351,7 @@ function DemoForm({ data, setData, crId, leadId, demos, refreshData, onOpenEmail
     try {
       await api.uploadCRDocument(crId, demoSubTabFile, 'demo-upload', demoSubTabNotes);
       const docs = await api.getCRDocuments(crId, 'demo-upload');
-      setDemoSubTabDocs(docs);
+      setDemoSubTabDocs(filterValidItems(docs));
       setDemoSubTabFile(null);
       setDemoSubTabNotes('');
       if (demoSubTabFileRef.current) demoSubTabFileRef.current.value = '';
@@ -7909,40 +7966,40 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
   // Load contacts
   useEffect(() => {
     if (leadId) {
-      api.getLeadContactsForEdit(leadId).then(setProposalContacts).catch(() => setProposalContacts([]));
+      api.getLeadContactsForEdit(leadId).then(data => setProposalContacts(filterValidItems(data))).catch(() => setProposalContacts([]));
     }
   }, [leadId]);
 
   // Load email templates for Proposal tab
   useEffect(() => {
-    api.getCRIEmailTemplates('Proposal').then(setProposalEmailTemplates).catch(() => setProposalEmailTemplates([]));
+    api.getCRIEmailTemplates('Proposal').then(data => setProposalEmailTemplates(filterValidItems(data))).catch(() => setProposalEmailTemplates([]));
   }, []);
 
   // Load follow-ups
   useEffect(() => {
     if (crId && proposalSubTab === 'follow-up') {
-      api.getCRActivities(crId, 'proposal-followup').then(setProposalFollowUps).catch(() => setProposalFollowUps([]));
+      api.getCRActivities(crId, 'proposal-followup').then(data => setProposalFollowUps(filterValidItems(data))).catch(() => setProposalFollowUps([]));
     }
   }, [crId, proposalSubTab]);
 
   // Load memos
   useEffect(() => {
     if (crId && proposalSubTab === 'memo') {
-      api.getCRMemos(crId, 'proposal').then(setProposalMemos).catch(() => setProposalMemos([]));
+      api.getCRMemos(crId, 'proposal').then(data => setProposalMemos(filterValidItems(data))).catch(() => setProposalMemos([]));
     }
   }, [crId, proposalSubTab]);
 
   // Load email history
   useEffect(() => {
     if (crId) {
-      api.getCREmailHistory(crId, 'proposal').then(setEmailSentList).catch(() => setEmailSentList([]));
+      api.getCREmailHistory(crId, 'proposal').then(data => setEmailSentList(filterValidItems(data))).catch(() => setEmailSentList([]));
     }
   }, [crId, emailHistoryRefresh]);
 
   // Load top-level proposal documents
   useEffect(() => {
     if (crId) {
-      api.getCRDocuments(crId, 'proposal').then(setProposalDocs).catch(() => setProposalDocs([]));
+      api.getCRDocuments(crId, 'proposal').then(data => setProposalDocs(filterValidItems(data))).catch(() => setProposalDocs([]));
     }
   }, [crId]);
 
@@ -7960,7 +8017,7 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
     try {
       await api.uploadCRDocument(crId, proposalFile, 'proposal', 'Proposal Document');
       const docs = await api.getCRDocuments(crId, 'proposal');
-      setProposalDocs(docs);
+      setProposalDocs(filterValidItems(docs));
       setProposalFile(null);
       if (proposalFileRef.current) proposalFileRef.current.value = '';
     } catch (err: any) {
@@ -8112,7 +8169,7 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
   // Load upload file documents
   useEffect(() => {
     if (crId && proposalSubTab === 'upload-file') {
-      api.getCRDocuments(crId, 'proposal-upload').then(setProposalSubTabDocs).catch(() => setProposalSubTabDocs([]));
+      api.getCRDocuments(crId, 'proposal-upload').then(data => setProposalSubTabDocs(filterValidItems(data))).catch(() => setProposalSubTabDocs([]));
     }
   }, [crId, proposalSubTab]);
 
@@ -8130,7 +8187,7 @@ function ProposalForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
     try {
       await api.uploadCRDocument(crId, proposalSubTabFile, 'proposal-upload', 'Upload File');
       const docs = await api.getCRDocuments(crId, 'proposal-upload');
-      setProposalSubTabDocs(docs);
+      setProposalSubTabDocs(filterValidItems(docs));
       setProposalSubTabFile(null);
       setProposalSubTabNotes('');
       if (proposalSubTabFileRef.current) proposalSubTabFileRef.current.value = '';
@@ -9528,47 +9585,47 @@ function AgreementForm({ data, crId, leadId, refreshData, onOpenEmailModal, emai
   // Load contacts
   useEffect(() => {
     if (leadId) {
-      api.getLeadContactsForEdit(leadId).then(setAgreementContacts).catch(() => setAgreementContacts([]));
+      api.getLeadContactsForEdit(leadId).then(data => setAgreementContacts(filterValidItems(data))).catch(() => setAgreementContacts([]));
     }
   }, [leadId]);
 
   // Load email templates for Agreement tab
   useEffect(() => {
-    api.getCRIEmailTemplates('agreement').then(setAgreementEmailTemplates).catch(() => setAgreementEmailTemplates([]));
+    api.getCRIEmailTemplates('agreement').then(data => setAgreementEmailTemplates(filterValidItems(data))).catch(() => setAgreementEmailTemplates([]));
   }, []);
 
   // Load documents
   useEffect(() => {
     if (crId) {
-      api.getCRDocuments(crId, 'agreement').then(setAgreementDocs).catch(() => setAgreementDocs([]));
+      api.getCRDocuments(crId, 'agreement').then(data => setAgreementDocs(filterValidItems(data))).catch(() => setAgreementDocs([]));
     }
   }, [crId]);
 
   // Load follow-ups
   useEffect(() => {
     if (crId && agreementSubTab === 'follow-up') {
-      api.getCRActivities(crId, 'agreement-followup').then(setAgreementFollowUps).catch(() => setAgreementFollowUps([]));
+      api.getCRActivities(crId, 'agreement-followup').then(data => setAgreementFollowUps(filterValidItems(data))).catch(() => setAgreementFollowUps([]));
     }
   }, [crId, agreementSubTab]);
 
   // Load memos
   useEffect(() => {
     if (crId && agreementSubTab === 'memo') {
-      api.getCRMemos(crId, 'agreement').then(setAgreementMemos).catch(() => setAgreementMemos([]));
+      api.getCRMemos(crId, 'agreement').then(data => setAgreementMemos(filterValidItems(data))).catch(() => setAgreementMemos([]));
     }
   }, [crId, agreementSubTab]);
 
   // Load upload file documents
   useEffect(() => {
     if (crId && agreementSubTab === 'upload-file') {
-      api.getCRDocuments(crId, 'agreement-upload').then(setAgreementSubTabDocs).catch(() => setAgreementSubTabDocs([]));
+      api.getCRDocuments(crId, 'agreement-upload').then(data => setAgreementSubTabDocs(filterValidItems(data))).catch(() => setAgreementSubTabDocs([]));
     }
   }, [crId, agreementSubTab]);
 
   // Load email history
   useEffect(() => {
     if (crId) {
-      api.getCREmailHistory(crId, 'agreement').then(setEmailSentList).catch(() => setEmailSentList([]));
+      api.getCREmailHistory(crId, 'agreement').then(data => setEmailSentList(filterValidItems(data))).catch(() => setEmailSentList([]));
     }
   }, [crId, emailHistoryRefresh]);
 
@@ -9643,7 +9700,7 @@ function AgreementForm({ data, crId, leadId, refreshData, onOpenEmailModal, emai
     try {
       await api.uploadCRDocument(crId, agreementFile, 'agreement', 'Details');
       const docs = await api.getCRDocuments(crId, 'agreement');
-      setAgreementDocs(docs);
+      setAgreementDocs(filterValidItems(docs));
       setAgreementFile(null);
       if (agreementFileRef.current) agreementFileRef.current.value = '';
     } catch (err: any) { alert(err?.response?.data?.detail || 'Failed to upload file'); } finally { setAgreementUploading(false); }
@@ -9719,7 +9776,7 @@ function AgreementForm({ data, crId, leadId, refreshData, onOpenEmailModal, emai
     try {
       await api.uploadCRDocument(crId, agreementSubTabFile, 'agreement-upload', 'Upload File');
       const docs = await api.getCRDocuments(crId, 'agreement-upload');
-      setAgreementSubTabDocs(docs);
+      setAgreementSubTabDocs(filterValidItems(docs));
       setAgreementSubTabFile(null); setAgreementSubTabNotes('');
       if (agreementSubTabFileRef.current) agreementSubTabFileRef.current.value = '';
     } catch (err: any) { alert(err?.response?.data?.detail || 'Failed to upload file'); } finally { setAgreementSubTabUploading(false); }
@@ -10528,54 +10585,54 @@ function InitiationForm({ data, crId, leadId, refreshData, onOpenEmailModal, ema
   // Load contacts
   useEffect(() => {
     if (leadId) {
-      api.getLeadContactsForEdit(leadId).then(setInitiationContacts).catch(() => setInitiationContacts([]));
+      api.getLeadContactsForEdit(leadId).then(data => setInitiationContacts(filterValidItems(data))).catch(() => setInitiationContacts([]));
     }
   }, [leadId]);
 
   // Load email templates for Initiation tab
   useEffect(() => {
-    api.getCRIEmailTemplates('initiation').then(setInitiationEmailTemplates).catch(() => setInitiationEmailTemplates([]));
+    api.getCRIEmailTemplates('initiation').then(data => setInitiationEmailTemplates(filterValidItems(data))).catch(() => setInitiationEmailTemplates([]));
   }, []);
 
   // Load documents
   useEffect(() => {
     if (crId) {
-      api.getCRDocuments(crId, 'initiation').then(setInitiationDocs).catch(() => setInitiationDocs([]));
+      api.getCRDocuments(crId, 'initiation').then(data => setInitiationDocs(filterValidItems(data))).catch(() => setInitiationDocs([]));
     }
   }, [crId]);
 
   // Load follow-ups
   useEffect(() => {
     if (crId && initiationSubTab === 'follow-up') {
-      api.getCRActivities(crId, 'initiation-followup').then(setInitiationFollowUps).catch(() => setInitiationFollowUps([]));
+      api.getCRActivities(crId, 'initiation-followup').then(data => setInitiationFollowUps(filterValidItems(data))).catch(() => setInitiationFollowUps([]));
     }
   }, [crId, initiationSubTab]);
 
   // Load memos
   useEffect(() => {
     if (crId && initiationSubTab === 'memo') {
-      api.getCRMemos(crId, 'initiation').then(setInitiationMemos).catch(() => setInitiationMemos([]));
+      api.getCRMemos(crId, 'initiation').then(data => setInitiationMemos(filterValidItems(data))).catch(() => setInitiationMemos([]));
     }
   }, [crId, initiationSubTab]);
 
   // Load notes
   useEffect(() => {
     if (crId && initiationSubTab === 'notes') {
-      api.getCRMemos(crId, 'initiation-notes').then(setInitiationNotes).catch(() => setInitiationNotes([]));
+      api.getCRMemos(crId, 'initiation-notes').then(data => setInitiationNotes(filterValidItems(data))).catch(() => setInitiationNotes([]));
     }
   }, [crId, initiationSubTab]);
 
   // Load upload file documents
   useEffect(() => {
     if (crId && initiationSubTab === 'upload-file') {
-      api.getCRDocuments(crId, 'initiation-upload').then(setInitiationSubTabDocs).catch(() => setInitiationSubTabDocs([]));
+      api.getCRDocuments(crId, 'initiation-upload').then(data => setInitiationSubTabDocs(filterValidItems(data))).catch(() => setInitiationSubTabDocs([]));
     }
   }, [crId, initiationSubTab]);
 
   // Load email history
   useEffect(() => {
     if (crId) {
-      api.getCREmailHistory(crId, 'initiation').then(setEmailSentList).catch(() => setEmailSentList([]));
+      api.getCREmailHistory(crId, 'initiation').then(data => setEmailSentList(filterValidItems(data))).catch(() => setEmailSentList([]));
     }
   }, [crId, emailHistoryRefresh]);
 
@@ -10588,7 +10645,7 @@ function InitiationForm({ data, crId, leadId, refreshData, onOpenEmailModal, ema
     try {
       await api.uploadCRDocument(crId, initiationFile, 'initiation', 'Details');
       const docs = await api.getCRDocuments(crId, 'initiation');
-      setInitiationDocs(docs);
+      setInitiationDocs(filterValidItems(docs));
       setInitiationFile(null);
       if (initiationFileRef.current) initiationFileRef.current.value = '';
     } catch (err: any) { alert(err?.response?.data?.detail || 'Failed to upload file'); } finally { setInitiationUploading(false); }
@@ -10689,7 +10746,7 @@ function InitiationForm({ data, crId, leadId, refreshData, onOpenEmailModal, ema
     try {
       await api.uploadCRDocument(crId, initiationSubTabFile, 'initiation-upload', 'Upload File');
       const docs = await api.getCRDocuments(crId, 'initiation-upload');
-      setInitiationSubTabDocs(docs);
+      setInitiationSubTabDocs(filterValidItems(docs));
       setInitiationSubTabFile(null); setInitiationSubTabNotes('');
       if (initiationSubTabFileRef.current) initiationSubTabFileRef.current.value = '';
     } catch (err: any) { alert(err?.response?.data?.detail || 'Failed to upload file'); } finally { setInitiationSubTabUploading(false); }
@@ -12521,48 +12578,48 @@ function PlanningForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
 
   // Load email templates for Planning tab
   useEffect(() => {
-    api.getCRIEmailTemplates('planning').then(setPlanningEmailTemplates).catch(() => setPlanningEmailTemplates([]));
+    api.getCRIEmailTemplates('planning').then(data => setPlanningEmailTemplates(filterValidItems(data))).catch(() => setPlanningEmailTemplates([]));
   }, []);
 
   // Load email history
   useEffect(() => {
     if (crId) {
-      api.getCREmailHistory(crId, 'planning').then(setPlanningEmailSentList).catch(() => setPlanningEmailSentList([]));
+      api.getCREmailHistory(crId, 'planning').then(data => setPlanningEmailSentList(filterValidItems(data))).catch(() => setPlanningEmailSentList([]));
     }
   }, [crId, emailHistoryRefresh]);
 
   const fetchPlanningContacts = async () => {
     try {
       const res = await api.getLeadContactsForEdit(leadId);
-      setPlanningContacts(res);
+      setPlanningContacts(filterValidItems(res));
     } catch (err) { console.error('Failed to fetch contacts:', err); }
   };
 
   const fetchPlanningDocs = async () => {
     try {
       const res = await api.getCRDocuments(crId, 'planning');
-      setPlanningDocs(res);
+      setPlanningDocs(filterValidItems(res));
     } catch (err) { console.error('Failed to fetch docs:', err); }
   };
 
   const fetchPlanningFollowUps = async () => {
     try {
       const res = await api.getCRActivities(crId, 'planning-followup');
-      setPlanningFollowUps(res);
+      setPlanningFollowUps(filterValidItems(res));
     } catch (err) { console.error('Failed to fetch follow-ups:', err); }
   };
 
   const fetchPlanningMemos = async () => {
     try {
       const res = await api.getCRMemos(crId, 'planning-memo');
-      setPlanningMemos(res);
+      setPlanningMemos(filterValidItems(res));
     } catch (err) { console.error('Failed to fetch memos:', err); }
   };
 
   const fetchPlanningSubTabDocs = async () => {
     try {
       const res = await api.getCRDocuments(crId, 'planning-upload');
-      setPlanningSubTabDocs(res);
+      setPlanningSubTabDocs(filterValidItems(res));
     } catch (err) { console.error('Failed to fetch upload docs:', err); }
   };
 
@@ -13687,7 +13744,7 @@ function PlanningForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-4 py-2 rounded-t text-sm font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-4 py-2 rounded-t text-sm font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-4 space-y-3">
                 <div className="flex items-center">
                   <label className="w-48 text-xs font-medium text-blue-600">Data Migration Coordinator</label>
@@ -13911,7 +13968,7 @@ function PlanningForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-4 py-2 rounded-t text-sm font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-4 py-2 rounded-t text-sm font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-4 space-y-3">
                 <div className="flex items-center">
                   <label className="w-40 text-xs font-medium text-blue-600">Training Coordinator</label>
@@ -14401,30 +14458,30 @@ function ConfigurationForm({ data, crId, leadId, refreshData, onOpenEmailModal, 
 
   // Load email templates for Configuration tab
   useEffect(() => {
-    api.getCRIEmailTemplates('Configuration').then(setConfigEmailTemplates).catch(() => setConfigEmailTemplates([]));
+    api.getCRIEmailTemplates('Configuration').then(data => setConfigEmailTemplates(filterValidItems(data))).catch(() => setConfigEmailTemplates([]));
   }, []);
 
   // Load email history
   useEffect(() => {
     if (crId) {
-      api.getCREmailHistory(crId, 'configuration').then(setConfigEmailSentList).catch(() => setConfigEmailSentList([]));
+      api.getCREmailHistory(crId, 'configuration').then(data => setConfigEmailSentList(filterValidItems(data))).catch(() => setConfigEmailSentList([]));
     }
   }, [crId, emailHistoryRefresh]);
 
   const fetchConfigContacts = async () => {
-    try { const res = await api.getLeadContactsForEdit(leadId); setConfigContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
+    try { const res = await api.getLeadContactsForEdit(leadId); setConfigContacts(filterValidItems(res)); } catch (err) { console.error('Failed to fetch contacts:', err); }
   };
   const fetchConfigDocs = async () => {
-    try { const res = await api.getCRDocuments(crId, 'configuration'); setConfigDocs(res); } catch (err) { console.error('Failed to fetch docs:', err); }
+    try { const res = await api.getCRDocuments(crId, 'configuration'); setConfigDocs(filterValidItems(res)); } catch (err) { console.error('Failed to fetch docs:', err); }
   };
   const fetchConfigFollowUps = async () => {
-    try { const res = await api.getCRActivities(crId, 'configuration-followup'); setConfigFollowUps(res); } catch (err) { console.error('Failed to fetch follow-ups:', err); }
+    try { const res = await api.getCRActivities(crId, 'configuration-followup'); setConfigFollowUps(filterValidItems(res)); } catch (err) { console.error('Failed to fetch follow-ups:', err); }
   };
   const fetchConfigMemos = async () => {
-    try { const res = await api.getCRMemos(crId, 'configuration-memo'); setConfigMemos(res); } catch (err) { console.error('Failed to fetch memos:', err); }
+    try { const res = await api.getCRMemos(crId, 'configuration-memo'); setConfigMemos(filterValidItems(res)); } catch (err) { console.error('Failed to fetch memos:', err); }
   };
   const fetchConfigSubTabDocs = async () => {
-    try { const res = await api.getCRDocuments(crId, 'configuration-upload'); setConfigSubTabDocs(res); } catch (err) { console.error('Failed to fetch upload docs:', err); }
+    try { const res = await api.getCRDocuments(crId, 'configuration-upload'); setConfigSubTabDocs(filterValidItems(res)); } catch (err) { console.error('Failed to fetch upload docs:', err); }
   };
 
   // File handlers
@@ -14727,7 +14784,7 @@ function ConfigurationForm({ data, crId, leadId, refreshData, onOpenEmailModal, 
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-3 space-y-3">
                 <div className="flex items-center">
                   <label className="w-44 text-xs font-medium text-blue-600">Configuration Coordinator</label>
@@ -15422,30 +15479,30 @@ function TrainingForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
 
   // Load email templates for Training tab
   useEffect(() => {
-    api.getCRIEmailTemplates('training').then(setTrainingEmailTemplates).catch(() => setTrainingEmailTemplates([]));
+    api.getCRIEmailTemplates('training').then(data => setTrainingEmailTemplates(filterValidItems(data))).catch(() => setTrainingEmailTemplates([]));
   }, []);
 
   // Load email history
   useEffect(() => {
     if (crId) {
-      api.getCREmailHistory(crId, 'training').then(setTrainingEmailSentList).catch(() => setTrainingEmailSentList([]));
+      api.getCREmailHistory(crId, 'training').then(data => setTrainingEmailSentList(filterValidItems(data))).catch(() => setTrainingEmailSentList([]));
     }
   }, [crId, emailHistoryRefresh]);
 
   const fetchTrainingContacts = async () => {
-    try { const res = await api.getLeadContactsForEdit(leadId); setTrainingContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
+    try { const res = await api.getLeadContactsForEdit(leadId); setTrainingContacts(filterValidItems(res)); } catch (err) { console.error('Failed to fetch contacts:', err); }
   };
   const fetchTrainingDocs = async () => {
-    try { const res = await api.getCRDocuments(crId, 'training'); setTrainingDocs(res); } catch (err) { console.error('Failed to fetch docs:', err); }
+    try { const res = await api.getCRDocuments(crId, 'training'); setTrainingDocs(filterValidItems(res)); } catch (err) { console.error('Failed to fetch docs:', err); }
   };
   const fetchTrainingFollowUps = async () => {
-    try { const res = await api.getCRActivities(crId, 'training-followup'); setTrainingFollowUps(res); } catch (err) { console.error('Failed to fetch follow-ups:', err); }
+    try { const res = await api.getCRActivities(crId, 'training-followup'); setTrainingFollowUps(filterValidItems(res)); } catch (err) { console.error('Failed to fetch follow-ups:', err); }
   };
   const fetchTrainingMemos = async () => {
-    try { const res = await api.getCRMemos(crId, 'training-memo'); setTrainingMemos(res); } catch (err) { console.error('Failed to fetch memos:', err); }
+    try { const res = await api.getCRMemos(crId, 'training-memo'); setTrainingMemos(filterValidItems(res)); } catch (err) { console.error('Failed to fetch memos:', err); }
   };
   const fetchTrainingSubTabDocs = async () => {
-    try { const res = await api.getCRDocuments(crId, 'training-upload'); setTrainingSubTabDocs(res); } catch (err) { console.error('Failed to fetch upload docs:', err); }
+    try { const res = await api.getCRDocuments(crId, 'training-upload'); setTrainingSubTabDocs(filterValidItems(res)); } catch (err) { console.error('Failed to fetch upload docs:', err); }
   };
 
   // File handlers
@@ -15707,7 +15764,7 @@ function TrainingForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-3 space-y-3">
                 <div className="flex items-center">
                   <label className="w-44 text-xs font-medium text-blue-600">Training Coordinator</label>
@@ -15799,7 +15856,7 @@ function TrainingForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-3 space-y-3">
                 <div className="flex items-center">
                   <label className="w-44 text-xs font-medium text-blue-600">Training Coordinator</label>
@@ -15883,7 +15940,7 @@ function TrainingForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-3 space-y-3">
                 <div className="flex items-center">
                   <label className="w-44 text-xs font-medium text-blue-600">Training Coordinator</label>
@@ -16499,30 +16556,30 @@ function UATForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHisto
 
   // Load email templates for UAT tab
   useEffect(() => {
-    api.getCRIEmailTemplates('UAT').then(setUatEmailTemplates).catch(() => setUatEmailTemplates([]));
+    api.getCRIEmailTemplates('UAT').then(data => setUatEmailTemplates(filterValidItems(data))).catch(() => setUatEmailTemplates([]));
   }, []);
 
   // Load email history
   useEffect(() => {
     if (crId) {
-      api.getCREmailHistory(crId, 'uat').then(setUatEmailSentList).catch(() => setUatEmailSentList([]));
+      api.getCREmailHistory(crId, 'uat').then(data => setUatEmailSentList(filterValidItems(data))).catch(() => setUatEmailSentList([]));
     }
   }, [crId, emailHistoryRefresh]);
 
   const fetchUatContacts = async () => {
-    try { const res = await api.getLeadContactsForEdit(leadId); setUatContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
+    try { const res = await api.getLeadContactsForEdit(leadId); setUatContacts(filterValidItems(res)); } catch (err) { console.error('Failed to fetch contacts:', err); }
   };
   const fetchUatDocs = async () => {
-    try { const res = await api.getCRDocuments(crId, 'uat'); setUatDocs(res); } catch (err) { console.error('Failed to fetch docs:', err); }
+    try { const res = await api.getCRDocuments(crId, 'uat'); setUatDocs(filterValidItems(res)); } catch (err) { console.error('Failed to fetch docs:', err); }
   };
   const fetchUatFollowUps = async () => {
-    try { const res = await api.getCRActivities(crId, 'uat-followup'); setUatFollowUps(res); } catch (err) { console.error('Failed to fetch follow-ups:', err); }
+    try { const res = await api.getCRActivities(crId, 'uat-followup'); setUatFollowUps(filterValidItems(res)); } catch (err) { console.error('Failed to fetch follow-ups:', err); }
   };
   const fetchUatMemos = async () => {
-    try { const res = await api.getCRMemos(crId, 'uat-memo'); setUatMemos(res); } catch (err) { console.error('Failed to fetch memos:', err); }
+    try { const res = await api.getCRMemos(crId, 'uat-memo'); setUatMemos(filterValidItems(res)); } catch (err) { console.error('Failed to fetch memos:', err); }
   };
   const fetchUatSubTabDocs = async () => {
-    try { const res = await api.getCRDocuments(crId, 'uat-upload'); setUatSubTabDocs(res); } catch (err) { console.error('Failed to fetch upload docs:', err); }
+    try { const res = await api.getCRDocuments(crId, 'uat-upload'); setUatSubTabDocs(filterValidItems(res)); } catch (err) { console.error('Failed to fetch upload docs:', err); }
   };
 
   // File handlers
@@ -16784,7 +16841,7 @@ function UATForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHisto
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-3 space-y-3">
                 <div className="flex items-center">
                   <label className="w-44 text-xs font-medium text-blue-600">UAT Coordinator</label>
@@ -17322,13 +17379,13 @@ function DataMigrationForm({ data, crId, leadId, refreshData, onOpenEmailModal, 
 
   // Load email templates for Data Migration tab
   useEffect(() => {
-    api.getCRIEmailTemplates('Data Migration').then(setDmEmailTemplates).catch(() => setDmEmailTemplates([]));
+    api.getCRIEmailTemplates('Data Migration').then(data => setDmEmailTemplates(filterValidItems(data))).catch(() => setDmEmailTemplates([]));
   }, []);
 
   // Load email history
   useEffect(() => {
     if (crId) {
-      api.getCREmailHistory(crId, 'data migration').then(setDmEmailSentList).catch(() => setDmEmailSentList([]));
+      api.getCREmailHistory(crId, 'data migration').then(data => setDmEmailSentList(filterValidItems(data))).catch(() => setDmEmailSentList([]));
     }
   }, [crId, emailHistoryRefresh]);
 
@@ -17344,19 +17401,19 @@ function DataMigrationForm({ data, crId, leadId, refreshData, onOpenEmailModal, 
   }, [data]);
 
   const fetchDmContacts = async () => {
-    try { const res = await api.getLeadContactsForEdit(leadId); setDmContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
+    try { const res = await api.getLeadContactsForEdit(leadId); setDmContacts(filterValidItems(res)); } catch (err) { console.error('Failed to fetch contacts:', err); }
   };
   const fetchDmDocs = async () => {
-    try { const res = await api.getCRDocuments(crId, 'data-migration'); setDmDocs(res); } catch (err) { console.error('Failed to fetch docs:', err); }
+    try { const res = await api.getCRDocuments(crId, 'data-migration'); setDmDocs(filterValidItems(res)); } catch (err) { console.error('Failed to fetch docs:', err); }
   };
   const fetchDmFollowUps = async () => {
-    try { const res = await api.getCRActivities(crId, 'data-migration-followup'); setDmFollowUps(res); } catch (err) { console.error('Failed to fetch follow-ups:', err); }
+    try { const res = await api.getCRActivities(crId, 'data-migration-followup'); setDmFollowUps(filterValidItems(res)); } catch (err) { console.error('Failed to fetch follow-ups:', err); }
   };
   const fetchDmMemos = async () => {
-    try { const res = await api.getCRMemos(crId, 'data-migration-memo'); setDmMemos(res); } catch (err) { console.error('Failed to fetch memos:', err); }
+    try { const res = await api.getCRMemos(crId, 'data-migration-memo'); setDmMemos(filterValidItems(res)); } catch (err) { console.error('Failed to fetch memos:', err); }
   };
   const fetchDmSubTabDocs = async () => {
-    try { const res = await api.getCRDocuments(crId, 'data-migration-upload'); setDmSubTabDocs(res); } catch (err) { console.error('Failed to fetch upload docs:', err); }
+    try { const res = await api.getCRDocuments(crId, 'data-migration-upload'); setDmSubTabDocs(filterValidItems(res)); } catch (err) { console.error('Failed to fetch upload docs:', err); }
   };
 
   // File handlers
@@ -17643,7 +17700,7 @@ function DataMigrationForm({ data, crId, leadId, refreshData, onOpenEmailModal, 
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-3 space-y-3">
                 <div className="flex items-center">
                   <label className="w-48 text-xs font-medium text-blue-600">Data Migration Coordinator</label>
@@ -17740,7 +17797,7 @@ function DataMigrationForm({ data, crId, leadId, refreshData, onOpenEmailModal, 
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-3 space-y-3">
                 <div className="flex items-center">
                   <label className="w-48 text-xs font-medium text-blue-600">Data Migration Coordinator</label>
@@ -18286,13 +18343,13 @@ function GoLiveForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHi
 
   // Load email templates for Go Live tab
   useEffect(() => {
-    api.getCRIEmailTemplates('Go-Live').then(setGlEmailTemplates).catch(() => setGlEmailTemplates([]));
+    api.getCRIEmailTemplates('Go-Live').then(data => setGlEmailTemplates(filterValidItems(data))).catch(() => setGlEmailTemplates([]));
   }, []);
 
   // Load email history
   useEffect(() => {
     if (crId) {
-      api.getCREmailHistory(crId, 'go live').then(setGlEmailSentList).catch(() => setGlEmailSentList([]));
+      api.getCREmailHistory(crId, 'go live').then(data => setGlEmailSentList(filterValidItems(data))).catch(() => setGlEmailSentList([]));
     }
   }, [crId, emailHistoryRefresh]);
 
@@ -18308,22 +18365,22 @@ function GoLiveForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHi
   }, [data]);
 
   const fetchGlContacts = async () => {
-    try { const res = await api.getLeadContactsForEdit(leadId); setGlContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
+    try { const res = await api.getLeadContactsForEdit(leadId); setGlContacts(filterValidItems(res)); } catch (err) { console.error('Failed to fetch contacts:', err); }
   };
   const fetchGlDocs = async () => {
-    try { const res = await api.getCRDocuments(crId, 'go-live'); setGlDocs(res); } catch (err) { console.error('Failed to fetch docs:', err); }
+    try { const res = await api.getCRDocuments(crId, 'go-live'); setGlDocs(filterValidItems(res)); } catch (err) { console.error('Failed to fetch docs:', err); }
   };
   const fetchGlActivities = async () => {
-    try { const res = await api.getCRActivities(crId, 'go-live-activity'); setGlActivities(res); } catch (err) { console.error('Failed to fetch activities:', err); }
+    try { const res = await api.getCRActivities(crId, 'go-live-activity'); setGlActivities(filterValidItems(res)); } catch (err) { console.error('Failed to fetch activities:', err); }
   };
   const fetchGlFollowUps = async () => {
-    try { const res = await api.getCRActivities(crId, 'go-live-followup'); setGlFollowUps(res); } catch (err) { console.error('Failed to fetch follow-ups:', err); }
+    try { const res = await api.getCRActivities(crId, 'go-live-followup'); setGlFollowUps(filterValidItems(res)); } catch (err) { console.error('Failed to fetch follow-ups:', err); }
   };
   const fetchGlMemos = async () => {
-    try { const res = await api.getCRMemos(crId, 'go-live-memo'); setGlMemos(res); } catch (err) { console.error('Failed to fetch memos:', err); }
+    try { const res = await api.getCRMemos(crId, 'go-live-memo'); setGlMemos(filterValidItems(res)); } catch (err) { console.error('Failed to fetch memos:', err); }
   };
   const fetchGlSubTabDocs = async () => {
-    try { const res = await api.getCRDocuments(crId, 'go-live-upload'); setGlSubTabDocs(res); } catch (err) { console.error('Failed to fetch upload docs:', err); }
+    try { const res = await api.getCRDocuments(crId, 'go-live-upload'); setGlSubTabDocs(filterValidItems(res)); } catch (err) { console.error('Failed to fetch upload docs:', err); }
   };
 
   // File handlers
@@ -19376,13 +19433,13 @@ function SupportForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailH
 
   // Load email templates for Support tab
   useEffect(() => {
-    api.getCRIEmailTemplates('Support').then(setSupportEmailTemplates).catch(() => setSupportEmailTemplates([]));
+    api.getCRIEmailTemplates('Support').then(data => setSupportEmailTemplates(filterValidItems(data))).catch(() => setSupportEmailTemplates([]));
   }, []);
 
   // Load email history
   useEffect(() => {
     if (crId) {
-      api.getCREmailHistory(crId, 'support').then(setSupportEmailSentList).catch(() => setSupportEmailSentList([]));
+      api.getCREmailHistory(crId, 'support').then(data => setSupportEmailSentList(filterValidItems(data))).catch(() => setSupportEmailSentList([]));
     }
   }, [crId, emailHistoryRefresh]);
 
@@ -19397,16 +19454,16 @@ function SupportForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailH
   }, [data]);
 
   const fetchSupportContacts = async () => {
-    try { const res = await api.getLeadContactsForEdit(leadId); setSupportContacts(res); } catch (err) { console.error('Failed to fetch contacts:', err); }
+    try { const res = await api.getLeadContactsForEdit(leadId); setSupportContacts(filterValidItems(res)); } catch (err) { console.error('Failed to fetch contacts:', err); }
   };
   const fetchSupportDocs = async () => {
-    try { const res = await api.getCRDocuments(crId, 'support'); setSupportDocs(res); } catch (err) { console.error('Failed to fetch docs:', err); }
+    try { const res = await api.getCRDocuments(crId, 'support'); setSupportDocs(filterValidItems(res)); } catch (err) { console.error('Failed to fetch docs:', err); }
   };
   const fetchSupportTickets = async () => {
-    try { const res = await api.getCRActivities(crId, 'support-ticket'); setSupportTickets(res); } catch (err) { console.error('Failed to fetch tickets:', err); }
+    try { const res = await api.getCRActivities(crId, 'support-ticket'); setSupportTickets(filterValidItems(res)); } catch (err) { console.error('Failed to fetch tickets:', err); }
   };
   const fetchSupportMemos = async () => {
-    try { const res = await api.getCRMemos(crId, 'support-memo'); setSupportMemos(res); } catch (err) { console.error('Failed to fetch memos:', err); }
+    try { const res = await api.getCRMemos(crId, 'support-memo'); setSupportMemos(filterValidItems(res)); } catch (err) { console.error('Failed to fetch memos:', err); }
   };
 
   // File handlers
@@ -20968,12 +21025,12 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, contactN
         contact_email: contactEmail || '',
         contact_phone: '',
         lead_id: leadId?.toString() || '',
-        user_name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(),
+        user_name: user?.full_name || '',
         user_email: user?.email || '',
-        user_title: user?.title || user?.role || 'Sales Representative',
-        user_ext: user?.ext || user?.extension || '100',
-        user_first_name: user?.first_name || user?.name?.split(' ')[0] || '',
-        user_last_name: user?.last_name || user?.name?.split(' ').slice(1).join(' ') || '',
+        user_title: (user as any)?.title || user?.role || 'Sales Representative',
+        user_ext: (user as any)?.ext || (user as any)?.extension || '100',
+        user_first_name: user?.full_name?.split(' ')[0] || '',
+        user_last_name: user?.full_name?.split(' ').slice(1).join(' ') || '',
         date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString(),
         meeting_date: '',
@@ -21008,10 +21065,10 @@ function EmailModal({ isOpen, onClose, crId, leadId, tab, contactEmail, contactN
       const placeholders: Record<string, string> = {
         CONTACT_NAME: contactName || 'Valued Customer',
         COMPANY_NAME: companyName || '',
-        USER_FIRST_NAME: user?.first_name || user?.name?.split(' ')[0] || '',
-        USER_LAST_NAME: user?.last_name || user?.name?.split(' ').slice(1).join(' ') || '',
-        USER_TITLE: user?.title || user?.role || 'Sales Representative',
-        USER_EXT: user?.ext || user?.extension || '100',
+        USER_FIRST_NAME: user?.full_name?.split(' ')[0] || '',
+        USER_LAST_NAME: user?.full_name?.split(' ').slice(1).join(' ') || '',
+        USER_TITLE: (user as any)?.title || user?.role || 'Sales Representative',
+        USER_EXT: (user as any)?.ext || (user as any)?.extension || '100',
         USER_EMAIL: user?.email || '',
       };
       Object.entries(placeholders).forEach(([key, value]) => {
