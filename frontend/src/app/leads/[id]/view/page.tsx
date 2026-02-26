@@ -364,7 +364,7 @@ export default function ViewLeadPage() {
         phone: leadRes.phone || '',
         email: leadRes.email || '',
         lead_since: leadSince,
-        status: leadRes.status?.toString() || '',
+        status: leadRes.lead_status || '',
         group_id: leadRes.group_id?.toString() || '',
         industry_id: leadRes.industry_id?.toString() || '',
         region_id: leadRes.region_id?.toString() || '',
@@ -460,7 +460,7 @@ export default function ViewLeadPage() {
             setGroupOptions([{ value: '', label: 'Select Group' }, ...items]);
           } else if (title === 'industry' || title === 'industries') {
             setIndustryOptions([{ value: '', label: 'Select Industry' }, ...items]);
-          } else if (title === 'company region' || title === 'region' || title === 'regions') {
+          } else if (title === 'company region' || title === 'customer region' || title === 'region' || title === 'regions') {
             setRegionOptions([{ value: '', label: 'Select Region' }, ...items]);
           } else if (title === 'lead source' || title === 'source' || title === 'sources') {
             setSourceOptions([{ value: '', label: 'Select Lead Source' }, ...items]);
@@ -633,15 +633,15 @@ export default function ViewLeadPage() {
           </div>
           <div className="flex items-center gap-3">
             <label className={labelClass}>Group</label>
-            <input value={getOptionLabel(groupOptions, formData.group_id)} readOnly className={`${inputClass} flex-1`} />
+            <input value={leadData?.group_name || leadData?.group || getOptionLabel(groupOptions, formData.group_id)} readOnly className={`${inputClass} flex-1`} />
           </div>
           <div className="flex items-center gap-3">
             <label className={labelClass}>Industry</label>
-            <input value={getOptionLabel(industryOptions, formData.industry_id)} readOnly className={`${inputClass} flex-1`} />
+            <input value={leadData?.industry_name || leadData?.industry || getOptionLabel(industryOptions, formData.industry_id)} readOnly className={`${inputClass} flex-1`} />
           </div>
           <div className="flex items-center gap-3">
             <label className={labelClass}>Region</label>
-            <input value={getOptionLabel(regionOptions, formData.region_id)} readOnly className={`${inputClass} flex-1`} />
+            <input value={leadData?.region_name || leadData?.region || getOptionLabel(regionOptions, formData.region_id)} readOnly className={`${inputClass} flex-1`} />
           </div>
           <div className="flex items-center gap-3">
             <label className={labelClass}>Office Timing</label>
@@ -660,7 +660,7 @@ export default function ViewLeadPage() {
           </div>
           <div className="flex items-center gap-3">
             <label className={labelClass}>Lead Source</label>
-            <input value={getOptionLabel(sourceOptions, formData.source)} readOnly className={`${inputClass} flex-1`} />
+            <input value={formData.source ? formData.source.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-'} readOnly className={`${inputClass} flex-1`} />
           </div>
           <div className="flex items-center gap-3">
             <label className={labelClass}>Lead Score</label>

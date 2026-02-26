@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Plus, Calendar, ArrowRight, Pencil, Trash2, X, Link2, Upload, List, AlignLeft, AlignRight } from 'lucide-react';
+import { Plus, Calendar, ArrowRight, Pencil, Trash2, X, Link2, Upload, List, AlignLeft, AlignRight, Eraser } from 'lucide-react';
 import api from '@/lib/api';
 import { PreLead } from '@/types';
 
@@ -137,13 +137,7 @@ const leadScoreOptions = [
 
 // Location options will be fetched dynamically
 
-const contactTypeOptions = [
-  { value: 'all', label: 'All' },
-  { value: 'primary', label: 'Primary' },
-  { value: 'billing', label: 'Billing' },
-  { value: 'technical', label: 'Technical' },
-  { value: 'decision_maker', label: 'Decision Maker' },
-];
+// contactTypeOptions will be fetched from Option Master
 
 const titleOptions = [
   { value: '', label: 'Title' },
@@ -216,6 +210,13 @@ export default function EditPreLeadPage() {
   const [industryOptions, setIndustryOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Industry' }]);
   const [regionOptions, setRegionOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Company Region' }]);
   const [sourceOptions, setSourceOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Lead Source' }]);
+  const [contactTypeOptions, setContactTypeOptions] = useState<{value: string, label: string}[]>([
+    { value: 'all', label: 'All' },
+    { value: 'primary', label: 'Primary' },
+    { value: 'billing', label: 'Billing' },
+    { value: 'technical', label: 'Technical' },
+    { value: 'decision_maker', label: 'Decision Maker' },
+  ]);
 
   // Dynamic location options
   const [countryOptions, setCountryOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Country' }]);
@@ -233,6 +234,25 @@ export default function EditPreLeadPage() {
   const [showMemoModal, setShowMemoModal] = useState(false);
   const [editingMemo, setEditingMemo] = useState<Memo | null>(null);
   const [memoContent, setMemoContent] = useState('');
+  const memoEditorRef = useRef<HTMLDivElement>(null);
+
+  // Rich text formatting functions
+  const execCommand = (command: string, value: string | undefined = undefined) => {
+    document.execCommand(command, false, value);
+    memoEditorRef.current?.focus();
+  };
+
+  const formatBold = () => execCommand('bold');
+  const formatItalic = () => execCommand('italic');
+  const formatUnderline = () => execCommand('underline');
+  const formatHighlight = () => execCommand('hiliteColor', 'yellow');
+  const formatBulletList = () => execCommand('insertUnorderedList');
+  const formatNumberedList = () => execCommand('insertOrderedList');
+  const formatIndent = () => execCommand('indent');
+  const formatOutdent = () => execCommand('outdent');
+  const formatFontName = (font: string) => execCommand('fontName', font);
+  const formatFontSize = (size: string) => execCommand('fontSize', size);
+  const formatTextColor = (color: string) => execCommand('foreColor', color);
 
   // Contact form state
   const [showContactForm, setShowContactForm] = useState(false);
@@ -437,6 +457,11 @@ export default function EditPreLeadPage() {
             setRegionOptions([{ value: '', label: 'Select Company Region' }, ...items]);
           } else if (title === 'lead source' || title === 'source' || title === 'sources') {
             setSourceOptions([{ value: '', label: 'Select Lead Source' }, ...items]);
+          } else if (title === 'contact type' || title === 'contact types') {
+            const contactItems = option.dropdowns
+              .filter((d: any) => d.status === 'Active')
+              .map((d: any) => ({ value: d.name.toLowerCase().replace(/\s+/g, '_'), label: d.name }));
+            setContactTypeOptions([{ value: 'all', label: 'All' }, ...contactItems]);
           }
         });
       } catch (err) {
@@ -730,19 +755,21 @@ export default function EditPreLeadPage() {
   };
 
   const handleSaveMemo = async () => {
-    if (!memoContent.trim()) {
+    const content = memoEditorRef.current?.innerHTML || memoContent;
+    const textContent = memoEditorRef.current?.textContent || '';
+    if (!textContent.trim()) {
       showError('Please enter memo content');
       return;
     }
     try {
       if (editingMemo) {
         await api.updatePreLeadMemo(preLeadId, editingMemo.id, {
-          details: memoContent,
+          details: content,
         });
         showSuccess('Memo updated successfully');
       } else {
         await api.createPreLeadMemo(preLeadId, {
-          details: memoContent,
+          details: content,
         });
         showSuccess('Memo added successfully');
       }
@@ -829,7 +856,7 @@ export default function EditPreLeadPage() {
 
   return (
     <MainLayout>
-      <div className="h-full flex flex-col">
+      <div className="h-full flex flex-col min-w-0 overflow-hidden">
         {/* Header */}
         <div className="bg-slate-700 text-white px-4 py-3 flex items-center justify-between">
           <h1 className="text-sm font-medium">
@@ -859,7 +886,7 @@ export default function EditPreLeadPage() {
         {success && <div className="mx-4 mt-4 p-3 bg-green-50 text-green-600 rounded text-sm">{success}</div>}
 
         {/* Content */}
-        <div className="flex-1 overflow-auto p-6 bg-gray-50">
+        <div className="flex-1 overflow-auto p-6 bg-gray-50 min-w-0">
           {/* ============== TAB 1: Company Details ============== */}
           {activeTab === 'company_details' && (
             <form onSubmit={handleSubmit(onSubmit)}>
@@ -1043,37 +1070,38 @@ export default function EditPreLeadPage() {
 
           {/* ============== TAB 2: Contacts ============== */}
           {activeTab === 'contacts' && (
-            <div>
-              {/* Contact Type Filter - Centered */}
-              <div className="flex items-center justify-center gap-4 mb-4">
-                <label className="text-sm text-blue-600 font-medium">Contact type</label>
+            <div className="min-w-0">
+              {/* Contact Type Filter */}
+              <div className="flex items-center gap-4 mb-4">
+                <label className="text-sm text-blue-600 font-medium whitespace-nowrap">Contact type</label>
                 <select
                   value={contactFilter}
                   onChange={(e) => setContactFilter(e.target.value)}
-                  className="w-64 h-9 px-3 text-sm border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-48 h-9 px-3 text-sm border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
                   {contactTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
               </div>
 
               {/* Contacts Table */}
-              <div className="bg-white border rounded-lg overflow-hidden overflow-x-auto">
-                <table className="w-full text-sm min-w-[1200px]">
+              <div className="bg-white border rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                <table className="w-full text-sm">
                   {/* Blue Header Row */}
                   <thead>
                     <tr className="bg-blue-600 text-white">
-                      <th className="px-2 py-2.5 text-left text-xs font-medium">Contact</th>
-                      <th className="px-2 py-2.5 text-left text-xs font-medium">Title</th>
-                      <th className="px-2 py-2.5 text-left text-xs font-medium">First Name</th>
-                      <th className="px-2 py-2.5 text-left text-xs font-medium">Last Name</th>
-                      <th className="px-2 py-2.5 text-left text-xs font-medium">Designation</th>
-                      <th className="px-2 py-2.5 text-left text-xs font-medium">Work Email</th>
-                      <th className="px-2 py-2.5 text-left text-xs font-medium">Work Phone</th>
-                      <th className="px-2 py-2.5 text-left text-xs font-medium">Ext.</th>
-                      <th className="px-2 py-2.5 text-left text-xs font-medium">Fax</th>
-                      <th className="px-2 py-2.5 text-left text-xs font-medium">Cell Phone</th>
-                      <th className="px-2 py-2.5 text-center text-xs font-medium">Status</th>
-                      <th className="px-2 py-2.5 text-center text-xs font-medium">Action</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Contact</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Title</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">First Name</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Last Name</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Designation</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Work Email</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Work Phone</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Ext.</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Fax</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-medium whitespace-nowrap">Cell Phone</th>
+                      <th className="px-2 py-2.5 text-center text-xs font-medium whitespace-nowrap">Status</th>
+                      <th className="px-2 py-2.5 text-center text-xs font-medium whitespace-nowrap">Action</th>
                     </tr>
                     {/* Always Visible Add/Edit Row */}
                     <tr className="bg-white border-b">
@@ -1232,6 +1260,7 @@ export default function EditPreLeadPage() {
                     )}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
           )}
@@ -1254,8 +1283,21 @@ export default function EditPreLeadPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <label className={labelClass}>Best Time (Call)</label>
-                      <div className="flex gap-2 flex-1">
-                        <input type="time" value={profileForm.q_bes_time_call} onChange={e => setProfileForm({...profileForm, q_bes_time_call: e.target.value})} className={`${inputClass} w-28`} />
+                      <div className="flex gap-1 flex-1 items-center">
+                        <input
+                          type="time"
+                          value={profileForm.q_bes_time_call}
+                          onChange={e => setProfileForm({...profileForm, q_bes_time_call: e.target.value})}
+                          className="w-28 h-9 px-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setProfileForm({...profileForm, q_bes_time_call: ''})}
+                          className="p-1 text-gray-500 hover:text-red-600"
+                          title="Clear time"
+                        >
+                          <Eraser className="w-4 h-4" />
+                        </button>
                         <select value={profileForm.q_bes_time_call_timezone} onChange={e => setProfileForm({...profileForm, q_bes_time_call_timezone: e.target.value})} className={`${selectClass} flex-1`}>
                           {timezoneOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                         </select>
@@ -1391,7 +1433,7 @@ export default function EditPreLeadPage() {
                       <tr key={memo.id} className="border-b hover:bg-gray-50">
                         <td className="px-4 py-3">{new Date(memo.created_at).toLocaleDateString()}</td>
                         <td className="px-4 py-3">User #{memo.created_by}</td>
-                        <td className="px-4 py-3">{memo.details || memo.content}</td>
+                        <td className="px-4 py-3" dangerouslySetInnerHTML={{ __html: memo.details || memo.content || '' }} />
                         <td className="px-4 py-3 text-center">
                           <button onClick={() => handleEditMemo(memo)} className="p-1 text-blue-600 hover:bg-blue-50 rounded mr-1">
                             <Pencil className="w-4 h-4" />
@@ -1425,60 +1467,70 @@ export default function EditPreLeadPage() {
 
                     {/* Rich Text Editor Toolbar */}
                     <div className="flex items-center gap-1 px-4 py-2 border-b bg-gray-50 flex-wrap">
-                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm font-bold" title="Bold">
+                      <button type="button" onClick={formatBold} className="px-2 py-1 hover:bg-gray-200 rounded text-sm font-bold" title="Bold">
                         B
                       </button>
-                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm italic" title="Italic">
+                      <button type="button" onClick={formatItalic} className="px-2 py-1 hover:bg-gray-200 rounded text-sm italic" title="Italic">
                         I
                       </button>
-                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm underline" title="Underline">
+                      <button type="button" onClick={formatUnderline} className="px-2 py-1 hover:bg-gray-200 rounded text-sm underline" title="Underline">
                         U
                       </button>
-                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Highlight">
+                      <button type="button" onClick={formatHighlight} className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Highlight">
                         <span className="bg-yellow-300 px-1">ab</span>
                       </button>
                       <div className="w-px h-5 bg-gray-300 mx-1"></div>
-                      <select className="h-7 px-2 text-xs border border-gray-300 rounded bg-white">
-                        <option>Arial</option>
-                        <option>Times New Roman</option>
-                        <option>Verdana</option>
-                        <option>Georgia</option>
+                      <select
+                        className="h-7 px-2 text-xs border border-gray-300 rounded bg-white"
+                        onChange={(e) => formatFontName(e.target.value)}
+                      >
+                        <option value="Arial">Arial</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="Verdana">Verdana</option>
+                        <option value="Georgia">Georgia</option>
                       </select>
-                      <select className="h-7 px-2 text-xs border border-gray-300 rounded bg-white w-14">
-                        <option>12</option>
-                        <option>14</option>
-                        <option>16</option>
-                        <option>18</option>
-                        <option>20</option>
-                        <option>24</option>
+                      <select
+                        className="h-7 px-2 text-xs border border-gray-300 rounded bg-white w-14"
+                        onChange={(e) => formatFontSize(e.target.value)}
+                      >
+                        <option value="2">12</option>
+                        <option value="3">14</option>
+                        <option value="4">16</option>
+                        <option value="5">18</option>
+                        <option value="6">20</option>
+                        <option value="7">24</option>
                       </select>
                       <div className="w-px h-5 bg-gray-300 mx-1"></div>
-                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm bg-yellow-200" title="Text Color">
-                        <span className="font-bold">A</span>
-                      </button>
+                      <input
+                        type="color"
+                        className="w-7 h-7 p-0 border border-gray-300 rounded cursor-pointer"
+                        onChange={(e) => formatTextColor(e.target.value)}
+                        title="Text Color"
+                      />
                       <div className="w-px h-5 bg-gray-300 mx-1"></div>
-                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Bullet List">
+                      <button type="button" onClick={formatBulletList} className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Bullet List">
                         <List className="w-4 h-4" />
                       </button>
-                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Numbered List">
+                      <button type="button" onClick={formatNumberedList} className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Numbered List">
                         <span className="text-xs">1.</span>
                       </button>
-                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Decrease Indent">
+                      <button type="button" onClick={formatOutdent} className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Decrease Indent">
                         <AlignLeft className="w-4 h-4" />
                       </button>
-                      <button type="button" className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Increase Indent">
+                      <button type="button" onClick={formatIndent} className="px-2 py-1 hover:bg-gray-200 rounded text-sm" title="Increase Indent">
                         <AlignRight className="w-4 h-4" />
                       </button>
                     </div>
 
                     {/* Editor Area */}
                     <div className="p-4">
-                      <textarea
-                        value={memoContent}
-                        onChange={(e) => setMemoContent(e.target.value)}
-                        rows={12}
-                        className="w-full px-3 py-2 border border-gray-300 rounded resize-y min-h-[200px] focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="Enter memo details..."
+                      <div
+                        ref={memoEditorRef}
+                        contentEditable
+                        className="w-full px-3 py-2 border border-gray-300 rounded min-h-[200px] focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-auto"
+                        style={{ maxHeight: '400px' }}
+                        dangerouslySetInnerHTML={{ __html: memoContent }}
+                        onBlur={(e) => setMemoContent(e.currentTarget.innerHTML)}
                       />
                     </div>
 

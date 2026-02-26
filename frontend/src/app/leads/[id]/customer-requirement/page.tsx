@@ -1870,14 +1870,16 @@ function IntroductionForm({ data, setData, onSave, saving, inputClass, labelClas
                 <button
                   onClick={() => setActivitySubTab('followup')}
                   className={`px-3 py-1 text-xs font-medium rounded ${
-                    activitySubTab === 'followup' ? 'bg-blue-600 text-white' : 'text-orange-500'
+                    activitySubTab === 'followup' ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-600'
                   }`}
                 >
                   Activity Follow-Up
                 </button>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setShowActivityModal(true)} className="px-3 py-1 text-xs border rounded hover:bg-gray-50">Add New Activity</button>
+                {activitySubTab === 'all' && (
+                  <button onClick={() => setShowActivityModal(true)} className="px-3 py-1 text-xs border rounded hover:bg-gray-50">Add New Activity</button>
+                )}
                 <button onClick={exportActivitiesCSV} className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">CSV</button>
                 <button onClick={exportActivitiesCSV} className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600">EXCEL</button>
                 <button onClick={exportActivitiesPDF} className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">PDF</button>
@@ -13742,7 +13744,7 @@ function PlanningForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-4 py-2 rounded-t text-sm font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-4 py-2 rounded-t text-sm font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-4 space-y-3">
                 <div className="flex items-center">
                   <label className="w-48 text-xs font-medium text-blue-600">Data Migration Coordinator</label>
@@ -13966,7 +13968,7 @@ function PlanningForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-4 py-2 rounded-t text-sm font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-4 py-2 rounded-t text-sm font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-4 space-y-3">
                 <div className="flex items-center">
                   <label className="w-40 text-xs font-medium text-blue-600">Training Coordinator</label>
@@ -14782,7 +14784,7 @@ function ConfigurationForm({ data, crId, leadId, refreshData, onOpenEmailModal, 
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-3 space-y-3">
                 <div className="flex items-center">
                   <label className="w-44 text-xs font-medium text-blue-600">Configuration Coordinator</label>
@@ -15762,7 +15764,7 @@ function TrainingForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-3 space-y-3">
                 <div className="flex items-center">
                   <label className="w-44 text-xs font-medium text-blue-600">Training Coordinator</label>
@@ -15854,7 +15856,7 @@ function TrainingForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-3 space-y-3">
                 <div className="flex items-center">
                   <label className="w-44 text-xs font-medium text-blue-600">Training Coordinator</label>
@@ -15938,7 +15940,7 @@ function TrainingForm({ data, crId, leadId, refreshData, onOpenEmailModal, email
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-3 space-y-3">
                 <div className="flex items-center">
                   <label className="w-44 text-xs font-medium text-blue-600">Training Coordinator</label>
@@ -16839,7 +16841,7 @@ function UATForm({ data, crId, leadId, refreshData, onOpenEmailModal, emailHisto
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-3 space-y-3">
                 <div className="flex items-center">
                   <label className="w-44 text-xs font-medium text-blue-600">UAT Coordinator</label>
@@ -17698,7 +17700,7 @@ function DataMigrationForm({ data, crId, leadId, refreshData, onOpenEmailModal, 
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-3 space-y-3">
                 <div className="flex items-center">
                   <label className="w-48 text-xs font-medium text-blue-600">Data Migration Coordinator</label>
@@ -17795,7 +17797,7 @@ function DataMigrationForm({ data, crId, leadId, refreshData, onOpenEmailModal, 
             </div>
             {/* Axiever Section */}
             <div>
-              <div className="bg-green-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
+              <div className="bg-blue-600 text-white px-3 py-2 rounded-t text-xs font-medium">Axiever</div>
               <div className="border border-t-0 rounded-b p-3 space-y-3">
                 <div className="flex items-center">
                   <label className="w-48 text-xs font-medium text-blue-600">Data Migration Coordinator</label>

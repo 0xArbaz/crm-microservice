@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -231,7 +231,8 @@ const leadScoreOptions = [
 
 // Location options will be fetched dynamically
 
-const contactTypeOptions = [
+// contactTypeOptions will be fetched from Option Master
+const defaultContactTypeOptions = [
   { value: 'management', label: 'Management' },
   { value: 'technical', label: 'Technical' },
   { value: 'sales', label: 'Sales' },
@@ -379,6 +380,13 @@ export default function EditLeadPage() {
   const [industryOptions, setIndustryOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Industry' }]);
   const [regionOptions, setRegionOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Region' }]);
   const [sourceOptions, setSourceOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Lead Source' }]);
+  const [contactTypeOptions, setContactTypeOptions] = useState<{value: string, label: string}[]>([
+    { value: 'management', label: 'Management' },
+    { value: 'technical', label: 'Technical' },
+    { value: 'sales', label: 'Sales' },
+    { value: 'purchase', label: 'Purchase' },
+    { value: 'accounts', label: 'Accounts' },
+  ]);
 
   // Dynamic location options
   const [countryOptions, setCountryOptions] = useState<{value: string, label: string}[]>([{ value: '', label: 'Select Country' }]);
@@ -413,6 +421,7 @@ export default function EditLeadPage() {
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [documentNotes, setDocumentNotes] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
 
   // Status Modal state
   const [showStatusModal, setShowStatusModal] = useState(false);
@@ -466,6 +475,20 @@ export default function EditLeadPage() {
   // Track if it's the initial load to avoid resetting city on first render
   const isInitialLoadRef = React.useRef(true);
   const prevCountryIdRef = React.useRef<string | undefined>(undefined);
+  const memoEditorRef = useRef<HTMLDivElement>(null);
+
+  // Rich text formatting functions for memo editor
+  const execMemoCommand = (command: string, value: string | undefined = undefined) => {
+    document.execCommand(command, false, value);
+    memoEditorRef.current?.focus();
+  };
+  const formatMemoBold = () => execMemoCommand('bold');
+  const formatMemoItalic = () => execMemoCommand('italic');
+  const formatMemoUnderline = () => execMemoCommand('underline');
+  const formatMemoHighlight = () => execMemoCommand('hiliteColor', 'yellow');
+  const formatMemoAlignLeft = () => execMemoCommand('justifyLeft');
+  const formatMemoAlignCenter = () => execMemoCommand('justifyCenter');
+  const formatMemoAlignRight = () => execMemoCommand('justifyRight');
 
   // Fetch Lead Data
   const fetchLeadData = useCallback(async () => {
@@ -503,7 +526,7 @@ export default function EditLeadPage() {
         phone: leadRes.phone || '',
         email: leadRes.email || '',
         lead_since: leadSince,
-        status: leadRes.status?.toString() || '',
+        status: leadRes.lead_status || '',
         group_id: leadRes.group_id?.toString() || '',
         industry_id: leadRes.industry_id?.toString() || '',
         region_id: leadRes.region_id?.toString() || '',
@@ -511,7 +534,11 @@ export default function EditLeadPage() {
         to_timings: toTimings,
         timezone: leadRes.timezone || '',
         sales_rep: leadRes.sales_rep?.toString() || '',
-        source: leadRes.source || '',
+        source: (() => {
+          const validSources = ['pre_lead', 'direct', 'website', 'referral', 'social_media', 'cold_call', 'walk_in', 'whatsapp', 'email', 'erp', 'other'];
+          const src = leadRes.source || '';
+          return validSources.includes(src) ? src : (src ? 'other' : '');
+        })(),
         lead_score: leadRes.lead_score?.toString() || '',
         priority: leadRes.priority || '',
         expected_value: leadRes.expected_value?.toString() || '',
@@ -601,10 +628,32 @@ export default function EditLeadPage() {
             setGroupOptions([{ value: '', label: 'Select Group' }, ...items]);
           } else if (title === 'industry' || title === 'industries') {
             setIndustryOptions([{ value: '', label: 'Select Industry' }, ...items]);
-          } else if (title === 'company region' || title === 'region' || title === 'regions') {
+          } else if (title === 'company region' || title === 'customer region' || title === 'region' || title === 'regions') {
             setRegionOptions([{ value: '', label: 'Select Region' }, ...items]);
           } else if (title === 'lead source' || title === 'source' || title === 'sources') {
-            setSourceOptions([{ value: '', label: 'Select Lead Source' }, ...items]);
+            // Valid enum values accepted by backend
+            const validSourceValues = ['pre_lead', 'direct', 'website', 'referral', 'social_media', 'cold_call', 'walk_in', 'whatsapp', 'email', 'erp', 'other'];
+
+            // Only use hardcoded valid options to avoid enum validation errors
+            setSourceOptions([
+              { value: '', label: 'Select Lead Source' },
+              { value: 'direct', label: 'Direct' },
+              { value: 'website', label: 'Website' },
+              { value: 'referral', label: 'Referral' },
+              { value: 'social_media', label: 'Social Media' },
+              { value: 'cold_call', label: 'Cold Call' },
+              { value: 'walk_in', label: 'Walk In' },
+              { value: 'whatsapp', label: 'WhatsApp' },
+              { value: 'email', label: 'Email' },
+              { value: 'erp', label: 'ERP' },
+              { value: 'pre_lead', label: 'Pre Lead' },
+              { value: 'other', label: 'Other' },
+            ]);
+          } else if (title === 'contact type' || title === 'contact types') {
+            const contactItems = option.dropdowns
+              .filter((d: any) => d.status === 'Active')
+              .map((d: any) => ({ value: d.name.toLowerCase().replace(/\s+/g, '_'), label: d.name }));
+            setContactTypeOptions(contactItems.length > 0 ? contactItems : defaultContactTypeOptions);
           }
         });
       } catch (err) {
@@ -1047,7 +1096,8 @@ export default function EditLeadPage() {
 
   // Document Handlers
   const handleUploadDocument = async () => {
-    if (!documentFile) return;
+    if (!documentFile || isUploading) return;
+    setIsUploading(true);
     try {
       await api.uploadLeadDocument(leadId, documentFile, documentNotes);
       setShowDocumentModal(false);
@@ -1059,6 +1109,8 @@ export default function EditLeadPage() {
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       setError(getErrorMessage(err, 'Failed to upload document'));
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -2285,7 +2337,7 @@ export default function EditLeadPage() {
                       {memo.created_by ? `User ${memo.created_by}` : 'System'}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
-                      <div className="line-clamp-2">{memo.content || memo.title}</div>
+                      <div className="line-clamp-2" dangerouslySetInnerHTML={{ __html: memo.content || memo.title }} />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
@@ -2330,8 +2382,9 @@ export default function EditLeadPage() {
         alert('Please select a file first');
         return;
       }
-      // Trigger the existing upload logic
-      setShowDocumentModal(true);
+      if (isUploading) return;
+      // Directly upload without opening modal
+      await handleUploadDocument();
     };
 
     return (
@@ -2360,9 +2413,10 @@ export default function EditLeadPage() {
               </label>
               <button
                 onClick={handleDirectUpload}
-                className="px-4 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                disabled={isUploading || !documentFile}
+                className="px-4 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
-                Upload
+                {isUploading ? 'Uploading...' : 'Upload'}
               </button>
             </div>
           </div>
@@ -2987,42 +3041,47 @@ export default function EditLeadPage() {
                 <div className="border border-gray-300 rounded overflow-hidden">
                   {/* Toolbar */}
                   <div className="flex items-center gap-0.5 px-3 py-2 border-b border-gray-200 bg-white flex-wrap">
-                    <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded font-bold text-base">B</button>
-                    <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded italic text-base font-serif">I</button>
-                    <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded underline text-base">U</button>
-                    <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded text-base">
+                    <button type="button" onClick={formatMemoBold} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded font-bold text-base">B</button>
+                    <button type="button" onClick={formatMemoItalic} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded italic text-base font-serif">I</button>
+                    <button type="button" onClick={formatMemoUnderline} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded underline text-base">U</button>
+                    <button type="button" onClick={formatMemoHighlight} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded text-base">
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"/></svg>
                     </button>
                     <span className="w-px h-6 bg-gray-300 mx-2"></span>
-                    <select className="h-8 text-sm border border-gray-300 rounded px-2 bg-white">
-                      <option>Jost</option>
-                      <option>Arial</option>
-                      <option>Times</option>
+                    <select onChange={(e) => execMemoCommand('fontName', e.target.value)} className="h-8 text-sm border border-gray-300 rounded px-2 bg-white">
+                      <option value="Jost">Jost</option>
+                      <option value="Arial">Arial</option>
+                      <option value="Times New Roman">Times</option>
                     </select>
-                    <select className="h-8 w-16 text-sm border border-gray-300 rounded px-2 bg-white ml-1">
-                      <option>14</option>
-                      <option>12</option>
-                      <option>16</option>
-                      <option>18</option>
+                    <select onChange={(e) => execMemoCommand('fontSize', e.target.value)} className="h-8 w-16 text-sm border border-gray-300 rounded px-2 bg-white ml-1">
+                      <option value="3">14</option>
+                      <option value="2">12</option>
+                      <option value="4">16</option>
+                      <option value="5">18</option>
                     </select>
-                    <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded ml-1 bg-yellow-200 font-bold text-base border border-yellow-300">A</button>
+                    <button type="button" onClick={formatMemoHighlight} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded ml-1 bg-yellow-200 font-bold text-base border border-yellow-300">A</button>
                     <span className="w-px h-6 bg-gray-300 mx-2"></span>
-                    <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded">
+                    <button type="button" onClick={formatMemoAlignLeft} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
                     </button>
-                    <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded">
+                    <button type="button" onClick={formatMemoAlignCenter} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" /></svg>
                     </button>
-                    <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded">
+                    <button type="button" onClick={formatMemoAlignRight} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
                     </button>
                   </div>
-                  {/* Text Area */}
-                  <textarea
-                    value={editingMemo.content}
-                    onChange={(e) => setEditingMemo({ ...editingMemo, content: e.target.value, title: e.target.value.substring(0, 50) || 'Memo' })}
-                    className="w-full px-4 py-3 text-sm focus:outline-none resize-none border-0 min-h-[250px]"
-                    placeholder="Enter memo details..."
+                  {/* Content Editable Area */}
+                  <div
+                    ref={memoEditorRef}
+                    contentEditable
+                    onInput={(e) => {
+                      const content = (e.target as HTMLDivElement).innerHTML;
+                      setEditingMemo({ ...editingMemo, content, title: (e.target as HTMLDivElement).textContent?.substring(0, 50) || 'Memo' });
+                    }}
+                    dangerouslySetInnerHTML={{ __html: editingMemo.content }}
+                    className="w-full px-4 py-3 text-sm focus:outline-none min-h-[250px] overflow-y-auto"
+                    style={{ outline: 'none' }}
                   />
                 </div>
               </div>
@@ -3090,10 +3149,10 @@ export default function EditLeadPage() {
               <div className="px-5 py-4 flex justify-center border-t border-gray-100">
                 <button
                   onClick={handleUploadDocument}
-                  disabled={!documentFile}
+                  disabled={!documentFile || isUploading}
                   className="px-8 py-2 bg-green-500 text-white text-sm font-medium rounded hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
-                  Upload
+                  {isUploading ? 'Uploading...' : 'Upload'}
                 </button>
               </div>
             </div>

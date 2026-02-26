@@ -10,7 +10,7 @@ from app.api.deps import get_current_user
 from app.models.user import User
 from app.models.pre_lead import PreLead
 from app.models.lead import Lead, LeadSource
-from app.models.customer import Customer
+from app.models.customer import Customer, CustomerStatus
 from app.models.activity import Activity
 from app.models.sales_target import SalesTarget
 from app.schemas.dashboard import (
@@ -22,30 +22,37 @@ from app.schemas.dashboard import (
 router = APIRouter()
 
 
-def get_count_stats(db: Session, model, date_field="created_at") -> CountStats:
-    """Get count statistics for a model"""
+def get_count_stats(db: Session, model, date_field="created_at", active_status=None) -> CountStats:
+    """Get count statistics for a model (only active records)"""
     now = datetime.utcnow()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=now.weekday())
     month_start = today_start.replace(day=1)
     last_month_start = (month_start - timedelta(days=1)).replace(day=1)
 
-    total = db.query(func.count(model.id)).scalar()
+    # Base filter for active records
+    base_filter = []
+    if active_status is not None:
+        base_filter.append(active_status)
+
+    total = db.query(func.count(model.id)).filter(*base_filter).scalar() or 0
     today = db.query(func.count(model.id)).filter(
+        *base_filter,
         getattr(model, date_field) >= today_start
-    ).scalar()
+    ).scalar() or 0
     this_week = db.query(func.count(model.id)).filter(
+        *base_filter,
         getattr(model, date_field) >= week_start
-    ).scalar()
+    ).scalar() or 0
     this_month = db.query(func.count(model.id)).filter(
+        *base_filter,
         getattr(model, date_field) >= month_start
-    ).scalar()
+    ).scalar() or 0
     last_month = db.query(func.count(model.id)).filter(
-        and_(
-            getattr(model, date_field) >= last_month_start,
-            getattr(model, date_field) < month_start
-        )
-    ).scalar()
+        *base_filter,
+        getattr(model, date_field) >= last_month_start,
+        getattr(model, date_field) < month_start
+    ).scalar() or 0
 
     change_percentage = 0.0
     if last_month > 0:
@@ -67,21 +74,25 @@ def get_dashboard_stats(
 ):
     """Get comprehensive dashboard statistics"""
 
-    # Count stats
-    pre_lead_stats = get_count_stats(db, PreLead)
-    lead_stats = get_count_stats(db, Lead)
-    customer_stats = get_count_stats(db, Customer)
+    # Count stats (filter by active status)
+    pre_lead_stats = get_count_stats(db, PreLead, active_status=(PreLead.status == 0))
+    lead_stats = get_count_stats(db, Lead, active_status=(Lead.status == 0))
+    customer_stats = get_count_stats(db, Customer, active_status=(Customer.status == CustomerStatus.ACTIVE))
 
-    # Conversion stats
-    total_pre_leads = db.query(func.count(PreLead.id)).scalar() or 1
-    total_leads = db.query(func.count(Lead.id)).scalar() or 1
+    # Conversion stats (only active records with status=0)
+    total_pre_leads = db.query(func.count(PreLead.id)).filter(PreLead.status == 0).scalar() or 1
+    total_leads = db.query(func.count(Lead.id)).filter(Lead.status == 0).scalar() or 1
     converted_pre_leads = db.query(func.count(PreLead.id)).filter(
+        PreLead.status == 0,
         PreLead.is_converted == True
-    ).scalar()
+    ).scalar() or 0
     converted_leads = db.query(func.count(Lead.id)).filter(
+        Lead.status == 0,
         Lead.is_converted == True
-    ).scalar()
-    total_customers = db.query(func.count(Customer.id)).scalar()
+    ).scalar() or 0
+    total_customers = db.query(func.count(Customer.id)).filter(
+        Customer.status == CustomerStatus.ACTIVE
+    ).scalar() or 0
 
     conversions = ConversionStats(
         pre_lead_to_lead=round((converted_pre_leads / total_pre_leads) * 100, 2) if total_pre_leads else 0,
@@ -89,12 +100,16 @@ def get_dashboard_stats(
         overall=round((total_customers / total_pre_leads) * 100, 2) if total_pre_leads else 0
     )
 
-    # Funnel data - using lead_status workflow field
+    # Funnel data - using lead_status workflow field (only active leads with status=0)
     lead_status_values = ["new", "contacted", "qualified", "proposal_sent", "negotiation", "won", "lost"]
     funnel_stages = []
     for status_val in lead_status_values:
-        count = db.query(func.count(Lead.id)).filter(Lead.lead_status == status_val).scalar()
+        count = db.query(func.count(Lead.id)).filter(
+            Lead.status == 0,
+            Lead.lead_status == status_val
+        ).scalar() or 0
         value = db.query(func.sum(Lead.expected_value)).filter(
+            Lead.status == 0,
             Lead.lead_status == status_val
         ).scalar() or Decimal(0)
         funnel_stages.append(FunnelStage(stage=status_val, count=count, value=value))
@@ -144,27 +159,31 @@ def get_dashboard_stats(
             created_at=activity.created_at
         ))
 
-    # Leads by source
+    # Leads by source (only active leads with status=0)
     leads_by_source_raw = db.query(
         Lead.source,
         func.count(Lead.id).label('count')
-    ).group_by(Lead.source).all()
+    ).filter(Lead.status == 0).group_by(Lead.source).all()
 
     total_leads_count = sum(item.count for item in leads_by_source_raw) or 1
     leads_by_source = [
         LeadsBySource(
-            source=item.source.value,
+            source=item.source.value if item.source else "unknown",
             count=item.count,
             percentage=round((item.count / total_leads_count) * 100, 2)
         )
         for item in leads_by_source_raw
+        if item.source is not None
     ]
 
-    # Leads by status - using lead_status workflow field
+    # Leads by status - using lead_status workflow field (only active leads with status=0)
     leads_by_status = [
         LeadsByStatus(
             status=status_val,
-            count=db.query(func.count(Lead.id)).filter(Lead.lead_status == status_val).scalar()
+            count=db.query(func.count(Lead.id)).filter(
+                Lead.status == 0,
+                Lead.lead_status == status_val
+            ).scalar() or 0
         )
         for status_val in lead_status_values
     ]
@@ -213,23 +232,22 @@ def get_quick_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get quick dashboard statistics"""
+    """Get quick dashboard statistics (only active records with status=0)"""
     now = datetime.utcnow()
 
     return QuickStats(
-        total_pre_leads=db.query(func.count(PreLead.id)).scalar(),
-        total_leads=db.query(func.count(Lead.id)).scalar(),
-        total_customers=db.query(func.count(Customer.id)).scalar(),
+        total_pre_leads=db.query(func.count(PreLead.id)).filter(PreLead.status == 0).scalar() or 0,
+        total_leads=db.query(func.count(Lead.id)).filter(Lead.status == 0).scalar() or 0,
+        total_customers=db.query(func.count(Customer.id)).filter(
+            Customer.status == CustomerStatus.ACTIVE
+        ).scalar() or 0,
         pending_follow_ups=db.query(func.count(Lead.id)).filter(
-            and_(
-                Lead.next_follow_up.isnot(None),
-                Lead.next_follow_up <= now + timedelta(days=1)
-            )
-        ).scalar(),
+            Lead.status == 0,
+            Lead.next_follow_up.isnot(None),
+            Lead.next_follow_up <= now + timedelta(days=1)
+        ).scalar() or 0,
         overdue_tasks=db.query(func.count(Activity.id)).filter(
-            and_(
-                Activity.is_completed == False,
-                Activity.scheduled_date < now
-            )
-        ).scalar()
+            Activity.is_completed == False,
+            Activity.scheduled_date < now
+        ).scalar() or 0
     )

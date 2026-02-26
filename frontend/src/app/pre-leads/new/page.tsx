@@ -124,6 +124,7 @@ export default function NewPreLeadPage() {
               setIndustryOptions([{ value: '', label: 'Select Industry' }, ...items]);
               break;
             case 'company region':
+            case 'customer region':
             case 'region':
               setRegionOptions([{ value: '', label: 'Select Company Region' }, ...items]);
               break;
@@ -223,7 +224,10 @@ export default function NewPreLeadPage() {
         industry_id: data.industry_id ? parseInt(data.industry_id) : undefined,
         region_id: data.region_id ? parseInt(data.region_id) : undefined,
         sales_rep: data.sales_rep ? parseInt(data.sales_rep) : undefined,
+        lead_source: data.source || undefined,
       };
+      // Remove the source field as backend uses lead_source
+      delete apiData.source;
 
       await api.createPreLead(apiData as Partial<PreLead>);
       setSuccess('Pre-lead created successfully!');
@@ -231,7 +235,16 @@ export default function NewPreLeadPage() {
         router.push('/pre-leads');
       }, 1500);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to create pre-lead');
+      const detail = err.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        // Handle Pydantic validation errors
+        const messages = detail.map((e: any) => e.msg || e.message || JSON.stringify(e)).join(', ');
+        setError(messages);
+      } else if (typeof detail === 'object' && detail !== null) {
+        setError(detail.msg || detail.message || JSON.stringify(detail));
+      } else {
+        setError(detail || 'Failed to create pre-lead');
+      }
     } finally {
       setIsSubmitting(false);
     }
