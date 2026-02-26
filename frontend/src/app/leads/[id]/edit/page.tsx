@@ -28,6 +28,7 @@ import {
 import api from '@/lib/api';
 import { Lead, Contact, Activity } from '@/types';
 import { formatDate } from '@/lib/utils';
+import { LeadEnrichment } from '@/components/leads/LeadEnrichment';
 
 // Types for Lead entities
 interface LeadContact {
@@ -333,7 +334,7 @@ const timeFrameOptions = [
   { value: 'ongoing', label: 'Ongoing' },
 ];
 
-type TabType = 'company' | 'contacts' | 'activities' | 'qualified' | 'memo' | 'upload' | 'status' | 'workflow';
+type TabType = 'company' | 'contacts' | 'activities' | 'qualified' | 'memo' | 'upload' | 'status' | 'workflow' | 'enrich';
 
 export default function EditLeadPage() {
   const router = useRouter();
@@ -1193,6 +1194,7 @@ export default function EditLeadPage() {
     { id: 'upload', label: 'Upload File' },
     { id: 'status', label: 'Status' },
     { id: 'workflow', label: 'Workflow & Audit Trail' },
+    { id: 'enrich', label: 'Enrich' },
   ];
 
   // Render Company Details Tab
@@ -2575,6 +2577,24 @@ export default function EditLeadPage() {
           {activeTab === 'upload' && renderUploadFile()}
           {activeTab === 'status' && renderStatus()}
           {activeTab === 'workflow' && renderWorkflow()}
+          {activeTab === 'enrich' && leadData && (
+            <LeadEnrichment
+              lead={leadData}
+              leadId={leadId}
+              onLeadUpdated={async () => {
+                const res = await api.getLead(leadId);
+                setLeadData(res);
+                setSuccess('Lead updated with enriched data!');
+                setTimeout(() => setSuccess(null), 3000);
+              }}
+              onContactAdded={async () => {
+                const contactsRes = await api.getLeadContactsForEdit(leadId);
+                setContacts(contactsRes || []);
+                setSuccess('Contact added from enrichment!');
+                setTimeout(() => setSuccess(null), 3000);
+              }}
+            />
+          )}
         </div>
 
         {/* Social Media Links Modal */}

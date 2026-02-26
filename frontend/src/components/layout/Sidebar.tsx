@@ -47,6 +47,7 @@ const navigation: NavItem[] = [
     icon: Target,
     children: [
       { name: 'New Lead', href: '/leads/new' },
+      { name: 'Lead Search', href: '/leads/search' },
       { name: 'Manage Leads', href: '/leads' },
       { name: 'Track Lead', href: '/leads/track' },
       { name: 'Discarded', href: '/leads/discarded' },

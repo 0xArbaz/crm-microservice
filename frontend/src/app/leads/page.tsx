@@ -2,11 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Eye, Edit, Trash2, FileText, XCircle } from 'lucide-react';
+import { Eye, Edit, Trash2, FileText, XCircle, Sparkles } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/api';
 import { Lead } from '@/types';
+import { BulkEnrichmentModal } from '@/components/leads/BulkEnrichmentModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -107,6 +108,10 @@ export default function LeadsPage() {
     status: '',
   });
 
+  // Selection states
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showEnrichModal, setShowEnrichModal] = useState(false);
+
   const fetchLeads = async () => {
     setLoading(true);
     try {
@@ -132,6 +137,11 @@ export default function LeadsPage() {
     fetchLeads();
   }, [page]);
 
+  // Clear selection when page changes or data reloads
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page]);
+
   const handleSearch = () => {
     setPage(1);
     fetchLeads();
@@ -152,6 +162,28 @@ export default function LeadsPage() {
       }
     }
   };
+
+  // Selection handlers
+  const toggleSelectAll = () => {
+    if (selectedIds.size === leads.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(leads.map(l => l.id)));
+    }
+  };
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const allSelected = leads.length > 0 && selectedIds.size === leads.length;
+  const someSelected = selectedIds.size > 0 && selectedIds.size < leads.length;
+  const selectedLeads = leads.filter(l => selectedIds.has(l.id));
 
   const exportCSV = () => {
     if (leads.length === 0) {
@@ -306,20 +338,30 @@ export default function LeadsPage() {
               <thead>
                 {/* Column Headers */}
                 <tr className="bg-gray-50">
-                  <th className={thClass} style={{ width: '12%' }}>Company <span className="text-gray-400">&#9650;&#9660;</span></th>
-                  <th className={thClass} style={{ width: '15%' }}>Address</th>
-                  <th className={thClass} style={{ width: '8%' }}>Country <span className="text-gray-400">&#9650;&#9660;</span></th>
+                  <th className="px-2 py-2 border-b border-gray-200 w-10">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                  </th>
+                  <th className={thClass} style={{ width: '11%' }}>Company <span className="text-gray-400">&#9650;&#9660;</span></th>
+                  <th className={thClass} style={{ width: '14%' }}>Address</th>
+                  <th className={thClass} style={{ width: '7%' }}>Country <span className="text-gray-400">&#9650;&#9660;</span></th>
                   <th className={thClass} style={{ width: '8%' }}>State/Province <span className="text-gray-400">&#9650;&#9660;</span></th>
-                  <th className={thClass} style={{ width: '7%' }}>City <span className="text-gray-400">&#9650;&#9660;</span></th>
-                  <th className={thClass} style={{ width: '8%' }}>Industry <span className="text-gray-400">&#9650;&#9660;</span></th>
-                  <th className={thClass} style={{ width: '7%' }}>Region</th>
-                  <th className={thClass} style={{ width: '9%' }}>Lead Source <span className="text-gray-400">&#9650;&#9660;</span></th>
+                  <th className={thClass} style={{ width: '6%' }}>City <span className="text-gray-400">&#9650;&#9660;</span></th>
+                  <th className={thClass} style={{ width: '7%' }}>Industry <span className="text-gray-400">&#9650;&#9660;</span></th>
+                  <th className={thClass} style={{ width: '6%' }}>Region</th>
+                  <th className={thClass} style={{ width: '8%' }}>Lead Source <span className="text-gray-400">&#9650;&#9660;</span></th>
                   <th className={thClass} style={{ width: '7%' }}>Priority <span className="text-gray-400">&#9650;&#9660;</span></th>
                   <th className={thClass} style={{ width: '7%' }}>Status <span className="text-gray-400">&#9650;&#9660;</span></th>
-                  <th className={thClass} style={{ width: '12%' }}>Action</th>
+                  <th className={thClass} style={{ width: '11%' }}>Action</th>
                 </tr>
                 {/* Filter Row */}
                 <tr className="bg-white border-b">
+                  <td className="px-2 py-2"></td>
                   <td className="px-2 py-2">
                     <input
                       type="text"
@@ -439,19 +481,36 @@ export default function LeadsPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={11} className="text-center py-12">
+                    <td colSpan={12} className="text-center py-12">
                       <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                     </td>
                   </tr>
                 ) : leads.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="text-center py-12 text-gray-500">
+                    <td colSpan={12} className="text-center py-12 text-gray-500">
                       No leads found
                     </td>
                   </tr>
                 ) : (
                   leads.map((lead, index) => (
-                    <tr key={lead.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <tr
+                      key={lead.id}
+                      className={`${
+                        selectedIds.has(lead.id)
+                          ? 'bg-primary-50'
+                          : index % 2 === 0
+                          ? 'bg-white'
+                          : 'bg-gray-50'
+                      }`}
+                    >
+                      <td className="px-2 py-2 border-b border-gray-100">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(lead.id)}
+                          onChange={() => toggleSelect(lead.id)}
+                          className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        />
+                      </td>
                       <td className={tdClass}>
                         <Link href={`/leads/${lead.id}`} className="text-blue-600 hover:underline font-medium">
                           {lead.company_name || `${lead.first_name} ${lead.last_name || ''}`}
@@ -550,7 +609,44 @@ export default function LeadsPage() {
             </div>
           )}
         </div>
+
+        {/* Floating Action Bar */}
+        {selectedIds.size > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+            <div className="flex items-center gap-4 bg-gray-900 text-white px-6 py-3 rounded-xl shadow-2xl">
+              <span className="text-sm font-medium">
+                {selectedIds.size} lead{selectedIds.size !== 1 ? 's' : ''} selected
+              </span>
+              <div className="w-px h-5 bg-gray-600" />
+              <button
+                onClick={() => setShowEnrichModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg text-sm font-medium transition-colors"
+              >
+                <Sparkles className="w-4 h-4" />
+                Enrich Selected
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Bulk Enrichment Modal */}
+      {showEnrichModal && (
+        <BulkEnrichmentModal
+          leads={selectedLeads}
+          onClose={() => setShowEnrichModal(false)}
+          onComplete={() => {
+            fetchLeads();
+            setSelectedIds(new Set());
+          }}
+        />
+      )}
     </MainLayout>
   );
 }

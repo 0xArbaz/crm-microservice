@@ -12,9 +12,18 @@ import {
   WebhookLog,
   DashboardStats,
   PaginatedResponse,
+  LeadSearchParams,
+  LeadSearchResponse,
+  EnrichLeadRequest,
+  EnrichLeadResponse,
+  BulkEnrichRequest,
+  BulkEnrichSubmitResponse,
+  BulkEnrichJobProgress,
+  BulkEnrichResultsResponse,
 } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+const LEAD_SEARCH_API_URL = process.env.NEXT_PUBLIC_LEAD_SEARCH_API_URL || 'http://localhost:8001';
 
 class ApiService {
   private client: AxiosInstance;
@@ -1172,6 +1181,76 @@ class ApiService {
 
   async deleteCRIEmailTemplate(templateId: number): Promise<void> {
     await this.client.delete(`/cri-email-templates/${templateId}`);
+  }
+
+  // Lead Generation Search (uses external ngrok/lead-search API, not the CRM backend)
+  async searchGeneratedLeads(params: LeadSearchParams): Promise<LeadSearchResponse> {
+    const searchParams = new URLSearchParams();
+    searchParams.append('industry', params.industry);
+    searchParams.append('location', params.location);
+    searchParams.append('ai_engine', params.ai_engine);
+
+    if (params.job_title) searchParams.append('job_title', params.job_title);
+    if (params.keywords) searchParams.append('keywords', params.keywords);
+    if (params.sources && params.sources.length > 0) {
+      searchParams.append('sources', params.sources.join(','));
+    }
+    if (params.enrichment_source) searchParams.append('enrichment_source', params.enrichment_source);
+    if (params.min_score !== undefined) searchParams.append('min_score', String(params.min_score));
+    if (params.exclude_empty_contacts) searchParams.append('exclude_empty_contacts', 'true');
+
+    const response = await axios.get<LeadSearchResponse>(
+      `${LEAD_SEARCH_API_URL}/leads/search?${searchParams.toString()}`
+    );
+    return response.data;
+  }
+
+  // Lead Enrichment (uses external enrichment API)
+  async enrichLead(data: EnrichLeadRequest): Promise<EnrichLeadResponse> {
+    const response = await axios.post<EnrichLeadResponse>(
+      `${LEAD_SEARCH_API_URL}/leads/enrich`,
+      data,
+      { timeout: 120000 }
+    );
+    return response.data;
+  }
+
+  // Bulk Enrichment - Async job-based (up to 1000 leads)
+  async submitBulkEnrichment(data: BulkEnrichRequest): Promise<BulkEnrichSubmitResponse> {
+    const response = await axios.post<BulkEnrichSubmitResponse>(
+      `${LEAD_SEARCH_API_URL}/leads/enrich/bulk`,
+      data,
+      { timeout: 30000 }
+    );
+    return response.data;
+  }
+
+  async pollBulkEnrichment(jobId: string): Promise<BulkEnrichJobProgress> {
+    const response = await axios.get<BulkEnrichJobProgress>(
+      `${LEAD_SEARCH_API_URL}/leads/enrich/bulk/${jobId}`
+    );
+    return response.data;
+  }
+
+  async fetchBulkEnrichmentResults(
+    jobId: string,
+    page: number = 1,
+    pageSize: number = 50,
+    onlyEnriched: boolean = false
+  ): Promise<BulkEnrichResultsResponse> {
+    const params = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    if (onlyEnriched) params.append('only_enriched', 'true');
+    const response = await axios.get<BulkEnrichResultsResponse>(
+      `${LEAD_SEARCH_API_URL}/leads/enrich/bulk/${jobId}/results?${params.toString()}`
+    );
+    return response.data;
+  }
+
+  async deleteBulkEnrichmentJob(jobId: string): Promise<void> {
+    await axios.delete(`${LEAD_SEARCH_API_URL}/leads/enrich/bulk/${jobId}`);
   }
 }
 

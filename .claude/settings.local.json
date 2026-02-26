@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la \"D:\\\\AI Development\\\\crm-microservice\\\\backend\\\\alembic\\\\versions\"\" 2>/dev/null || dir \"D:AI Developmentcrm-microservicebackendalembicversions\" 2>/dev/null || echo \"Directory may not exist \")",
+      "Bash(npx tsc:*)",
+      "Bash(pip show:*)",
+      "Bash(pip install:*)",
+      "Bash(python -c:*)",
+      "Bash(\"D:/AI Development/crm-microservice/backend/venv/Scripts/pip\" show pydantic pydantic-core)",
+      "Bash(\"D:/AI Development/crm-microservice/backend/venv/Scripts/pip\" install --force-reinstall pydantic pydantic-core)",
+      "Bash(\"D:/AI Development/crm-microservice/backend/venv/Scripts/python\" -c \"from pydantic_core._pydantic_core import PydanticUndefinedType; from fastapi import FastAPI; print\\(''All imports OK''\\)\")",
+      "Bash(./venv/Scripts/pip install:*)",
+      "Bash(./venv/Scripts/python:*)"
+    ]
+  }
+}

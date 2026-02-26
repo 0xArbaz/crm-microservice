@@ -359,3 +359,274 @@ export interface PaginatedResponse<T> {
   page_size: number;
   total_pages: number;
 }
+
+// Lead Generation Search Types
+export type AIEngine = 'Claude' | 'ChatGPT' | 'Gemini';
+export type EnrichmentSource = 'Apollo' | 'Lusha' | 'Clearbit' | 'ZoomInfo';
+export type LeadSearchSource = 'LinkedIn' | 'Yelp' | 'YellowPages' | 'Crunchbase';
+
+export interface LeadSearchParams {
+  industry: string;
+  location: string;
+  ai_engine: AIEngine;
+  job_title?: string;
+  keywords?: string;
+  sources?: string[];
+  enrichment_source?: EnrichmentSource;
+  min_score?: number;
+  exclude_empty_contacts?: boolean;
+}
+
+export interface GeneratedLead {
+  ai_engine: string;
+  source: string;
+  discovery_mode: string;
+  confidence_score: number;
+  validated_by_ai?: boolean;
+  company_name: string;
+  website: string;
+  snippet: string;
+  industry?: string;
+  location?: string;
+  email: string | null;
+  phone: string | null;
+  extracted_email: string | null;
+  extracted_phone: string | null;
+  score: number;
+  reason: string;
+  company_size?: string;
+  linkedin?: string;
+  contact_name?: string;
+  contact_title?: string;
+  semantic_validation?: Record<string, unknown>;
+}
+
+export interface LeadSearchMetadata {
+  industry: string;
+  location: string;
+  discovery_sources?: string[];
+  sources?: string[];
+  enrichment_source?: string | null;
+  total_found: number;
+  errors_encountered: number;
+}
+
+export interface LeadSearchResponse {
+  status: string;
+  discovery_mode: string;
+  ai_engine: string;
+  search_metadata: LeadSearchMetadata;
+  leads: GeneratedLead[];
+}
+
+// Lead Enrichment Types
+export interface EnrichLeadInput {
+  company_name: string;
+  website?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  contact_name?: string;
+  contact_title?: string;
+  extra?: Record<string, unknown>;
+}
+
+export interface EnrichLeadRequest {
+  leads: EnrichLeadInput[];
+  enrich_fields?: ('email' | 'phone' | 'address' | 'contact_name' | 'contact_title')[];
+  verify_existing?: boolean;
+  verify_deliverability?: boolean;
+  enrichment_providers?: string[];
+  skip_verified?: boolean;
+  max_concurrent?: number;
+}
+
+export interface FormatValidationEmail {
+  valid: boolean;
+  email: string;
+  reason: string;
+  warnings: string[];
+  is_disposable: boolean;
+  is_role_based: boolean;
+}
+
+export interface FormatValidationPhone {
+  valid: boolean;
+  phone: string;
+  normalized: string;
+  national_format: string;
+  country_code: string;
+  reason: string;
+  warnings: string[];
+  is_fake: boolean;
+}
+
+export interface FormatValidationAddress {
+  valid: boolean;
+  address: string;
+  reason: string;
+  warnings: string[];
+  has_street: boolean;
+  has_city_state: boolean;
+  is_po_box: boolean;
+}
+
+export interface FormatValidation {
+  email?: FormatValidationEmail;
+  phone?: FormatValidationPhone;
+  address?: FormatValidationAddress;
+}
+
+export interface EmailVerification {
+  email: string;
+  status: 'valid' | 'invalid' | 'catch-all' | 'unknown';
+  deliverable: boolean;
+  source: string;
+  confidence: number;
+  details?: {
+    smtp_check: boolean;
+    mx_records: boolean;
+    is_catch_all: boolean;
+    is_disposable: boolean;
+    is_role_based: boolean;
+    did_you_mean: string | null;
+    provider: string;
+  };
+}
+
+export interface PhoneVerification {
+  phone: string;
+  valid: boolean;
+  source: string;
+  line_type: string;
+  carrier: string;
+  location: string;
+  country_code: string;
+  confidence: number;
+}
+
+export interface AddressVerification {
+  address: string;
+  standardized: string;
+  valid: boolean;
+  source: string;
+  coordinates: { lat: number; lng: number } | null;
+  components?: {
+    street_number?: string;
+    street?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    country?: string;
+    country_code?: string;
+  };
+  confidence: number;
+}
+
+export interface EnrichmentMetadata {
+  enriched_at: string;
+  fields_enriched: string[];
+  fields_still_missing: string[];
+  fields_failed: string[];
+  providers_used: string[];
+  total_api_calls: number;
+  enrichment_duration_ms: number;
+}
+
+export interface EnrichedLead {
+  company_name: string;
+  website: string;
+  email: string;
+  phone: string;
+  location: string;
+  contact_name: string;
+  contact_title: string;
+  email_source?: string;
+  phone_source?: string;
+  address_source?: string;
+  contact_name_source?: string;
+  contact_title_source?: string;
+  linkedin?: string;
+  company_size?: string;
+  industry?: string;
+  address?: string;
+  format_validation?: FormatValidation;
+  email_verification?: EmailVerification;
+  phone_verification?: PhoneVerification;
+  address_verification?: AddressVerification;
+  enrichment_metadata?: EnrichmentMetadata;
+  extra?: Record<string, unknown>;
+}
+
+export interface EnrichLeadResponse {
+  status: string;
+  summary: {
+    total_leads: number;
+    enriched: number;
+    skipped: number;
+    verified: number;
+    providers_strategy: string[];
+  };
+  leads: EnrichedLead[];
+}
+
+// Bulk Enrichment Types (async job-based)
+export interface BulkEnrichRequest {
+  leads: EnrichLeadInput[];
+  enrich_fields?: ('email' | 'phone' | 'address' | 'contact_name' | 'contact_title')[];
+  verify_existing?: boolean;
+  verify_deliverability?: boolean;
+  enrichment_providers?: string[];
+  skip_verified?: boolean;
+  max_concurrent?: number;
+  chunk_size?: number;
+}
+
+export interface BulkEnrichSubmitResponse {
+  status: string;
+  job_id: string;
+  total_leads: number;
+  to_enrich: number;
+  skipped: number;
+  total_chunks: number;
+  chunk_size: number;
+  message: string;
+}
+
+export type BulkJobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+
+export interface BulkEnrichJobProgress {
+  job_id: string;
+  status: BulkJobStatus;
+  progress_percent: number;
+  total_leads: number;
+  processed: number;
+  enriched: number;
+  failed: number;
+  skipped: number;
+  current_chunk: number;
+  total_chunks: number;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  errors: string[];
+  config: {
+    enrich_fields: string[];
+    enrichment_providers: string[];
+    chunk_size: number;
+  };
+}
+
+export interface BulkEnrichResultsResponse {
+  job_id: string;
+  status: BulkJobStatus;
+  pagination: {
+    page: number;
+    page_size: number;
+    total_results: number;
+    total_pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+  };
+  leads: EnrichedLead[];
+}
