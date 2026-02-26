@@ -639,10 +639,10 @@ class ApiService {
     return response.data;
   }
 
-  // async updateWebhookConfig(id: number, data: Partial<WebhookConfig>): Promise<WebhookConfig> {
-  //   const response = await this.client.put<WebhookConfig>(`/webhooks/configs/${id}`, data);
-  //   return response.data;
-  // }
+  async updateWebhookConfig(id: number, data: Partial<WebhookConfig>): Promise<WebhookConfig> {
+    const response = await this.client.put<WebhookConfig>(`/webhooks/configs/${id}`, data);
+    return response.data;
+  }
 
   async deleteWebhookConfig(id: number): Promise<void> {
     await this.client.delete(`/webhooks/configs/${id}`);
@@ -1373,46 +1373,6 @@ class ApiService {
 
   async deleteBulkEnrichmentJob(jobId: string): Promise<void> {
     await axios.delete(`${LEAD_SEARCH_API_URL}/leads/enrich/bulk/${jobId}`);
-  // ============ Webhook Settings ============
-
-  async getWebhookSettings(): Promise<any[]> {
-    const response = await this.client.get('/webhook-settings/settings');
-    return response.data;
-  }
-
-  async updateWebhookSetting(menuKey: string, isEnabled: boolean): Promise<any> {
-    const response = await this.client.put(`/webhook-settings/settings/${menuKey}`, { is_enabled: isEnabled });
-    return response.data;
-  }
-
-  async checkWebhookEnabled(menuPath: string): Promise<{ is_enabled: boolean; menu_key: string | null }> {
-    const response = await this.client.get(`/webhook-settings/settings/check/${encodeURIComponent(menuPath)}`);
-    return response.data;
-  }
-
-  async getWebhookConfig(menuKey: string): Promise<any> {
-    const response = await this.client.get(`/webhook-settings/config/${menuKey}`);
-    return response.data;
-  }
-
-  async updateWebhookConfig(menuKey: string, data: {
-    webhook_url?: string;
-    secret_key?: string;
-    events?: string[];
-    is_active?: boolean;
-  }): Promise<any> {
-    const response = await this.client.put(`/webhook-settings/config/${menuKey}`, data);
-    return response.data;
-  }
-
-  async testWebhook(menuKey: string): Promise<{ success: boolean; message: string }> {
-    const response = await this.client.post(`/webhook-settings/config/${menuKey}/test`);
-    return response.data;
-  }
-
-  async getEnabledWebhookPaths(): Promise<{ paths: { menu_key: string; menu_path: string }[] }> {
-    const response = await this.client.get('/webhook-settings/enabled-paths');
-    return response.data;
   }
 }
 
