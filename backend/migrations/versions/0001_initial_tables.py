@@ -32,7 +32,7 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column('updated_at', sa.DateTime(timezone=True), onupdate=sa.func.now()),
     )
-    op.create_index('ix_users_email', 'users', ['email'])
+    op.create_index('ix_users_email', 'users', ['email'], if_not_exists=True)
 
     # Create customers table (needed before leads due to foreign key)
     op.create_table(
@@ -77,9 +77,9 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column('updated_at', sa.DateTime(timezone=True), onupdate=sa.func.now()),
     )
-    op.create_index('ix_customers_email', 'customers', ['email'])
-    op.create_index('ix_customers_phone', 'customers', ['phone'])
-    op.create_index('ix_customers_customer_code', 'customers', ['customer_code'])
+    op.create_index('ix_customers_email', 'customers', ['email'], if_not_exists=True)
+    op.create_index('ix_customers_phone', 'customers', ['phone'], if_not_exists=True)
+    op.create_index('ix_customers_customer_code', 'customers', ['customer_code'], if_not_exists=True)
 
     # Create pre_leads table
     op.create_table(
@@ -111,8 +111,8 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column('updated_at', sa.DateTime(timezone=True), onupdate=sa.func.now()),
     )
-    op.create_index('ix_pre_leads_email', 'pre_leads', ['email'])
-    op.create_index('ix_pre_leads_phone', 'pre_leads', ['phone'])
+    op.create_index('ix_pre_leads_email', 'pre_leads', ['email'], if_not_exists=True)
+    op.create_index('ix_pre_leads_phone', 'pre_leads', ['phone'], if_not_exists=True)
 
     # Create leads table
     op.create_table(
@@ -158,8 +158,8 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column('updated_at', sa.DateTime(timezone=True), onupdate=sa.func.now()),
     )
-    op.create_index('ix_leads_email', 'leads', ['email'])
-    op.create_index('ix_leads_phone', 'leads', ['phone'])
+    op.create_index('ix_leads_email', 'leads', ['email'], if_not_exists=True)
+    op.create_index('ix_leads_phone', 'leads', ['phone'], if_not_exists=True)
 
     # Add foreign keys that were deferred
     op.create_foreign_key('fk_pre_leads_converted_lead_id', 'pre_leads', 'leads', ['converted_lead_id'], ['id'])
@@ -189,7 +189,7 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column('updated_at', sa.DateTime(timezone=True), onupdate=sa.func.now()),
     )
-    op.create_index('ix_contacts_email', 'contacts', ['email'])
+    op.create_index('ix_contacts_email', 'contacts', ['email'], if_not_exists=True)
 
     # Create activities table
     op.create_table(

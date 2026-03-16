@@ -1,0 +1,23 @@
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001_initial, Initial database tables
+INFO  [alembic.runtime.migration] Running upgrade 0001_initial -> 69e6232e176c, Add new pre_lead fields
+INFO  [alembic.runtime.migration] Running upgrade 69e6232e176c -> a2b3c4d5e6f7, Add new lead fields
+INFO  [alembic.runtime.migration] Running upgrade a2b3c4d5e6f7 -> b3c4d5e6f7g8, Add pre-lead entities tables
+INFO  [alembic.runtime.migration] Running upgrade b3c4d5e6f7g8 -> c4d5e6f7g8h9, Add lead entities tables
+INFO  [alembic.runtime.migration] Running upgrade c4d5e6f7g8h9 -> d5e6f7g8h9i0, Add missing lead columns
+INFO  [alembic.runtime.migration] Running upgrade d5e6f7g8h9i0 -> c84ac7e1ba32, Add missing columns to lead_contacts
+INFO  [alembic.runtime.migration] Running upgrade c84ac7e1ba32 -> 43051d327276, Add new string fields to sales_targets
+INFO  [alembic.runtime.migration] Running upgrade 43051d327276 -> 2572548d4dc7, add_customer_requirement_tables
+INFO  [alembic.runtime.migration] Running upgrade 2572548d4dc7 -> 9c3c66cdb0cd, add presentation_modules to cr_presentations
+INFO  [alembic.runtime.migration] Running upgrade 9c3c66cdb0cd -> f1a2b3c4d5e6, Add option master tables
+INFO  [alembic.runtime.migration] Running upgrade f1a2b3c4d5e6 -> g2h3i4j5k6l7, Add location tables (countries, states, cities)
+INFO  [alembic.runtime.migration] Running upgrade g2h3i4j5k6l7 -> h3i4j5k6l7m8, Add CRI email template table
+INFO  [alembic.runtime.migration] Running upgrade h3i4j5k6l7m8 -> i4j5k6l7m8n9, add cr_email_history table
+INFO  [alembic.runtime.migration] Running upgrade i4j5k6l7m8n9 -> j5k6l7m8n9o0, Add CR diligence short form table
+INFO  [alembic.runtime.migration] Running upgrade j5k6l7m8n9o0 -> k5l6m7n8o9p0, update introduction-1 email template
+INFO  [alembic.runtime.migration] Running upgrade k5l6m7n8o9p0 -> 366bc376ae4b, add source column to cr_activities
+INFO  [alembic.runtime.migration] Running upgrade 366bc376ae4b -> m1n2o3p4q5r6, add cr_meeting_calendars table
+INFO  [alembic.runtime.migration] Running upgrade m1n2o3p4q5r6 -> n2o3p4q5r6s7, add cr_presentation_meetings table
+INFO  [alembic.runtime.migration] Running upgrade n2o3p4q5r6s7 -> o3p4q5r6s7t8, Add WhatsApp marketing tables
+INFO  [alembic.runtime.migration] Running upgrade o3p4q5r6s7t8 -> p4q5r6s7t8u9, Add menu webhook settings tables
